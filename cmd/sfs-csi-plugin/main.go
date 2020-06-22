@@ -25,7 +25,6 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
-	"k8s.io/component-base/logs"
 	"k8s.io/klog"
 )
 
@@ -36,10 +35,6 @@ var (
 	vpcID       string
 	cloudconfig string
 )
-
-func init() {
-	flag.Set("logtostderr", "true")
-}
 
 func main() {
 	flag.CommandLine.Parse([]string{})
@@ -66,7 +61,7 @@ func main() {
 			})
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			cloud, err := config.LoadConfig(*cloudconfig)
+			cloud, err := config.LoadConfig(cloudconfig)
 			if err != nil {
 				klog.V(3).Infof("Failed to load cloud config: %v", err)
 			}
@@ -92,9 +87,6 @@ func main() {
 
 	cmd.PersistentFlags().StringVar(&cloudconfig, "cloud-config", "", "CSI driver cloud config")
 	cmd.MarkPersistentFlagRequired("cloud-config")
-
-	logs.InitLogs()
-	defer logs.FlushLogs()
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err.Error())

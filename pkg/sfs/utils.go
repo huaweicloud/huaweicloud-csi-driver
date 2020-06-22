@@ -1,11 +1,11 @@
 package sfs
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"k8s.io/klog"
@@ -39,10 +39,9 @@ func NewVolumeCapabilityAccessMode(mode csi.VolumeCapability_AccessMode_Mode) *c
 	return &csi.VolumeCapability_AccessMode{Mode: mode}
 }
 
-func NewControllerServer(d *SfsDriver, cloud config.CloudCredentials) *controllerServer {
+func NewControllerServer(d *SfsDriver) *controllerServer {
 	return &controllerServer{
 		Driver: d,
-		Cloud:  cloud,
 	}
 }
 
@@ -52,10 +51,9 @@ func NewIdentityServer(d *SfsDriver) *identityServer {
 	}
 }
 
-func NewNodeServer(d *SfsDriver, cloud config.CloudCredentials) *nodeServer {
+func NewNodeServer(d *SfsDriver) *nodeServer {
 	return &nodeServer{
 		Driver:   d,
-		Cloud:    cloud,
 	}
 }
 

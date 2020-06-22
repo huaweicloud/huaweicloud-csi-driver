@@ -70,10 +70,9 @@ func NewDriver(nodeID, nodeAZ, vpcID, endpoint, shareProto string, cloud config.
 
 	d.AddControllerServiceCapabilities(
 		[]csi.ControllerServiceCapability_RPC_Type{
-			csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
 			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-			csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
-			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+			//csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
+			//csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 		})
 	d.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
@@ -131,6 +130,5 @@ func (d *SfsDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_Acc
 }
 
 func (d *SfsDriver) Run() {
-
 	RunControllerandNodePublishServer(d.endpoint, d.ids, d.cs, d.ns)
 }
