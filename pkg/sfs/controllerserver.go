@@ -59,7 +59,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
         Name:       req.GetName(),
     }
 
-    if share, err := createShare(client, createOpts); err != nil {
+    share, err := createShare(client, &createOpts)
+	if err != nil {
 		klog.V(3).Infof("Failed to create SFS volume: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
     }
@@ -87,7 +88,13 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	if len(volID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "DeleteVolume Volume ID must be provided")
 	}
-	err := deleteShare(volID)
+
+	client, err := cs.Driver.cloud.SFSV2Client()
+    if err != nil {
+		klog.V(3).Infof("Failed to create SFS v2 client: %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
+    }
+	err = deleteShare(client, volID)
 	if err != nil {
 		klog.V(3).Infof("Failed to DeleteVolume: %v", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("DeleteVolume failed with error %v", err))
@@ -96,6 +103,10 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	klog.V(4).Infof("Delete volume %s", volID)
 
 	return &csi.DeleteVolumeResponse{}, nil
+}
+
+func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
 }
 
 func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
@@ -151,7 +162,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 		return nil, status.Error(codes.Internal, err.Error())
     }
 
-	_, err := getShare(client, volumeID)
+	_, err = getShare(client, volumeID)
 	if err != nil {
 		if _, ok := err.(golangsdk.ErrDefault404); ok {
 			return nil, status.Error(codes.NotFound, fmt.Sprintf("ValidateVolumeCapabiltites Volume %s not found", volumeID))
@@ -209,7 +220,7 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		return nil, status.Error(codes.Internal, err.Error())
     }
 
-	_, err := getShare(client, volumeID)
+	_, err = getShare(client, volumeID)
 	if err != nil {
 		if _, ok := err.(golangsdk.ErrDefault404); ok {
 			return nil, status.Error(codes.NotFound, "Volume not found")

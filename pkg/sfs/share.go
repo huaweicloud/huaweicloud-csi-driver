@@ -17,12 +17,8 @@ limitations under the License.
 package sfs
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/huaweicloud/golangsdk"
 	"github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/klog"
 )
 
@@ -49,7 +45,7 @@ func createShare(client *golangsdk.ServiceClient, createOpts *shares.CreateOpts)
 }
 
 func deleteShare(client *golangsdk.ServiceClient, shareID string) error {
-	if err := shares.Delete(sfsClient, shareID).ExtractErr(); err != nil {
+	if err := shares.Delete(client, shareID).ExtractErr(); err != nil {
 		if _, ok := err.(golangsdk.ErrDefault404); ok {
 			klog.V(4).Infof("share %s not found, assuming it to be already deleted", shareID)
 		} else {
