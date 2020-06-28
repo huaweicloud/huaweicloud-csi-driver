@@ -34,6 +34,7 @@ type controllerServer struct {
 }
 
 func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
+	klog.V(2).Infof("CreateVolume called with request %v", *req)
 	if err := validateCreateVolumeRequest(req); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -82,8 +83,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
+	klog.V(2).Infof("DeleteVolume called with request %v", *req)
 
-	// Volume Delete
 	volID := req.GetVolumeId()
 	if len(volID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "DeleteVolume Volume ID must be provided")
@@ -136,7 +137,7 @@ func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnap
 // ControllerGetCapabilities implements the default GRPC callout.
 // Default supports all capabilities
 func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	klog.V(5).Infof("Using default ControllerGetCapabilities")
+	klog.V(2).Infof("ControllerGetCapabilities called with request %v", *req)
 
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: cs.Driver.cscap,
@@ -144,6 +145,7 @@ func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
+	klog.V(2).Infof("ValidateVolumeCapabilities called with args %+v", *req)
 
 	reqVolCap := req.GetVolumeCapabilities()
 
@@ -158,7 +160,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 	client, err := cs.Driver.cloud.SFSV2Client()
     if err != nil {
-		klog.V(3).Infof("Failed to create SFS v2 client: %v", err)
+		klog.V(3).Infof("ValidateVolumeCapabilities Failed to create SFS v2 client: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
     }
 
@@ -170,30 +172,24 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 		return nil, status.Error(codes.Internal, fmt.Sprintf("ValidateVolumeCapabiltites %v", err))
 	}
 
-	for _, cap := range reqVolCap {
-		if cap.GetAccessMode().GetMode() != cs.Driver.vcap[0].Mode {
-			return &csi.ValidateVolumeCapabilitiesResponse{Message: "Requested Volume Capabilty not supported"}, nil
+	for _, c := range reqVolCap {
+		if c.GetAccessMode().Mode == csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER {
+			return &csi.ValidateVolumeCapabilitiesResponse{}, nil
 		}
 	}
 
-	// Cinder CSI driver currently supports one mode only
-	resp := &csi.ValidateVolumeCapabilitiesResponse{
-		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
-			VolumeCapabilities: []*csi.VolumeCapability{
-				{
-					AccessMode: cs.Driver.vcap[0],
-				},
-			},
-		},
-	}
-
-	return resp, nil
+	confirmed := &csi.ValidateVolumeCapabilitiesResponse_Confirmed{VolumeCapabilities: reqVolCap}
+	return &csi.ValidateVolumeCapabilitiesResponse{Confirmed: confirmed}, nil
 }
 
 func (cs *controllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, fmt.Sprintf("GetCapacity is not yet implemented"))
 }
 
+func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "")
+}
+/*
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	klog.V(4).Infof("ControllerExpandVolume: called with args %+v", *req)
 
@@ -240,3 +236,4 @@ func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi
 		NodeExpansionRequired: true,
 	}, nil
 }
+*/

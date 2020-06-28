@@ -26,22 +26,32 @@ import (
 
 // CloudCredentials define
 type CloudCredentials struct {
-	AccessKey      string `gcfg:"access-key"`
-	SecretKey      string `gcfg:"secret-key"`
-	ProjectName    string `gcfg:"project-name"`
-	Region         string `gcfg:"region"`
-	AuthURL        string `gcfg:"auth-url"`
+	Global struct {
+		AccessKey      string `gcfg:"access-key"`
+		SecretKey      string `gcfg:"secret-key"`
+		Region         string `gcfg:"region"`
+		AuthURL        string `gcfg:"auth-url"`
+	}
 
 	CloudClient     *golangsdk.ProviderClient
+}
+
+// Validate CloudCredentials
+func (c *CloudCredentials) Validate() error {
+	err := c.newCloudClient()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // newCloudClient returns new cloud client
 func (c *CloudCredentials) newCloudClient() error {
 	ao := golangsdk.AKSKAuthOptions{
-		IdentityEndpoint: c.AuthURL,
-		AccessKey:        c.AccessKey,
-		SecretKey:        c.SecretKey,
-		ProjectName:      c.ProjectName,
+		IdentityEndpoint: c.Global.AuthURL,
+		AccessKey:        c.Global.AccessKey,
+		SecretKey:        c.Global.SecretKey,
+		ProjectName:      c.Global.Region,
 	}
 
 	client, err := openstack.NewClient(ao.IdentityEndpoint)
@@ -76,7 +86,7 @@ func (c *CloudCredentials) newCloudClient() error {
 // SFSV2Client return sfs v2 client
 func (c *CloudCredentials) SFSV2Client() (*golangsdk.ServiceClient, error) {
 	return openstack.NewHwSFSV2(c.CloudClient, golangsdk.EndpointOpts{
-		Region:       c.Region,
+		Region:       c.Global.Region,
 		Availability: golangsdk.AvailabilityPublic,
 	})
 }
