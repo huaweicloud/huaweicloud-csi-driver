@@ -117,7 +117,7 @@ spec:
             - --v=5
           volumeMounts:
             - mountPath: /csi
-              name: plugin-dir
+              name: socket-dir
       volumes:
         - name: socket-dir
           emptyDir: {}
