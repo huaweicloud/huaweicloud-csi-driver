@@ -46,5 +46,11 @@ func LoadConfig(configFile string) (cc CloudCredentials, err error) {
 		return cc, err
 	}
 
+	// Validate configuration
+	err = cc.Validate()
+	if err != nil {
+		return cc, err
+	}
+
 	return cc, nil
 }

@@ -28,8 +28,7 @@ import (
 )
 
 const (
-	driverName  = "sfs.csi.huaweicloud.org"
-	topologyKey = "topology." + driverName + "/zone"
+	driverName  = "sfs.csi.huaweicloud.com"
 )
 
 var (
@@ -71,8 +70,6 @@ func NewDriver(nodeID, nodeAZ, vpcID, endpoint, shareProto string, cloud config.
 	d.AddControllerServiceCapabilities(
 		[]csi.ControllerServiceCapability_RPC_Type{
 			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
-			//csi.ControllerServiceCapability_RPC_PUBLISH_UNPUBLISH_VOLUME,
-			//csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 		})
 	d.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
 		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
