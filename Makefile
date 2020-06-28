@@ -23,6 +23,11 @@ GOPROXY=direct
 sfs:
 	go build -o sfs-csi-plugin ./cmd/sfs-csi-plugin
 
+.PHONY: sfs-image
+sfs-image:sfs
+	cp ./sfs-csi-plugin ./cmd/sfs-csi-plugin
+	docker build cmd/sfs-csi-plugin -t zhenguo/sfs-csi-plugin:latest
+
 .PHONY: fmt
 fmt:
 	./hack/check-format.sh
