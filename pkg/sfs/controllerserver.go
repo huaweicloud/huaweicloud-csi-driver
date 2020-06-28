@@ -67,8 +67,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
     }
 
 	// Grant access to the share
-	klog.V(4).Infof("creating an access rule for share %s", share.ID)
-    if err := grantAccess(client, share.ID, cs.Driver.vpcID); err != nil {
+	klog.V(5).Infof("Creating an access ruleto VPC %s", cs.Driver.cloud.Vpc.Id)
+    if err := grantAccess(client, share.ID, cs.Driver.cloud.Vpc.Id); err != nil {
 		klog.V(3).Infof("Failed to create access rule for share: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
     }
