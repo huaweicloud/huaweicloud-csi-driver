@@ -38,8 +38,6 @@ var (
 type SfsDriver struct {
 	name        string
 	nodeID      string
-	nodeAZ      string
-	vpcID       string
 	version     string
 	endpoint    string
 	shareProto  string
@@ -54,14 +52,12 @@ type SfsDriver struct {
 	nscap []*csi.NodeServiceCapability
 }
 
-func NewDriver(nodeID, nodeAZ, vpcID, endpoint, shareProto string, cloud config.CloudCredentials) *SfsDriver {
+func NewDriver(nodeID, endpoint, shareProto string, cloud config.CloudCredentials) *SfsDriver {
 	klog.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &SfsDriver{}
 	d.name = driverName
 	d.nodeID = nodeID
-	d.nodeAZ = nodeAZ
-	d.vpcID = vpcID
 	d.version = version
 	d.endpoint = endpoint
     d.shareProto = strings.ToUpper(shareProto)

@@ -31,8 +31,6 @@ import (
 var (
 	endpoint    string
 	nodeID      string
-	nodeAZ      string
-	vpcID       string
 	cloudconfig string
 )
 
@@ -68,7 +66,7 @@ func main() {
 
 			// Make this configurable when ther are more options.
 			defaultShareProto := "NFS"
-			d := sfs.NewDriver(nodeID, nodeAZ, vpcID, endpoint, defaultShareProto, cloud)
+			d := sfs.NewDriver(nodeID, endpoint, defaultShareProto, cloud)
 			d.Run()
 		},
 	}
@@ -79,11 +77,6 @@ func main() {
 
 	cmd.PersistentFlags().StringVar(&nodeID, "nodeid", "", "node id")
 	cmd.MarkPersistentFlagRequired("nodeid")
-
-	cmd.PersistentFlags().StringVar(&nodeAZ, "nodeaz", "", "this node's availability zone")
-
-	cmd.PersistentFlags().StringVar(&vpcID, "vpcid", "", "the vpc where the node resides")
-	cmd.MarkPersistentFlagRequired("vpcid")
 
 	cmd.PersistentFlags().StringVar(&cloudconfig, "cloud-config", "", "CSI driver cloud config")
 	cmd.MarkPersistentFlagRequired("cloud-config")
