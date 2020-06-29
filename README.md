@@ -2,7 +2,7 @@
 Huawei Cloud SFS Container Storage Interface (CSI) Plugin `sfs.csi.huaweicloud.com`
 
 ### Prerequisite
- - The driver initialization depends on a [cloud config file](./deploy/cloud-config). Make sure it's in `/etc/sfs/cloud-config`
+ - The driver initialization depends on a [cloud config file](./deploy/cloud-config). Make sure it's in `/etc/sfs/cloud-config` on your node.
 
 ### Install SFS CSI driver
 
@@ -10,15 +10,15 @@ Huawei Cloud SFS Container Storage Interface (CSI) Plugin `sfs.csi.huaweicloud.c
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/rbac-csi-sfs-controller.yaml
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/rbac-csi-sfs-node.yaml
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/csi-sfs-controller.yaml
-kubectl apply -f https://github.com/huaweicloud/huaweicloud-csi-driver/blob/master/deploy/sfs-csi-plugin/kubernetes/csi-sfs-node.yaml
-kubectl apply -f https://github.com/huaweicloud/huaweicloud-csi-driver/blob/master/deploy/sfs-csi-plugin/kubernetes/csi-sfs-driver.yaml
+kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/csi-sfs-node.yaml
+kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/csi-sfs-driver.yaml
 ```
 
 ### Examples
 
 ```
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/examples/sfs-csi-plugin/kubernetes/sc.yaml
-kubectl apply -f https://github.com/huaweicloud/huaweicloud-csi-driver/blob/master/examples/sfs-csi-plugin/kubernetes/pvc.yaml
+kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/examples/sfs-csi-plugin/kubernetes/pvc.yaml
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/examples/sfs-csi-plugin/kubernetes/pod.yaml
 ```
 
