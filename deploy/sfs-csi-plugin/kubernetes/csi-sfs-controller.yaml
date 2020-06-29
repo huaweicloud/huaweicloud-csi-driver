@@ -36,44 +36,6 @@ spec:
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
-        - name: csi-attacher
-          image: quay.io/k8scsi/csi-attacher:v2.0.0
-          args:
-            - "-v=5"
-            - "-csi-address=$(ADDRESS)"
-            - "-timeout=120s"
-            - "-leader-election"
-            - "-leader-election-type=leases"
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
-          volumeMounts:
-            - mountPath: /csi
-              name: socket-dir
-        - name: csi-snapshotter
-          image: quay.io/k8scsi/csi-snapshotter:v1.2.2
-          args:
-            - "-v=5"
-            - "-csi-address=$(ADDRESS)"
-            - "-leader-election"
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
-        - name: csi-resizer
-          image: quay.io/k8scsi/csi-resizer:v0.3.0
-          args:
-            - "-csi-address=$(ADDRESS)"
-            - "-v=5"
-            - "-leader-election"
-          env:
-            - name: ADDRESS
-              value: /csi/csi.sock
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
         - name: sfs-csi-plugin
           image: docker.io/zhenguo/sfs-csi-plugin:latest
           args:

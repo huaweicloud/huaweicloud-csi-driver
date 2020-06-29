@@ -1,0 +1,6 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sfs.csi.huaweicloud.com
+provisioner: sfs.csi.huaweicloud.com
+reclaimPolicy: Delete
