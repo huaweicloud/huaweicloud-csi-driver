@@ -53,7 +53,8 @@ spec:
         - name: sfs
           image: docker.io/zhenguo/sfs-csi-plugin:latest
           args:
-            - "--v=5"
+            - "--v=2"
+            - "--logtostderr"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--nodeid=$(NODE_ID)"
             - "--cloud-config=$(CLOUD_CONFIG)"
