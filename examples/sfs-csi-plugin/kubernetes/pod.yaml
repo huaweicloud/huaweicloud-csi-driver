@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-sfs 
+spec:
+  containers:
+  - image: nginx
+    name: nginx-sfs
+    command: ["/bin/sh"]
+    args: ["-c", "while true; do echo $(date -u) >> /mnt/sfs/outfile; sleep 5; done"]
+    volumeMounts:
+    - mountPath: /mnt/sfs
+      name: sfs-data 
+  volumes:
+  - name: sfs-data
+    persistentVolumeClaim:
+      claimName: pvc-sfs
