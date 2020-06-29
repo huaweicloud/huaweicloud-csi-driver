@@ -1,0 +1,9 @@
+[Global]
+auth-url=https://iam.eu-west-0.prod-cloud-ocb.orange-business.com/v3
+access-key=REPLACE-WITH-YOUR-AK
+secret-key=REPLACE-WITH-YOUR-SK
+region=eu-west-0
+
+[Vpc]
+#The VPC where your cluster resides
+id=8eed4fc7-e5e5-44a2-b5f2-23b3e5d46235
