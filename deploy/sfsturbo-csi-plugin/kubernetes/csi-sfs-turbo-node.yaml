@@ -1,0 +1,109 @@
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-sfs-turbo-node
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-sfs-turbo-node
+  template:
+    metadata:
+      labels:
+        app: csi-sfs-turbo-node
+    spec:
+      serviceAccountName: csi-sfs-turbo-node-sa
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-node-critical
+      tolerations:
+        - operator: "Exists"
+      containers:
+        - name: liveness-probe
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          image: quay.io/k8scsi/livenessprobe:v1.1.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --connection-timeout=3s
+            - --health-port=28889
+            - --v=5
+        - name: node-driver-registrar
+          image: quay.io/k8scsi/csi-node-driver-registrar:v1.1.0
+          args:
+            - --csi-address=$(ADDRESS)
+            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+            - --v=5
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "rm -rf /registration/sfs-turbo.csi.huaweicloud.com-reg.sock /csi/csi.sock"]
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/sfs-turbo.csi.huaweicloud.com/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: sfs-turbo
+          image: registry.eu-west-0.prod-cloud-ocb.orange-business.com/official/sfsturbo-csi-plugin:v1.8
+          args:
+            - "--v=2"
+            - "--logtostderr"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--nodeid=$(NODE_ID)"
+            - "--cloud-config=$(CLOUD_CONFIG)"
+          ports:
+            - containerPort: 28889
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+            periodSeconds: 30
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/sfs-turbo/cloud-config
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+            - mountPath: /etc/sfs-turbo/
+              name: sfs-turbo-config
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/sfs-turbo.csi.huaweicloud.com
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/
+            type: DirectoryOrCreate
+          name: mountpoint-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+          name: registration-dir
+        - hostPath:
+            path: /etc/sfs-turbo/
+            type: Directory
+          name: sfs-turbo-config
+---

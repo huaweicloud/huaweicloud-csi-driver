@@ -40,7 +40,7 @@ func (current LinkedPageBase) NextPageURL() (string, error) {
 	}
 
 	for {
-		key, path = path[0], path[1:len(path)]
+		key, path = path[0], path[1:]
 
 		value, ok := submap[key]
 		if !ok {
@@ -89,4 +89,19 @@ func (current LinkedPageBase) IsEmpty() (bool, error) {
 // Page interface.
 func (current LinkedPageBase) GetBody() interface{} {
 	return current.Body
+}
+
+// WrapNextPageURL function use makerID to warp next page url,it returns the full url for request.
+func (current LinkedPageBase) WrapNextPageURL(markerID string) (string, error) {
+	limit := current.URL.Query().Get("limit")
+
+	if limit == "" {
+		return "", nil
+	}
+
+	q := current.URL.Query()
+
+	q.Set("marker", markerID)
+	current.URL.RawQuery = q.Encode()
+	return current.URL.String(), nil
 }
