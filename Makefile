@@ -28,6 +28,15 @@ sfs-image:sfs
 	cp ./sfs-csi-plugin ./cmd/sfs-csi-plugin
 	docker build cmd/sfs-csi-plugin -t zhenguo/sfs-csi-plugin:latest
 
+.PHONY: sfsturbo
+sfsturbo:
+	go build -o sfsturbo-csi-plugin ./cmd/sfsturbo-csi-plugin
+
+.PHONY: sfsturbo-image
+sfsturbo-image:sfsturbo
+	cp ./sfsturbo-csi-plugin ./cmd/sfsturbo-csi-plugin
+	docker build cmd/sfsturbo-csi-plugin -t zhenguo/sfsturbo-csi-plugin:latest
+
 .PHONY: fmt
 fmt:
 	./hack/check-format.sh
