@@ -2,18 +2,18 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: csi-sfs-turbo-controller
+  name: csi-sfsturbo-controller
   namespace: kube-system
 spec:
   selector:
     matchLabels:
-      app: csi-sfs-turbo-controller
+      app: csi-sfsturbo-controller
   template:
     metadata:
       labels:
-        app: csi-sfs-turbo-controller
+        app: csi-sfsturbo-controller
     spec:
-      serviceAccountName: csi-sfs-turbo-controller-sa
+      serviceAccountName: csi-sfsturbo-controller-sa
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-cluster-critical
@@ -47,8 +47,8 @@ spec:
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
-        - name: sfs-turbo-csi-plugin
-          image: registry.eu-west-0.prod-cloud-ocb.orange-business.com/official/sfsturbo-csi-plugin:v1.8
+        - name: sfsturbo-csi-plugin
+          image: zhenguo/sfsturbo-csi-plugin:latest
           args:
             - "--v=2"
             - "--logtostderr"
@@ -75,12 +75,12 @@ spec:
             - name: CSI_ENDPOINT
               value: unix://csi/csi.sock
             - name: CLOUD_CONFIG
-              value: /etc/sfs-turbo/cloud-config
+              value: /etc/sfsturbo/cloud-config
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
-            - mountPath: /etc/sfs-turbo/
-              name: sfs-turbo-config
+            - mountPath: /etc/sfsturbo/
+              name: sfsturbo-config
         - name: liveness-probe
           imagePullPolicy: Always
           image: quay.io/k8scsi/livenessprobe:v1.1.0
@@ -95,7 +95,7 @@ spec:
       volumes:
         - name: socket-dir
           emptyDir: {}
-        - name: sfs-turbo-config
+        - name: sfsturbo-config
           hostPath:
-            path: /etc/sfs-turbo/
+            path: /etc/sfsturbo/
             type: Directory

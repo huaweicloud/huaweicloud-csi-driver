@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-sfsturbo
+spec:
+  containers:
+  - image: nginx
+    name: nginx-sfsturbo
+    command: ["/bin/sh"]
+    args: ["-c", "while true; do echo $(date -u) >> /mnt/sfsturbo/outfile; sleep 5; done"]
+    volumeMounts:
+    - mountPath: /mnt/sfsturbo
+      name: sfsturbo-data
+  volumes:
+  - name: sfsturbo-data
+    persistentVolumeClaim:
+      claimName: pvc-sfsturbo
