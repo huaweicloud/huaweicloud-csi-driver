@@ -1,3 +1,15 @@
+# github.com/chnsz/golangsdk v0.0.0-20220630014401-27d497ce87ed
+github.com/chnsz/golangsdk
+github.com/chnsz/golangsdk/openstack
+github.com/chnsz/golangsdk/openstack/identity/v2/tenants
+github.com/chnsz/golangsdk/openstack/identity/v2/tokens
+github.com/chnsz/golangsdk/openstack/identity/v3/catalog
+github.com/chnsz/golangsdk/openstack/identity/v3/domains
+github.com/chnsz/golangsdk/openstack/identity/v3/projects
+github.com/chnsz/golangsdk/openstack/identity/v3/tokens
+github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares
+github.com/chnsz/golangsdk/openstack/utils
+github.com/chnsz/golangsdk/pagination
 # github.com/container-storage-interface/spec v1.3.0
 github.com/container-storage-interface/spec/lib/go/csi
 # github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
@@ -5,25 +17,23 @@ github.com/golang/glog
 # github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go/descriptor
-github.com/golang/protobuf/ptypes/timestamp
-github.com/golang/protobuf/ptypes/wrappers
 github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
-# github.com/huaweicloud/golangsdk v0.0.0-20200619080020-6491ccc20c4b
+github.com/golang/protobuf/ptypes/timestamp
+github.com/golang/protobuf/ptypes/wrappers
+# github.com/huaweicloud/golangsdk v0.0.0-20210831081626-d823fe11ceba
 github.com/huaweicloud/golangsdk
 github.com/huaweicloud/golangsdk/openstack
-github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares
+github.com/huaweicloud/golangsdk/openstack/identity/v2/tenants
 github.com/huaweicloud/golangsdk/openstack/identity/v2/tokens
+github.com/huaweicloud/golangsdk/openstack/identity/v3/catalog
 github.com/huaweicloud/golangsdk/openstack/identity/v3/domains
-github.com/huaweicloud/golangsdk/openstack/identity/v3/endpoints
 github.com/huaweicloud/golangsdk/openstack/identity/v3/projects
-github.com/huaweicloud/golangsdk/openstack/identity/v3/services
 github.com/huaweicloud/golangsdk/openstack/identity/v3/tokens
+github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares
 github.com/huaweicloud/golangsdk/openstack/utils
 github.com/huaweicloud/golangsdk/pagination
-github.com/huaweicloud/golangsdk/openstack/identity/v2/tenants
-github.com/huaweicloud/golangsdk/internal
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
 # github.com/mitchellh/go-homedir v1.1.0
@@ -36,29 +46,31 @@ github.com/spf13/pflag
 github.com/unknwon/com
 # golang.org/x/net v0.0.0-20191004110552-13f9640d40b9
 golang.org/x/net/context
-golang.org/x/net/trace
-golang.org/x/net/internal/timeseries
+golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
-golang.org/x/net/http/httpguts
 golang.org/x/net/idna
+golang.org/x/net/internal/timeseries
+golang.org/x/net/trace
 # golang.org/x/sys v0.0.0-20191022100944-742c48ecaeb7
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2
 golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-golang.org/x/text/transform
 # google.golang.org/genproto v0.0.0-20190418145605-e7d98fc518a7
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.21.0
 google.golang.org/grpc
-google.golang.org/grpc/codes
-google.golang.org/grpc/status
 google.golang.org/grpc/balancer
+google.golang.org/grpc/balancer/base
 google.golang.org/grpc/balancer/roundrobin
+google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
 google.golang.org/grpc/credentials
+google.golang.org/grpc/credentials/internal
 google.golang.org/grpc/encoding
 google.golang.org/grpc/encoding/proto
 google.golang.org/grpc/grpclog
@@ -70,6 +82,7 @@ google.golang.org/grpc/internal/channelz
 google.golang.org/grpc/internal/envconfig
 google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
+google.golang.org/grpc/internal/syscall
 google.golang.org/grpc/internal/transport
 google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
@@ -79,11 +92,8 @@ google.golang.org/grpc/resolver
 google.golang.org/grpc/resolver/dns
 google.golang.org/grpc/resolver/passthrough
 google.golang.org/grpc/stats
+google.golang.org/grpc/status
 google.golang.org/grpc/tap
-google.golang.org/grpc/balancer/base
-google.golang.org/grpc/credentials/internal
-google.golang.org/grpc/binarylog/grpc_binarylog_v1
-google.golang.org/grpc/internal/syscall
 # gopkg.in/gcfg.v1 v1.2.3
 gopkg.in/gcfg.v1
 gopkg.in/gcfg.v1/scanner
