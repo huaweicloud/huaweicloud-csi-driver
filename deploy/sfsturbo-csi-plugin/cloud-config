@@ -1,0 +1,12 @@
+[Global]
+auth-url=https://iam.cn-north-4.huaweicloud.com/v3
+access-key=REPLACE-WITH-YOUR-AK
+secret-key=REPLACE-WITH-YOUR-SK
+region=cn-north-4
+availability-zone=cn-north-4a
+
+[Vpc]
+#The VPC where your cluster resides
+id=8eed4fc7-e5e5-44a2-b5f2-23b3e5d46235
+subnet-id=d1778d85-092f-415d-a8bd-1fe86cb474cc
+security-group-id=e6ef0139-cec0-462e-87cd-45fab6f56521

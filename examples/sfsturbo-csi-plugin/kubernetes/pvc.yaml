@@ -1,11 +1,11 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: pvc-sfs-turbo
+  name: pvc-sfsturbo
 spec:
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: 500G
-  storageClassName: sfs-turbo.csi.huaweicloud.com
+      storage: 500Gi
+  storageClassName: sfsturbo.csi.huaweicloud.com

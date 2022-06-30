@@ -1,28 +1,35 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: csi-sfsturbo-node-sa
+  namespace: kube-system
+
+---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  name: csi-sfsturbo-secret-role
   namespace: kube-system
-  name: csi-sfs-turbo-secret-role
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "create"]
+    verbs: ["get", "list"]
 
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-sfs-turbo-secret-binding
+  name: csi-sfsturbo-secret-binding
   namespace: kube-system
 subjects:
   - kind: ServiceAccount
-    name: csi-sfs-turbo-controller-sa
+    name: csi-sfsturbo-controller-sa
     namespace: kube-system
   - kind: ServiceAccount
-    name: csi-sfs-turbo-node-sa
+    name: csi-sfsturbo-node-sa
     namespace: kube-system
 roleRef:
   kind: ClusterRole
-  name: csi-sfs-turbo-secret-role
+  name: csi-sfsturbo-secret-role
   apiGroup: rbac.authorization.k8s.io
