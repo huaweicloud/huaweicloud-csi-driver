@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-sfs-turbo
+spec:
+  containers:
+  - image: nginx
+    name: nginx-sfs-turbo
+    command: ["/bin/sh"]
+    args: ["-c", "while true; do echo $(date -u) >> /mnt/sfs-turbo/outfile; sleep 5; done"]
+    volumeMounts:
+    - mountPath: /mnt/sfs-turbo
+      name: sfs-turbo-data
+  volumes:
+  - name: sfs-turbo-data
+    persistentVolumeClaim:
+      claimName: pvc-sfs-turbo
