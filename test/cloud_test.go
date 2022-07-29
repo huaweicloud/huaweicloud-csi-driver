@@ -9,6 +9,8 @@ import (
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const configFile = "./cloud_config"
@@ -22,34 +24,28 @@ var (
 
 func TestLoadConfig(t *testing.T) {
 	err := initConfigFile()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 	defer utils.DeleteFile(configFile)
 
 	cc, err := config.LoadConfig(configFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assertBasicObj(t, "region", cc.Global.Region, region)
-	assertBasicObj(t, "accessKey", cc.Global.AccessKey, accessKey)
-	assertBasicObj(t, "secretKey", cc.Global.SecretKey, secretKey)
-	assertBasicObj(t, "projectID", cc.Global.ProjectID, projectID)
-	assertBasicObj(t, "authURL", cc.Global.AuthURL, "https://iam.myhuaweicloud.com:443/v3/")
-	assertBasicObj(t, "cloud", cc.Global.AuthURL, "myhuaweicloud.com")
+	assert.Nil(t, err)
+
+	assert.EqualValues(t, region, cc.Global.Region)
+	assert.EqualValues(t, accessKey, cc.Global.AccessKey)
+	assert.EqualValues(t, secretKey, cc.Global.SecretKey)
+	assert.EqualValues(t, projectID, cc.Global.ProjectID)
+	assert.EqualValues(t, "https://iam.myhuaweicloud.com:443/v3/", cc.Global.AuthURL)
+	assert.EqualValues(t, "myhuaweicloud.com", cc.Global.Cloud)
 }
 
 func TestEndpoint(t *testing.T) {
 	err := initConfigFile()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 	defer utils.DeleteFile(configFile)
 
 	cc, err := config.LoadConfig(configFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
+
 	err = cc.Validate()
 	if err != nil {
 		t.Fatal(err)
@@ -68,12 +64,6 @@ func TestEndpoint(t *testing.T) {
 	actualURL = client.ResourceBaseURL()
 	if actualURL != expectedURL {
 		t.Fatalf("ECS endpoint: expected %s but got %s", expectedURL, actualURL)
-	}
-}
-
-func assertBasicObj(t *testing.T, name string, a, b interface{}) {
-	if a != b {
-		t.Errorf("%s expectd: %v, but got: %v", name, a, b)
 	}
 }
 
