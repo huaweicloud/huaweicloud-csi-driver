@@ -29,6 +29,11 @@ import (
 	"k8s.io/klog"
 )
 
+var (
+	pvcProcessSuccess = map[string]*csi.Volume{}
+	shareIDGetPvcID   = map[string]string{}
+)
+
 type controllerServer struct {
 	Driver *SfsDriver
 }
@@ -39,47 +44,62 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
+	// check pv hasCreate or not
+	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
+		klog.V(2).Infof("CreateVolume: sfs Volume %s has Created Already: %v", req.Name, value)
+		return &csi.CreateVolumeResponse{Volume: value}, nil
+	}
+
 	client, err := cs.Driver.cloud.SFSV2Client()
-    if err != nil {
+	if err != nil {
 		klog.V(3).Infof("Failed to create SFS v2 client: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
-    }
+	}
 
 	requestedSize := req.GetCapacityRange().GetRequiredBytes()
-    if requestedSize == 0 {
-        // At least 1GiB
-        requestedSize = 1 * bytesInGiB
-    }
+	if requestedSize == 0 {
+		// At least 1GiB
+		requestedSize = 1 * bytesInGiB
+	}
 
-    sizeInGiB := bytesToGiB(requestedSize)
+	sizeInGiB := bytesToGiB(requestedSize)
 
 	// Creating a share
 	createOpts := shares.CreateOpts{
-        ShareProto: cs.Driver.shareProto,
-        Size:       sizeInGiB,
-        Name:       req.GetName(),
-    }
+		ShareProto: cs.Driver.shareProto,
+		Size:       sizeInGiB,
+		Name:       req.GetName(),
+	}
 
-    share, err := createShare(client, &createOpts)
+	share, err := createShare(client, &createOpts)
 	if err != nil {
 		klog.V(3).Infof("Failed to create SFS volume: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
-    }
+	}
+
+	volume := &csi.Volume{
+		VolumeId:      share.ID,
+		ContentSource: req.GetVolumeContentSource(),
+		CapacityBytes: int64(sizeInGiB) * bytesInGiB,
+	}
+	shareIDGetPvcID[share.ID] = req.Name
+	pvcProcessSuccess[req.Name] = volume
+
+	//wait for sfs available
+	share, err = waitForShareStatus(client, share.ID)
+	if err != nil {
+		klog.V(3).Infof("SFS  status is not available : %v", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
 	// Grant access to the share
 	klog.V(5).Infof("Creating an access ruleto VPC %s", cs.Driver.cloud.Vpc.Id)
-    if err := grantAccess(client, share.ID, cs.Driver.cloud.Vpc.Id); err != nil {
+	if err := grantAccess(client, share.ID, cs.Driver.cloud.Vpc.Id); err != nil {
 		klog.V(3).Infof("Failed to create access rule for share: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
-    }
+	}
 
-	return &csi.CreateVolumeResponse{
-		Volume: &csi.Volume{
-			VolumeId:      share.ID,
-			ContentSource: req.GetVolumeContentSource(),
-			CapacityBytes: int64(sizeInGiB) * bytesInGiB,
-		},
-	}, nil
+	return &csi.CreateVolumeResponse{Volume: volume}, nil
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
@@ -91,16 +111,20 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 	}
 
 	client, err := cs.Driver.cloud.SFSV2Client()
-    if err != nil {
+	if err != nil {
 		klog.V(3).Infof("Failed to create SFS v2 client: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
-    }
+	}
 	err = deleteShare(client, volID)
 	if err != nil {
 		klog.V(3).Infof("Failed to DeleteVolume: %v", err)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("DeleteVolume failed with error %v", err))
 	}
 
+	////delete cache
+	pvcID := shareIDGetPvcID[volID]
+	delete(pvcProcessSuccess, pvcID)
+	delete(shareIDGetPvcID, volID)
 	klog.V(4).Infof("Delete volume %s", volID)
 
 	return &csi.DeleteVolumeResponse{}, nil
@@ -159,10 +183,10 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 	}
 
 	client, err := cs.Driver.cloud.SFSV2Client()
-    if err != nil {
+	if err != nil {
 		klog.V(3).Infof("ValidateVolumeCapabilities Failed to create SFS v2 client: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
-    }
+	}
 
 	_, err = getShare(client, volumeID)
 	if err != nil {
@@ -189,6 +213,7 @@ func (cs *controllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacit
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
+
 /*
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
 	klog.V(4).Infof("ControllerExpandVolume: called with args %+v", *req)
