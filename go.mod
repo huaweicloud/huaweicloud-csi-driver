@@ -1,6 +1,6 @@
 module github.com/huaweicloud/huaweicloud-csi-driver
 
-go 1.12
+go 1.18
 
 require (
 	github.com/chnsz/golangsdk v0.0.0-20220630014401-27d497ce87ed
