@@ -27,17 +27,17 @@ import (
 // CloudCredentials define
 type CloudCredentials struct {
 	Global struct {
-		AccessKey	string `gcfg:"access-key"`
-		SecretKey	string `gcfg:"secret-key"`
-		Region		string `gcfg:"region"`
-		AuthURL		string `gcfg:"auth-url"`
+		AccessKey string `gcfg:"access-key"`
+		SecretKey string `gcfg:"secret-key"`
+		Region    string `gcfg:"region"`
+		AuthURL   string `gcfg:"auth-url"`
 	}
 
 	Vpc struct {
-		Id	string `gcfg:"id"`
+		Id string `gcfg:"id"`
 	}
 
-	CloudClient     *golangsdk.ProviderClient
+	CloudClient *golangsdk.ProviderClient
 }
 
 // Validate CloudCredentials
@@ -89,7 +89,7 @@ func (c *CloudCredentials) newCloudClient() error {
 
 // SFSV2Client return sfs v2 client
 func (c *CloudCredentials) SFSV2Client() (*golangsdk.ServiceClient, error) {
-	return openstack.NewHwSFSV2(c.CloudClient, golangsdk.EndpointOpts{
+	return openstack.NewSharedFileSystemV2(c.CloudClient, golangsdk.EndpointOpts{
 		Region:       c.Global.Region,
 		Availability: golangsdk.AvailabilityPublic,
 	})
