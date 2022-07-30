@@ -44,16 +44,19 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// check pv hasCreate or not
-	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
-		klog.V(2).Infof("CreateVolume: sfs Volume %s has Created Already: %v", req.Name, value)
-		return &csi.CreateVolumeResponse{Volume: value}, nil
-	}
-
 	client, err := cs.Driver.cloud.SFSV2Client()
 	if err != nil {
 		klog.V(3).Infof("Failed to create SFS v2 client: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// check pv hasCreate or not
+	if value, ok := pvcProcessSuccess[req.Name]; ok && value != nil {
+		klog.V(2).Infof("CreateVolume: sfs Volume %s has Created Already: %v", req.Name, value)
+		// check share exist or not ,
+		if _, err := getShare(client, value.VolumeId); err == nil {
+			return &csi.CreateVolumeResponse{Volume: value}, nil
+		}
 	}
 
 	requestedSize := req.GetCapacityRange().GetRequiredBytes()
