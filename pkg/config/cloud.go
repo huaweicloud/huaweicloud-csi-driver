@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	UserAgent = "kubernetes-csi"
+	UserAgent = "huaweicloud-kubernetes-csi"
 )
 
 // CloudCredentials define
