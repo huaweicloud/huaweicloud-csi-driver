@@ -1,9 +1,10 @@
-package test
+package common
 
 import (
 	"testing"
 
 	"github.com/chnsz/golangsdk"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
 )
@@ -24,7 +25,5 @@ func TestWaitForCompleted(t *testing.T) {
 		}
 		return false, nil
 	})
-	if err != nil {
-		t.Errorf("Error in TestWaitForCompleted")
-	}
+	assert.Nil(t, err)
 }

@@ -8,7 +8,7 @@ import (
 )
 
 type nodeServer struct {
-	Driver   *EvsDriver
+	Driver *EvsDriver
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
