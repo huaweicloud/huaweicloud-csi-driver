@@ -2,6 +2,9 @@ package evs
 
 import (
 	"fmt"
+	"github.com/chnsz/golangsdk/openstack/evs/v2/snapshots"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -264,20 +267,189 @@ func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (
-	*csi.CreateSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+	klog.V(4).Infof("CreateSnapshot called with request %v", *req)
+	credentials := cs.Driver.cloudCredentials
+	name := req.GetName()
+	volumeId := req.GetSourceVolumeId()
+	if err := checkCreateSnapshotParamEmpty(name, volumeId); err != nil {
+		return nil, err
+	}
+	if response, err := checkRepeatSnapshotName(credentials, name, volumeId); response != nil || err != nil {
+		return response, err
+	}
+	if err := checkVolumeIsExist(credentials, volumeId); err != nil {
+		return nil, err
+	}
+	return doSnapshotCreate(credentials, name, volumeId)
 }
 
-func (cs *ControllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (
-	*csi.DeleteSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+func checkCreateSnapshotParamEmpty(name string, volumeId string) error {
+	if volumeId == "" {
+		return status.Error(codes.InvalidArgument, "CreateSnapshot SourceVolumeId cannot be empty")
+	}
+	if name == "" {
+		return status.Error(codes.InvalidArgument, "CreateSnapshot Name cannot be empty")
+	}
+	return nil
 }
 
-func (cs *ControllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (
-	*csi.ListSnapshotsResponse,
-	error) {
-	return nil, status.Error(codes.Unimplemented, "")
+func checkRepeatSnapshotName(credentials *config.CloudCredentials, name string, volumeId string) (*csi.CreateSnapshotResponse, error) {
+	listOpts := snapshots.ListOpts{
+		Name: name,
+	}
+	listSnapshots, err := services.ListSnapshots(credentials, listOpts)
+	if err != nil {
+		klog.Errorf("Failed to query snapshot list: %v", err)
+		return nil, status.Error(codes.Internal, "Failed to get snapshots")
+	}
+	if len(listSnapshots) == 1 {
+		snap := &listSnapshots[0]
+		if snap.VolumeID != volumeId {
+			// same name with different volumeId
+			return nil, status.Error(codes.AlreadyExists, "Snapshot with given name already exists, with different source volume ID")
+		}
+		klog.V(3).Infof("Found existing snapshot %s on %s", name, volumeId)
+		return &csi.CreateSnapshotResponse{
+			Snapshot: &csi.Snapshot{
+				SnapshotId:     snap.ID,
+				SizeBytes:      int64(snap.Size * 1024 * 1024 * 1024),
+				SourceVolumeId: snap.VolumeID,
+				CreationTime:   timestamppb.New(snap.CreatedAt),
+				ReadyToUse:     true,
+			},
+		}, nil
+	}
+	if len(listSnapshots) > 1 {
+		// many repeat name
+		klog.Errorf("Found multiple existing snapshots with selected name (%s) during create", name)
+		return nil, status.Error(codes.Internal, "Multiple snapshots reported by Cinder with same name")
+	}
+	return nil, nil
+}
+
+func checkVolumeIsExist(credentials *config.CloudCredentials, volumeId string) error {
+	volume, err := services.GetVolume(credentials, volumeId)
+	if err != nil {
+		klog.Errorf("Failed to query volume: %v", err)
+		return err
+	}
+	if volume == nil {
+		return status.Error(codes.Internal, "Volume id not exist")
+	}
+	return nil
+}
+
+func doSnapshotCreate(credentials *config.CloudCredentials, name string, volumeId string) (*csi.CreateSnapshotResponse, error) {
+	opts := &snapshots.CreateOpts{
+		VolumeID: volumeId,
+		Name:     name,
+	}
+	snap, err := services.CreateSnapshot(credentials, opts)
+	if err != nil {
+		klog.Errorf("Failed to Create snapshot: %v", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot failed with error %v", err))
+	}
+	klog.V(3).Infof("CreateSnapshot %s on %s", name, volumeId)
+
+	err = services.WaitSnapshotReady(credentials, snap.ID)
+	if err != nil {
+		klog.Errorf("Failed to WaitSnapshotReady: %v", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot failed with error %v", err))
+	}
+
+	return &csi.CreateSnapshotResponse{
+		Snapshot: &csi.Snapshot{
+			SnapshotId:     snap.ID,
+			SizeBytes:      int64(snap.Size * 1024 * 1024 * 1024),
+			SourceVolumeId: snap.VolumeID,
+			CreationTime:   timestamppb.New(snap.CreatedAt),
+			ReadyToUse:     true,
+		},
+	}, nil
+}
+
+func (cs *ControllerServer) DeleteSnapshot(_ context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
+	klog.V(4).Infof("DeleteSnapshot called with request %v", *req)
+	credentials := cs.Driver.cloudCredentials
+	id := req.GetSnapshotId()
+	if id == "" {
+		return nil, status.Error(codes.InvalidArgument, "Snapshot ID must be provided in DeleteSnapshot request")
+	}
+
+	if err := services.DeleteSnapshot(credentials, id); err != nil {
+		if common.IsNotFound(err) {
+			klog.V(3).Infof("Snapshot %s is already deleted.", id)
+			return &csi.DeleteSnapshotResponse{}, nil
+		}
+		klog.Errorf("Failed to Delete snapshot: %v", err)
+		return nil, status.Error(codes.Internal, fmt.Sprintf("DeleteSnapshot failed with error %v", err))
+	}
+	return &csi.DeleteSnapshotResponse{}, nil
+}
+
+func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+	klog.V(4).Infof("ListSnapshots called with request %v", *req)
+	credentials := cs.Driver.cloudCredentials
+	if snapshotId := req.GetSnapshotId(); snapshotId != "" {
+		return querySnapshotBySnapshotId(credentials, snapshotId)
+	}
+	return querySnapshotPageList(credentials, req)
+}
+
+func querySnapshotBySnapshotId(credentials *config.CloudCredentials, id string) (*csi.ListSnapshotsResponse, error) {
+	snapshot, err := services.GetSnapshot(credentials, id)
+	if err != nil {
+		if common.IsNotFound(err) {
+			klog.V(3).Infof("Snapshot %s not found", id)
+			return &csi.ListSnapshotsResponse{}, nil
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to GetSnapshot %s : %v", id, err)
+	}
+
+	snapshotEntry := csi.Snapshot{
+		SizeBytes:      int64(snapshot.Size * 1024 * 1024 * 1024),
+		SnapshotId:     snapshot.ID,
+		SourceVolumeId: snapshot.VolumeID,
+		CreationTime:   timestamppb.New(snapshot.CreatedAt),
+		ReadyToUse:     true,
+	}
+	responseEntry := csi.ListSnapshotsResponse_Entry{
+		Snapshot: &snapshotEntry,
+	}
+	return &csi.ListSnapshotsResponse{Entries: []*csi.ListSnapshotsResponse_Entry{&responseEntry}}, nil
+}
+
+func querySnapshotPageList(credentials *config.CloudCredentials, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+	availableStatus := "available"
+	opts := snapshots.ListOpts{
+		VolumeID: req.GetSourceVolumeId(),
+		Status:   availableStatus, // Only retrieve snapshots that are available
+		Limit:    int(req.MaxEntries),
+	}
+
+	listSnapshots, err := services.List(credentials, opts)
+	if err != nil {
+		klog.Errorf("Failed to ListSnapshots: %v", err)
+		return nil, status.Errorf(codes.Internal, "ListSnapshots failed with error %v", err)
+	}
+
+	var responses []*csi.ListSnapshotsResponse_Entry
+	for _, element := range listSnapshots {
+		snapshotElement := csi.Snapshot{
+			SizeBytes:      int64(element.Size * 1024 * 1024 * 1024),
+			SnapshotId:     element.ID,
+			SourceVolumeId: element.VolumeID,
+			CreationTime:   timestamppb.New(element.CreatedAt),
+			ReadyToUse:     true,
+		}
+		responseEntryElement := csi.ListSnapshotsResponse_Entry{
+			Snapshot: &snapshotElement,
+		}
+		responses = append(responses, &responseEntryElement)
+	}
+
+	return &csi.ListSnapshotsResponse{Entries: responses}, nil
 }
 
 // ControllerGetCapabilities implements the default GRPC callout.
