@@ -7,6 +7,7 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	acceptance "github.com/huaweicloud/huaweicloud-csi-driver/test"
 	"testing"
+	"time"
 )
 
 var (
@@ -93,6 +94,8 @@ func deleteSnapshot(t *testing.T, snapshotId string) {
 		t.Errorf("UT deleteSnapshot error, %v", err)
 	}
 	t.Logf("UT deleteSnapshot response detail, %v", response)
+	// takes a while to take effect
+	time.Sleep(10 * time.Second)
 
 	listReq := csi.ListSnapshotsRequest{
 		SnapshotId: snapshotId,

@@ -267,53 +267,66 @@ func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
-	klog.V(4).Infof("CreateSnapshot called with request %v", *req)
+func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (
+	*csi.CreateSnapshotResponse, error) {
+	klog.Infof("CreateSnapshot called with request %v", *req)
 	credentials := cs.Driver.cloudCredentials
 	name := req.GetName()
 	volumeId := req.GetSourceVolumeId()
 	if err := checkCreateSnapshotParamEmpty(name, volumeId); err != nil {
+		klog.Errorf("Failed to check create snapshot param, %v", err)
 		return nil, err
 	}
-	if response, err := checkRepeatSnapshotName(credentials, name, volumeId); response != nil || err != nil {
-		return response, err
+	response, err := checkDuplicateSnapshotName(credentials, name, volumeId)
+	if err != nil {
+		klog.Errorf("Failed to check duplicate snapshot name: %v", err)
+		return nil, err
+	}
+	if response != nil {
+		klog.Infof("Snapshot with name: %s | volumeId: %s already exist. detail: %v", name, volumeId, response)
+		return response, nil
 	}
 	if err := checkVolumeIsExist(credentials, volumeId); err != nil {
+		klog.Errorf("Failed to check volume is exist. volumeId: %s, error: %v", volumeId, err)
 		return nil, err
 	}
-	return doSnapshotCreate(credentials, name, volumeId)
+	response, err = services.CreateSnapshotToCompleted(credentials, name, volumeId)
+	if err != nil {
+		klog.Errorf("Failed to create snapshot to completed: %v", err)
+		return nil, err
+	}
+	klog.Infof("Successful create snapshot. detail: %v", response)
+	return response, nil
 }
 
 func checkCreateSnapshotParamEmpty(name string, volumeId string) error {
 	if volumeId == "" {
-		return status.Error(codes.InvalidArgument, "CreateSnapshot SourceVolumeId cannot be empty")
+		return status.Error(codes.InvalidArgument, "CreateSnapshot volumeId cannot be empty")
 	}
 	if name == "" {
-		return status.Error(codes.InvalidArgument, "CreateSnapshot Name cannot be empty")
+		return status.Error(codes.InvalidArgument, "CreateSnapshot name cannot be empty")
 	}
 	return nil
 }
 
-func checkRepeatSnapshotName(credentials *config.CloudCredentials, name string, volumeId string) (*csi.CreateSnapshotResponse, error) {
+func checkDuplicateSnapshotName(credentials *config.CloudCredentials, name string, volumeId string) (
+	*csi.CreateSnapshotResponse, error) {
 	listOpts := snapshots.ListOpts{
 		Name: name,
 	}
 	listSnapshots, err := services.ListSnapshots(credentials, listOpts)
 	if err != nil {
-		klog.Errorf("Failed to query snapshot list: %v", err)
-		return nil, status.Error(codes.Internal, "Failed to get snapshots")
+		return nil, err
 	}
 	if len(listSnapshots) == 1 {
 		snap := &listSnapshots[0]
 		if snap.VolumeID != volumeId {
-			// same name with different volumeId
-			return nil, status.Error(codes.AlreadyExists, "Snapshot with given name already exists, with different source volume ID")
+			return nil, status.Error(codes.AlreadyExists, "CreateSnapshot same name with different volumeId")
 		}
-		klog.V(3).Infof("Found existing snapshot %s on %s", name, volumeId)
 		return &csi.CreateSnapshotResponse{
 			Snapshot: &csi.Snapshot{
 				SnapshotId:     snap.ID,
-				SizeBytes:      int64(snap.Size * 1024 * 1024 * 1024),
+				SizeBytes:      int64(snap.Size * common.GbByteSize),
 				SourceVolumeId: snap.VolumeID,
 				CreationTime:   timestamppb.New(snap.CreatedAt),
 				ReadyToUse:     true,
@@ -321,9 +334,7 @@ func checkRepeatSnapshotName(credentials *config.CloudCredentials, name string, 
 		}, nil
 	}
 	if len(listSnapshots) > 1 {
-		// many repeat name
-		klog.Errorf("Found multiple existing snapshots with selected name (%s) during create", name)
-		return nil, status.Error(codes.Internal, "Multiple snapshots reported by Cinder with same name")
+		return nil, status.Error(codes.Internal, "Multiple snapshots reported by EVS with same name")
 	}
 	return nil, nil
 }
@@ -331,84 +342,69 @@ func checkRepeatSnapshotName(credentials *config.CloudCredentials, name string, 
 func checkVolumeIsExist(credentials *config.CloudCredentials, volumeId string) error {
 	volume, err := services.GetVolume(credentials, volumeId)
 	if err != nil {
-		klog.Errorf("Failed to query volume: %v", err)
 		return err
 	}
 	if volume == nil {
-		return status.Error(codes.Internal, "Volume id not exist")
+		return status.Error(codes.Internal, "Volume not exist")
 	}
 	return nil
 }
 
-func doSnapshotCreate(credentials *config.CloudCredentials, name string, volumeId string) (*csi.CreateSnapshotResponse, error) {
-	opts := &snapshots.CreateOpts{
-		VolumeID: volumeId,
-		Name:     name,
-	}
-	snap, err := services.CreateSnapshot(credentials, opts)
-	if err != nil {
-		klog.Errorf("Failed to Create snapshot: %v", err)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot failed with error %v", err))
-	}
-	klog.V(3).Infof("CreateSnapshot %s on %s", name, volumeId)
-
-	err = services.WaitSnapshotReady(credentials, snap.ID)
-	if err != nil {
-		klog.Errorf("Failed to WaitSnapshotReady: %v", err)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("CreateSnapshot failed with error %v", err))
-	}
-
-	return &csi.CreateSnapshotResponse{
-		Snapshot: &csi.Snapshot{
-			SnapshotId:     snap.ID,
-			SizeBytes:      int64(snap.Size * 1024 * 1024 * 1024),
-			SourceVolumeId: snap.VolumeID,
-			CreationTime:   timestamppb.New(snap.CreatedAt),
-			ReadyToUse:     true,
-		},
-	}, nil
-}
-
-func (cs *ControllerServer) DeleteSnapshot(_ context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	klog.V(4).Infof("DeleteSnapshot called with request %v", *req)
+func (cs *ControllerServer) DeleteSnapshot(_ context.Context, req *csi.DeleteSnapshotRequest) (
+	*csi.DeleteSnapshotResponse, error) {
+	klog.Infof("DeleteSnapshot called with request %v", *req)
 	credentials := cs.Driver.cloudCredentials
 	id := req.GetSnapshotId()
 	if id == "" {
+		klog.Errorf("DeleteSnapshot id can not be empty")
 		return nil, status.Error(codes.InvalidArgument, "Snapshot ID must be provided in DeleteSnapshot request")
 	}
 
 	if err := services.DeleteSnapshot(credentials, id); err != nil {
 		if common.IsNotFound(err) {
-			klog.V(3).Infof("Snapshot %s is already deleted.", id)
+			klog.Infof("Snapshot %s is already deleted.", id)
 			return &csi.DeleteSnapshotResponse{}, nil
 		}
 		klog.Errorf("Failed to Delete snapshot: %v", err)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("DeleteSnapshot failed with error %v", err))
+		return nil, err
 	}
+	klog.Infof("Successful delete snapshot")
 	return &csi.DeleteSnapshotResponse{}, nil
 }
 
-func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	klog.V(4).Infof("ListSnapshots called with request %v", *req)
+func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapshotsRequest) (
+	*csi.ListSnapshotsResponse, error) {
+	klog.Infof("ListSnapshots called with request %v", *req)
 	credentials := cs.Driver.cloudCredentials
-	if snapshotId := req.GetSnapshotId(); snapshotId != "" {
-		return querySnapshotBySnapshotId(credentials, snapshotId)
+
+	var response *csi.ListSnapshotsResponse
+	var err error
+	snapshotId := req.GetSnapshotId()
+	if snapshotId != "" {
+		response, err = querySnapshotBySnapshotId(credentials, snapshotId)
+	} else {
+		response, err = querySnapshotPageList(credentials, req)
 	}
-	return querySnapshotPageList(credentials, req)
+	if err != nil {
+		klog.Errorf("Failed to query snapshots list: %v", err)
+		return nil, err
+	}
+	klog.Infof("Successful query snapshot list. detail: %v", response)
+	return response, nil
 }
 
 func querySnapshotBySnapshotId(credentials *config.CloudCredentials, id string) (*csi.ListSnapshotsResponse, error) {
 	snapshot, err := services.GetSnapshot(credentials, id)
 	if err != nil {
 		if common.IsNotFound(err) {
-			klog.V(3).Infof("Snapshot %s not found", id)
+			klog.Infof("Snapshot %s not found", id)
 			return &csi.ListSnapshotsResponse{}, nil
 		}
-		return nil, status.Errorf(codes.Internal, "Failed to GetSnapshot %s : %v", id, err)
+		return nil, err
 	}
 
 	snapshotEntry := csi.Snapshot{
-		SizeBytes:      int64(snapshot.Size * 1024 * 1024 * 1024),
+		SizeBytes:      int64(snapshot.Size * common.GbByteSize),
 		SnapshotId:     snapshot.ID,
 		SourceVolumeId: snapshot.VolumeID,
 		CreationTime:   timestamppb.New(snapshot.CreatedAt),
@@ -420,24 +416,23 @@ func querySnapshotBySnapshotId(credentials *config.CloudCredentials, id string) 
 	return &csi.ListSnapshotsResponse{Entries: []*csi.ListSnapshotsResponse_Entry{&responseEntry}}, nil
 }
 
-func querySnapshotPageList(credentials *config.CloudCredentials, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
+func querySnapshotPageList(credentials *config.CloudCredentials, req *csi.ListSnapshotsRequest) (
+	*csi.ListSnapshotsResponse, error) {
 	availableStatus := "available"
 	opts := snapshots.ListOpts{
 		VolumeID: req.GetSourceVolumeId(),
-		Status:   availableStatus, // Only retrieve snapshots that are available
+		Status:   availableStatus, // Only retrieve snapshots available
 		Limit:    int(req.MaxEntries),
 	}
-
 	listSnapshots, err := services.List(credentials, opts)
 	if err != nil {
-		klog.Errorf("Failed to ListSnapshots: %v", err)
-		return nil, status.Errorf(codes.Internal, "ListSnapshots failed with error %v", err)
+		return nil, err
 	}
 
 	var responses []*csi.ListSnapshotsResponse_Entry
 	for _, element := range listSnapshots {
 		snapshotElement := csi.Snapshot{
-			SizeBytes:      int64(element.Size * 1024 * 1024 * 1024),
+			SizeBytes:      int64(element.Size * common.GbByteSize),
 			SnapshotId:     element.ID,
 			SourceVolumeId: element.VolumeID,
 			CreationTime:   timestamppb.New(element.CreatedAt),
@@ -448,7 +443,6 @@ func querySnapshotPageList(credentials *config.CloudCredentials, req *csi.ListSn
 		}
 		responses = append(responses, &responseEntryElement)
 	}
-
 	return &csi.ListSnapshotsResponse{Entries: responses}, nil
 }
 
