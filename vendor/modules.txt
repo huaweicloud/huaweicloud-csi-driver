@@ -176,5 +176,11 @@ k8s.io/klog/v2/internal/buffer
 k8s.io/klog/v2/internal/clock
 k8s.io/klog/v2/internal/serialize
 k8s.io/klog/v2/internal/severity
+# k8s.io/mount-utils v0.24.3
+k8s.io/mount-utils
 # k8s.io/utils v0.0.0-20220810061631-2e139fc3ae1e
 k8s.io/utils/clock
+k8s.io/utils/exec
+k8s.io/utils/io
+k8s.io/utils/keymutex
+k8s.io/utils/path
