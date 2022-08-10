@@ -26,8 +26,17 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync/atomic"
 
+	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"github.com/unknwon/com"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"k8s.io/klog/v2"
+)
+
+var (
+	serverGRPCEndpointCallCounter uint64
 )
 
 // LogRoundTripper satisfies the http.RoundTripper interface and is used to
@@ -181,4 +190,21 @@ func FormatHeaders(headers http.Header, seperator string) string {
 	sort.Strings(redactedHeaders)
 
 	return strings.Join(redactedHeaders, seperator)
+}
+
+func LogGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{},
+	error) {
+
+	callID := atomic.AddUint64(&serverGRPCEndpointCallCounter, 1)
+
+	klog.V(5).Infof("[ID:%d] GRPC call: %s", callID, info.FullMethod)
+	klog.V(5).Infof("[ID:%d] GRPC request: %s", callID, protosanitizer.StripSecrets(req))
+	resp, err := handler(ctx, req)
+	if err != nil {
+		klog.Errorf("[ID:%d] GRPC error: %v", callID, err)
+	} else {
+		klog.V(5).Infof("[ID:%d] GRPC response: %s", callID, protosanitizer.StripSecrets(resp))
+	}
+
+	return resp, err
 }
