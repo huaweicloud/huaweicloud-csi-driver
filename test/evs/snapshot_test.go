@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	snapshotName = fmt.Sprintf("k8s-test-snapshot-%s", utils.RandomString(5)) //云硬盘快照名称
-	maxEntries   = 100                                                        // 云硬盘每页条目数量
+	snapshotName = fmt.Sprintf("k8s-test-snapshot-%s", utils.RandomString(5))
+	maxEntries   = 100
 )
 
 func TestSnapshot(t *testing.T) {

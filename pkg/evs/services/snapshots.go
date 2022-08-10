@@ -54,7 +54,7 @@ func CreateSnapshotToCompleted(credentials *config.CloudCredentials, name string
 	return &csi.CreateSnapshotResponse{
 		Snapshot: &csi.Snapshot{
 			SnapshotId:     snap.ID,
-			SizeBytes:      int64(snap.Size * 1024 * 1024 * 1024),
+			SizeBytes:      int64(snap.Size * common.GbByteSize),
 			SourceVolumeId: snap.VolumeID,
 			CreationTime:   timestamppb.New(snap.CreatedAt),
 			ReadyToUse:     true,
