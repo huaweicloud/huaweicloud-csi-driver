@@ -15,6 +15,7 @@ require (
 	github.com/unknwon/com v1.0.1
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
+	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
 	google.golang.org/grpc v1.38.0
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/gcfg.v1 v1.2.3
@@ -22,5 +23,6 @@ require (
 	k8s.io/apimachinery v0.24.3
 	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.60.1
-	k8s.io/utils v0.0.0-20220810061631-2e139fc3ae1e // indirect
+	k8s.io/mount-utils v0.24.3
+	k8s.io/utils v0.0.0-20220810061631-2e139fc3ae1e
 )
