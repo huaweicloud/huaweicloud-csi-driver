@@ -344,7 +344,7 @@ func checkVolumeIsExist(credentials *config.CloudCredentials, volumeId string) e
 		return err
 	}
 	if volume == nil {
-		return status.Error(codes.Internal, "Volume not exist")
+		return status.Error(codes.NotFound, "Volume not exist")
 	}
 	return nil
 }
