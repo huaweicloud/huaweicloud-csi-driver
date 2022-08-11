@@ -266,7 +266,7 @@ func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 
 func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (
 	*csi.CreateSnapshotResponse, error) {
-	log.Infof("CreateSnapshot called with request %v", *req)
+	log.Infof("CreateSnapshot called with request %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloudCredentials
 	name := req.GetName()
 	volumeId := req.GetSourceVolumeId()
@@ -289,7 +289,7 @@ func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSna
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create snapshot to completed: %v", err)
 	}
-	log.Infof("Successful create snapshot. detail: %v", snapshot)
+	log.Infof("Successful create snapshot. detail: %v", protosanitizer.StripSecrets(snapshot))
 	return generateSnapshotResponse(snapshot), nil
 }
 
@@ -351,7 +351,7 @@ func checkVolumeIsExist(credentials *config.CloudCredentials, volumeId string) e
 
 func (cs *ControllerServer) DeleteSnapshot(_ context.Context, req *csi.DeleteSnapshotRequest) (
 	*csi.DeleteSnapshotResponse, error) {
-	log.Infof("DeleteSnapshot called with request %v", *req)
+	log.Infof("DeleteSnapshot called with request %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloudCredentials
 	id := req.GetSnapshotId()
 	if id == "" {
@@ -371,7 +371,7 @@ func (cs *ControllerServer) DeleteSnapshot(_ context.Context, req *csi.DeleteSna
 
 func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapshotsRequest) (
 	*csi.ListSnapshotsResponse, error) {
-	log.Infof("ListSnapshots called with request %v", *req)
+	log.Infof("ListSnapshots called with request %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloudCredentials
 
 	var response *csi.ListSnapshotsResponse
@@ -385,7 +385,7 @@ func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapsh
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to query snapshots list: %v", err)
 	}
-	log.Infof("Successful query snapshot list. detail: %v", response)
+	log.Infof("Successful query snapshot list. detail: %v", protosanitizer.StripSecrets(response))
 	return response, nil
 }
 
