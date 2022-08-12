@@ -361,7 +361,7 @@ func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 
 	return response, nil
 }
-func (cs *ControllerServer) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (
+func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (
 	*csi.CreateSnapshotResponse, error) {
 	log.Infof("CreateSnapshot called with request %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloudCredentials

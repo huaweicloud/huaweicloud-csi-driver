@@ -7,22 +7,28 @@ import (
 	"github.com/chnsz/golangsdk"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
-	"github.com/huaweicloud/huaweicloud-csi-driver/test"
+	acceptance "github.com/huaweicloud/huaweicloud-csi-driver/test"
 )
 
-func TestLoadConfig(t *testing.T)  {
-	cc := test.LoadConfig(t)
-	assertBasicObj(t, "region", cc.Global.Region, test.Region)
-	assertBasicObj(t, "accessKey", cc.Global.AccessKey, test.AccessKey)
-	assertBasicObj(t, "secretKey", cc.Global.SecretKey, test.SecretKey)
-	assertBasicObj(t, "projectID", cc.Global.ProjectID, test.ProjectID)
+func TestLoadConfig(t *testing.T) {
+	cc, err := acceptance.LoadConfig()
+	if err != nil {
+		t.Errorf("Error loading and verifying config data: %s", err)
+	}
+	assertBasicObj(t, "region", cc.Global.Region, acceptance.Region)
+	assertBasicObj(t, "accessKey", cc.Global.AccessKey, acceptance.AccessKey)
+	assertBasicObj(t, "secretKey", cc.Global.SecretKey, acceptance.SecretKey)
+	assertBasicObj(t, "projectID", cc.Global.ProjectID, acceptance.ProjectID)
 	assertBasicObj(t, "authURL", cc.Global.AuthURL, "https://iam.myhuaweicloud.com:443/v3/")
 	assertBasicObj(t, "cloud", cc.Global.Cloud, "myhuaweicloud.com")
 }
 
 func TestEndpoint(t *testing.T) {
-	cc := test.LoadConfig(t)
-	err := cc.Validate()
+	cc, err := acceptance.LoadConfig()
+	if err != nil {
+		t.Errorf("Error loading and verifying config data: %s", err)
+	}
+	err = cc.Validate()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +42,7 @@ func TestEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating ECS client: %s", err)
 	}
-	expectedURL = fmt.Sprintf("https://ecs.%s.%s/v1/%s/", test.Region, cc.Global.Cloud, client.ProjectID)
+	expectedURL = fmt.Sprintf("https://ecs.%s.%s/v1/%s/", acceptance.Region, cc.Global.Cloud, client.ProjectID)
 	actualURL = client.ResourceBaseURL()
 	if actualURL != expectedURL {
 		t.Fatalf("ECS endpoint: expected %s but got %s", expectedURL, actualURL)
