@@ -15,6 +15,7 @@ require (
 	github.com/unknwon/com v1.0.1
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	google.golang.org/grpc v1.38.0
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/gcfg.v1 v1.2.3
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	k8s.io/apimachinery v0.24.3
