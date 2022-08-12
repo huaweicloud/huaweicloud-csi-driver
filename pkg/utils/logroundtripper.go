@@ -201,7 +201,7 @@ func LogGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, h
 	klog.V(5).Infof("[ID:%d] GRPC request: %s", callID, protosanitizer.StripSecrets(req))
 	resp, err := handler(ctx, req)
 	if err != nil {
-		klog.Errorf("[ID:%d] GRPC error: %v", callID, err)
+		klog.Errorf("[ID:%d] GRPC call %s, error: %v", info.FullMethod, callID, err)
 	} else {
 		klog.V(5).Infof("[ID:%d] GRPC response: %s", callID, protosanitizer.StripSecrets(resp))
 	}

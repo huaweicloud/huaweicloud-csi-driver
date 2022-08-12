@@ -425,7 +425,7 @@ func collectMountOptions(fsType string, mntFlags []string) []string {
 }
 
 func nodeUnpublishEphemeral(ns *nodeServer, vol *cloudvolumes.Volume) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("nodeUnpublishEphemeral: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("nodeUnpublishEphemeral: called with args %+v", protosanitizer.StripSecrets(*vol))
 
 	cc := ns.Driver.cloudCredentials
 	volumeID := vol.ID

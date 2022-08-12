@@ -6,9 +6,11 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	log "k8s.io/klog"
+	log "k8s.io/klog/v2"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 )
 
 const (
@@ -17,19 +19,18 @@ const (
 )
 
 var (
-	// specVersion CSI spec version
+	// CSI spec version
 	specVersion = "1.3.0"
-	// Version Driver version
+	// Driver version
 	Version = "1.0.0"
 )
 
 type EvsDriver struct {
-	name       string
-	nodeID     string
-	version    string
-	endpoint   string
-	cluster    string
-	shareProto string
+	name     string
+	nodeID   string
+	version  string
+	endpoint string
+	cluster  string
 
 	cloudCredentials *config.CloudCredentials
 
@@ -42,18 +43,6 @@ type EvsDriver struct {
 	nscap []*csi.NodeServiceCapability
 }
 
-func (d *EvsDriver) GetControllerServer() *ControllerServer {
-	return d.cs
-}
-
-func (d *EvsDriver) GetIdentityServer() *identityServer {
-	return d.ids
-}
-
-func (d *EvsDriver) GetNodeServer() *nodeServer {
-	return d.ns
-}
-
 func NewDriver(cc *config.CloudCredentials, endpoint, cluster, nodeID string) *EvsDriver {
 	d := &EvsDriver{}
 	d.name = driverName
@@ -63,11 +52,9 @@ func NewDriver(cc *config.CloudCredentials, endpoint, cluster, nodeID string) *E
 	d.nodeID = nodeID
 	d.cloudCredentials = cc
 
-	log.Info("Driver: ", d.name)
-	log.Info("Driver version: ", d.version)
-	log.Info("CSI Spec version: ", specVersion)
+	log.Infof("Driver: %s, Version: %s, CSI Spec version: %s", d.name, d.version, specVersion)
 
-	d.addControllerServiceCapabilities(
+	d.AddControllerServiceCapabilities(
 		[]csi.ControllerServiceCapability_RPC_Type{
 			csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
 			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
@@ -75,13 +62,15 @@ func NewDriver(cc *config.CloudCredentials, endpoint, cluster, nodeID string) *E
 			csi.ControllerServiceCapability_RPC_CREATE_DELETE_SNAPSHOT,
 			csi.ControllerServiceCapability_RPC_LIST_SNAPSHOTS,
 			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
-			//csi.ControllerServiceCapability_RPC_CLONE_VOLUME, // the API does not support clone feature
+			csi.ControllerServiceCapability_RPC_CLONE_VOLUME,
 			csi.ControllerServiceCapability_RPC_LIST_VOLUMES_PUBLISHED_NODES,
 			csi.ControllerServiceCapability_RPC_GET_VOLUME,
 		})
-	d.addVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER})
+	d.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
+		csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
+	})
 
-	d.addNodeServiceCapabilities(
+	d.AddNodeServiceCapabilities(
 		[]csi.NodeServiceCapability_RPC_Type{
 			csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
 			csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
@@ -95,8 +84,9 @@ func NewDriver(cc *config.CloudCredentials, endpoint, cluster, nodeID string) *E
 	return d
 }
 
-func (d *EvsDriver) addControllerServiceCapabilities(cl []csi.ControllerServiceCapability_RPC_Type) {
-	csc := make([]*csi.ControllerServiceCapability, 0)
+func (d *EvsDriver) AddControllerServiceCapabilities(cl []csi.ControllerServiceCapability_RPC_Type) {
+	var csc []*csi.ControllerServiceCapability
+
 	for _, c := range cl {
 		log.Infof("Enabling controller service capability: %v", c.String())
 		csc = append(csc, &csi.ControllerServiceCapability{
@@ -107,11 +97,14 @@ func (d *EvsDriver) addControllerServiceCapabilities(cl []csi.ControllerServiceC
 			},
 		})
 	}
+
 	d.cscap = csc
+
+	return
 }
 
-func (d *EvsDriver) addVolumeCapabilityAccessModes(vc []csi.VolumeCapability_AccessMode_Mode) []*csi.VolumeCapability_AccessMode {
-	vca := make([]*csi.VolumeCapability_AccessMode, 0)
+func (d *EvsDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_AccessMode_Mode) []*csi.VolumeCapability_AccessMode {
+	var vca []*csi.VolumeCapability_AccessMode
 	for _, c := range vc {
 		log.Infof("Enabling volume access mode: %v", c.String())
 		vca = append(vca, &csi.VolumeCapability_AccessMode{Mode: c})
@@ -120,8 +113,8 @@ func (d *EvsDriver) addVolumeCapabilityAccessModes(vc []csi.VolumeCapability_Acc
 	return vca
 }
 
-func (d *EvsDriver) addNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) {
-	nsc := make([]*csi.NodeServiceCapability, 0)
+func (d *EvsDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) error {
+	var nsc []*csi.NodeServiceCapability
 	for _, n := range nl {
 		log.Infof("Enabling node service capability: %v", n.String())
 		nsc = append(nsc, &csi.NodeServiceCapability{
@@ -133,23 +126,33 @@ func (d *EvsDriver) addNodeServiceCapabilities(nl []csi.NodeServiceCapability_RP
 		})
 	}
 	d.nscap = nsc
+	return nil
 }
 
-func (d *EvsDriver) ValidateControllerServiceRequest(c csi.ControllerServiceCapability_RPC_Type) error {
-	if c == csi.ControllerServiceCapability_RPC_UNKNOWN {
+func (d *EvsDriver) ValidateControllerServiceRequest(capType csi.ControllerServiceCapability_RPC_Type) error {
+	if capType == csi.ControllerServiceCapability_RPC_UNKNOWN {
 		return nil
 	}
 
-	for _, csc := range d.cscap {
-		if c == csc.GetRpc().GetType() {
+	for _, c := range d.cscap {
+		if capType == c.GetRpc().GetType() {
 			return nil
 		}
 	}
-	return status.Error(codes.InvalidArgument, fmt.Sprintf("%s", c))
+	return status.Errorf(codes.InvalidArgument, "Controller service capability type %s not supported", capType)
+}
+
+func (d *EvsDriver) GetControllerServer() *ControllerServer {
+	return d.cs
 }
 
 func (d *EvsDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_AccessMode {
 	return d.vcap
+}
+
+func (d *EvsDriver) SetupDriver(mount mounts.IMount, metadata metadatas.IMetadata) {
+	d.ns.Mount = mount
+	d.ns.Metadata = metadata
 }
 
 func (d *EvsDriver) Run() {

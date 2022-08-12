@@ -12,6 +12,7 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
 
+// NonBlockingGRPCServer defines Non blocking GRPC server interfaces
 type NonBlockingGRPCServer interface {
 	// Start services at the endpoint
 	Start(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer)
@@ -49,8 +50,7 @@ func (s *nonBlockingGRPCServer) ForceStop() {
 	s.server.Stop()
 }
 
-func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer,
-	cs csi.ControllerServer, ns csi.NodeServer) {
+func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
 
 	proto, addr, err := utils.ParseEndpoint(endpoint)
 	if err != nil {
