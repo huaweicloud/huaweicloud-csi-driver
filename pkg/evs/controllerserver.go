@@ -20,6 +20,10 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
 
+const (
+	defaultSizeGB = 10
+)
+
 type ControllerServer struct {
 	Driver *EvsDriver
 }
@@ -35,7 +39,7 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}
 
 	// Volume Size - Default is 10 GiB
-	sizeGB := 10
+	sizeGB := defaultSizeGB
 	if req.GetCapacityRange() != nil {
 		sizeGB = int(utils.RoundUpSize(req.GetCapacityRange().GetRequiredBytes(), common.GbByteSize))
 	}
@@ -361,7 +365,7 @@ func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 
 	return response, nil
 }
-func (cs *ControllerServer) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (
+func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (
 	*csi.CreateSnapshotResponse, error) {
 	log.Infof("CreateSnapshot called with request %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloudCredentials
