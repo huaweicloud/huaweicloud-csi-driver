@@ -55,7 +55,7 @@ func createVolume(t *testing.T) string {
 			RequiredBytes: size,
 		},
 		VolumeCapabilities: []*csi.VolumeCapability{
-			&csi.VolumeCapability{},
+			{},
 		},
 		Parameters: map[string]string{
 			"type":         volumeType,

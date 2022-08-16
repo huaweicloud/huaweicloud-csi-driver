@@ -2,11 +2,12 @@ package services
 
 import (
 	"github.com/chnsz/golangsdk/openstack/evs/v2/snapshots"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	log "k8s.io/klog/v2"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
 const debugPrefix = "[DEBUG] "
@@ -34,7 +35,7 @@ func ListSnapshots(c *config.CloudCredentials, opts snapshots.ListOpts) (*snapsh
 	return page, nil
 }
 
-func CreateSnapshotToCompleted(credentials *config.CloudCredentials, name string, volumeId string) (
+func CreateSnapshotCompleted(credentials *config.CloudCredentials, name string, volumeId string) (
 	*snapshots.Snapshot, error) {
 	opts := &snapshots.CreateOpts{
 		VolumeID: volumeId,

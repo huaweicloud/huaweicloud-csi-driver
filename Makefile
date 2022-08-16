@@ -37,6 +37,15 @@ sfsturbo-image:sfsturbo
 	cp ./sfsturbo-csi-plugin ./cmd/sfsturbo-csi-plugin
 	docker build cmd/sfsturbo-csi-plugin -t zhenguo/sfsturbo-csi-plugin:latest
 
+.PHONY: evs
+evs:
+	go build -o evs-csi-plugin ./cmd/evs-csi-plugin
+
+.PHONY: evs-image
+evs-image:evs
+	cp ./evs-csi-plugin ./cmd/evs-csi-plugin
+	docker build cmd/evs-csi-plugin -t swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:latest
+
 .PHONY: fmt
 fmt:
 	./hack/check-format.sh
