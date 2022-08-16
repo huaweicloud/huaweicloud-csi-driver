@@ -2,10 +2,11 @@ package evs
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"github.com/chnsz/golangsdk/openstack/evs/v2/snapshots"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -14,8 +15,13 @@ import (
 	log "k8s.io/klog/v2"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/evs/services"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
+)
+
+const (
+	defaultSizeGB = 10
 )
 
 type ControllerServer struct {
@@ -24,61 +30,44 @@ type ControllerServer struct {
 
 func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse,
 	error) {
-	log.Infof("CreateVolume called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("CreateVolumeCompleted: called with args %v", protosanitizer.StripSecrets(*req))
+	credentials := cs.Driver.cloudCredentials
 
-	volumeName := req.GetName()
-	err := createValidation(volumeName, req.GetVolumeCapabilities())
-	if err != nil {
+	volName := req.GetName()
+	if err := createVolumeValidation(volName, req.GetVolumeCapabilities()); err != nil {
 		return nil, err
 	}
 
-	// Define the parameters for creation
-	volSizeBytes := int64(1 * common.GbByteSize)
+	// Volume Size - Default is 10 GiB
+	sizeGB := defaultSizeGB
 	if req.GetCapacityRange() != nil {
-		volSizeBytes = req.GetCapacityRange().GetRequiredBytes()
+		sizeGB = int(utils.RoundUpSize(req.GetCapacityRange().GetRequiredBytes(), common.GbByteSize))
 	}
-	volSizeGB := int(utils.RoundUpSize(volSizeBytes, common.GbByteSize))
 
 	parameters := req.GetParameters()
-	volType := parameters["type"]
+	volumeAz := parameters["availability"]
+	if len(volumeAz) == 0 {
+		// Check from Topology
+		if req.GetAccessibilityRequirements() != nil {
+			volumeAz = getAZFromTopology(req.GetAccessibilityRequirements())
+			log.Infof("Get AZ By GetAccessibilityRequirements availability zone: %s", volumeAz)
+		}
+	}
+	volumeType := parameters["type"]
 	dssID := parameters["dssId"]
 	scsi := parameters["scsi"]
 
-	shareable := false
-	if parameters["shareable"] == "true" {
-		shareable = true
+	// Check if there are any volumes with the same name
+	if vol, err := services.CheckVolumeExists(credentials, volName, sizeGB); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	} else if vol != nil {
+		return buildCreateVolumeResponse(vol, dssID), nil
 	}
 
-	volAvailability := parameters["availability"]
-	if len(volAvailability) == 0 {
-		// Check from Topology
-		if req.GetAccessibilityRequirements() != nil {
-			volAvailability = common.GetAZFromTopology(req.GetAccessibilityRequirements(), driverName)
-			log.Infof("Get AZ By GetAccessibilityRequirements Availability Zone: %s", volAvailability)
-		}
-	}
-
-	cc := cs.Driver.cloudCredentials
-	// Verify that a volume with the provided name exists for this tenant
-	volumes, err := services.ListVolumes(cc, cloudvolumes.ListOpts{
-		Name: volumeName,
-	})
+	// Check if snapshot exists
+	snapshotID, err := checkSnapshotExists(credentials, req.GetVolumeContentSource())
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to query the volume list, "+
-			"unable to verify whether the volume exists, error: %s", err))
-	}
-
-	if len(volumes) == 1 {
-		if volSizeGB != volumes[0].Size {
-			return nil, status.Error(codes.AlreadyExists, "Create failed, volume Already exists with same name, "+
-				"but different capacity")
-		}
-		log.Errorf("Volume %s already exists in Availability Zone: %s of size %d GiB",
-			volumes[0].ID, volumes[0].AvailabilityZone, volumes[0].Size)
-		return buildCreateVolumeRsp(&volumes[0], dssID, req.GetAccessibilityRequirements()), nil
-	} else if len(volumes) > 1 {
-		return nil, status.Error(codes.AlreadyExists,
-			"Create failed, found multiple existing volumes with same name")
+		return nil, err
 	}
 
 	// build the metadata of create option
@@ -90,189 +79,298 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	if scsi != "" && (scsi == "true" || scsi == "false") {
 		metadata[HwPassthroughKey] = scsi
 	}
-	for _, mKey := range []string{PvcNameTag, PvcNsTag, PvNameKey} {
-		if v, ok := parameters[mKey]; ok {
-			metadata[mKey] = v
+
+	for _, key := range []string{PvcNameTag, PvcNsTag, PvNameKey} {
+		if v, ok := parameters[key]; ok {
+			metadata[key] = v
 		}
 	}
 
-	snapshotID := ""
-	content := req.GetVolumeContentSource()
-	if content != nil && content.GetSnapshot() != nil {
-		snapshotID = content.GetSnapshot().GetSnapshotId()
-		_, err = services.GetSnapshot(cc, snapshotID)
-		if err != nil {
-			if common.IsNotFound(err) {
-				return nil, status.Errorf(codes.NotFound, "The snapshot(id: %s) does not exist", snapshotID)
-			}
-			return nil, status.Errorf(codes.Internal, "Failed to retrieve the snapshot %s: %v", snapshotID, err)
-		}
-	}
-
-	// Create volume
-	createOpts := cloudvolumes.CreateOpts{
+	volumeID, err := services.CreateVolumeCompleted(credentials, &cloudvolumes.CreateOpts{
 		Volume: cloudvolumes.VolumeOpts{
-			Name:             volumeName,
-			Size:             volSizeGB,
-			VolumeType:       volType,
-			AvailabilityZone: volAvailability,
+			Name:             volName,
+			Size:             sizeGB,
+			VolumeType:       volumeType,
+			AvailabilityZone: volumeAz,
 			SnapshotID:       snapshotID,
 			Metadata:         metadata,
-			Multiattach:      shareable,
 		},
-	}
-	log.Infof("Create EVS volume options: %#v", createOpts)
-	volumeID, err := services.CreateVolumeToCompletion(cc, createOpts)
+	})
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Create EVS volume failed with error %v", err))
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	volume, err := services.GetVolume(cc, volumeID)
+	volume, err := services.GetVolume(credentials, volumeID)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed to query volume detail by id %s: %v",
-			volumeID, err))
+		return nil, err
 	}
-
-	log.Infof("CreateVolume: Successfully created volume %s in Availability Zone: %s of size %d GiB",
+	log.Infof("Successfully created volume %s in Availability Zone: %s of size %d GiB",
 		volume.ID, volume.AvailabilityZone, volume.Size)
-	return buildCreateVolumeRsp(volume, dssID, req.GetAccessibilityRequirements()), nil
+
+	return buildCreateVolumeResponse(volume, dssID), nil
 }
 
-func createValidation(volumeName string, volCapabilities []*csi.VolumeCapability) error {
+func createVolumeValidation(volumeName string, capabilities []*csi.VolumeCapability) error {
 	if len(volumeName) == 0 {
-		log.Errorf("Volume capabilities cannot be empty")
-		return status.Error(codes.InvalidArgument, "EVS volume name cannot be empty")
+		return status.Error(codes.InvalidArgument, "Validation failed, volume name cannot be empty")
 	}
-
-	if volCapabilities == nil {
-		log.Errorf("Volume capabilities cannot be empty")
-		return status.Error(codes.InvalidArgument, "Volume capabilities cannot be empty")
+	if len(capabilities) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, volume capabilities cannot be empty")
 	}
-
 	return nil
 }
 
-func buildCreateVolumeRsp(vol *cloudvolumes.Volume, dssID string, accessibleTopologyReq *csi.TopologyRequirement) *csi.
-	CreateVolumeResponse {
-	var contentSource *csi.VolumeContentSource
-	if vol.SnapshotID != "" {
-		contentSource = &csi.VolumeContentSource{
-			Type: &csi.VolumeContentSource_Snapshot{
-				Snapshot: &csi.VolumeContentSource_SnapshotSource{
-					SnapshotId: vol.SnapshotID,
-				},
-			},
+func checkSnapshotExists(credentials *config.CloudCredentials, content *csi.VolumeContentSource) (string, error) {
+	snapshotID := ""
+	if content != nil && content.GetSnapshot() != nil {
+		snapshotID = content.GetSnapshot().GetSnapshotId()
+		_, err := services.GetSnapshot(credentials, snapshotID)
+		if err != nil {
+			if common.IsNotFound(err) {
+				return snapshotID,
+					status.Errorf(codes.NotFound, "Error, snapshot ID %s does not exist.", snapshotID)
+			}
+			return snapshotID,
+				status.Errorf(codes.Internal, "Failed to retrieve the snapshot %s: %v", snapshotID, err)
 		}
 	}
-
-	if vol.SourceVolID != "" {
-		contentSource = &csi.VolumeContentSource{
-			Type: &csi.VolumeContentSource_Volume{
-				Volume: &csi.VolumeContentSource_VolumeSource{
-					VolumeId: vol.SourceVolID,
-				},
-			},
-		}
-	}
-
-	accessibleTopology := []*csi.Topology{
-		{
-			Segments: map[string]string{topologyKey: vol.AvailabilityZone},
-		},
-	}
-
-	VolumeContext := make(map[string]string)
-	if dssID != "" {
-		VolumeContext[DssIDKey] = dssID
-	}
-	resp := &csi.CreateVolumeResponse{
-		Volume: &csi.Volume{
-			VolumeId:           vol.ID,
-			CapacityBytes:      int64(vol.Size * common.GbByteSize),
-			AccessibleTopology: accessibleTopology,
-			ContentSource:      contentSource,
-			VolumeContext:      VolumeContext,
-		},
-	}
-	return resp
+	return snapshotID, nil
 }
 
 func (cs *ControllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse,
 	error) {
-	log.Infof("DeleteVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("DeleteVolume: called with args %v", protosanitizer.StripSecrets(*req))
+
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "DeleteVolume: Volume ID cannot be empty")
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
 
-	if err := services.DeleteVolume(cs.Driver.cloudCredentials, volumeID); err != nil {
+	credentials := cs.Driver.cloudCredentials
+	if err := services.DeleteVolume(credentials, volumeID); err != nil {
 		if common.IsNotFound(err) {
 			log.Infof("Volume %s does not exist, skip deleting", volumeID)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
-		return nil, status.Error(codes.Internal,
-			fmt.Sprintf("Failed to delete volume, id: %s, error: %v", volumeID, err))
+		return nil, status.Errorf(codes.Internal, "Error deleting volume: %s", err)
 	}
-	log.Infof("DeleteVolume: Successfully deleted volume %s", volumeID)
+	log.Infof("Successfully deleted volume %s", volumeID)
 
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
 func (cs *ControllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
 	*csi.ControllerGetVolumeResponse, error) {
-	log.Infof("ControllerGetVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("ControllerGetVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
 	if len(volumeID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "ControllerGetVolume: Volume ID cannot be empty")
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
 
-	volume, err := services.GetVolume(cs.Driver.cloudCredentials, volumeID)
+	credentials := cs.Driver.cloudCredentials
+	volume, err := services.GetVolume(credentials, volumeID)
 	if err != nil {
-		if common.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "Volume %s not found", volumeID)
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("ControllerGetVolume failed with error %v", err))
+		return nil, err
 	}
 
-	volumeStatus := &csi.ControllerGetVolumeResponse_VolumeStatus{}
+	volStatus := &csi.ControllerGetVolumeResponse_VolumeStatus{}
 	for _, attachment := range volume.Attachments {
-		volumeStatus.PublishedNodeIds = append(volumeStatus.PublishedNodeIds, attachment.ServerID)
+		volStatus.PublishedNodeIds = append(volStatus.PublishedNodeIds, attachment.ServerID)
 	}
 
-	return &csi.ControllerGetVolumeResponse{
+	response := csi.ControllerGetVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      volumeID,
-			CapacityBytes: int64(volume.Size * 1024 * 1024 * 1024),
+			CapacityBytes: int64(volume.Size * common.GbByteSize),
 		},
-		Status: volumeStatus,
+		Status: volStatus,
+	}
+
+	log.Infof("Successfully obtained volume details, volume ID: %s", volumeID)
+	return &response, nil
+}
+
+func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.ControllerPublishVolumeRequest) (
+	*csi.ControllerPublishVolumeResponse, error) {
+	log.Infof("ControllerPublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
+
+	credentials := cs.Driver.cloudCredentials
+	instanceID := req.GetNodeId()
+	volumeID := req.GetVolumeId()
+	if err := publishValidation(credentials, volumeID, instanceID, req.GetVolumeCapability()); err != nil {
+		return nil, err
+	}
+
+	if err := services.AttachVolumeCompleted(credentials, instanceID, volumeID); err != nil {
+		if strings.Contains(err.Error(), "Ecs.0005") {
+			log.Warningf("Warning, duplicate publish volume, skip publish volume")
+			return nil, nil
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to publish volume %s to ECS %s with error %v",
+			volumeID, instanceID, err)
+	}
+
+	log.Infof("Successfully published volume %s to EVS %s, obtaining device path", volumeID, instanceID)
+
+	volume, err := services.GetVolume(credentials, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	devicePath := ""
+	for _, attach := range volume.Attachments {
+		if attach.ServerID == instanceID {
+			devicePath = attach.Device
+			break
+		}
+	}
+	log.Infof("Got device path: %s", devicePath)
+
+	return &csi.ControllerPublishVolumeResponse{
+		PublishContext: map[string]string{
+			"DevicePath": devicePath,
+		},
 	}, nil
 }
 
-func (cs *ControllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (
-	*csi.ControllerPublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+func publishValidation(cc *config.CloudCredentials, volumeID, instanceID string,
+	capability *csi.VolumeCapability) error {
+	if len(volumeID) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	if len(instanceID) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, ECS instance ID cannot be empty")
+	}
+	if capability == nil {
+		return status.Error(codes.InvalidArgument, "Validation failed, volume capability cannot be empty")
+	}
+
+	if _, err := services.GetVolume(cc, volumeID); err != nil {
+		return err
+	}
+
+	if _, err := services.GetServer(cc, instanceID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (cs *ControllerServer) ControllerUnpublishVolume(_ context.Context, req *csi.ControllerUnpublishVolumeRequest) (
 	*csi.ControllerUnpublishVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ControllerUnpublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
+
+	credentials := cs.Driver.cloudCredentials
+	instanceID := req.GetNodeId()
+	volumeID := req.GetVolumeId()
+
+	volume, err := unpublishValidation(credentials, volumeID, instanceID)
+	if err != nil {
+		return nil, err
+	}
+
+	if volume.Status == services.EvsAvailableStatus || len(volume.Attachments) == 0 {
+		log.Warningf("Warning, the volume %s is not in the server %s attach volume list, skip unpublishing",
+			volumeID, instanceID)
+		return &csi.ControllerUnpublishVolumeResponse{}, nil
+	}
+
+	err = services.DetachVolumeCompleted(credentials, instanceID, volumeID)
+	if err != nil {
+		if strings.Contains(err.Error(), "Ecs.0111") {
+			log.Warningf("Warning, the volume %s is not in the server %s attach volume list, skip unpublishing",
+				volumeID, instanceID)
+			return &csi.ControllerUnpublishVolumeResponse{}, nil
+		}
+		return nil, status.Errorf(codes.Internal, "Error unpublishing volume %s from server %s, error: %v",
+			volumeID, instanceID, err)
+	}
+
+	log.Infof("Successfully unpublished, volume ID: %s", volumeID)
+	return &csi.ControllerUnpublishVolumeResponse{}, nil
+}
+
+func unpublishValidation(cc *config.CloudCredentials, volumeID, instanceID string) (*cloudvolumes.Volume, error) {
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	if len(instanceID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, ECS instance ID cannot be empty")
+	}
+
+	volume, err := services.GetVolume(cc, volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err = services.GetServer(cc, instanceID); err != nil {
+		return nil, err
+	}
+
+	return volume, nil
 }
 
 func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse,
 	error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ListVolumes: called with args %v", protosanitizer.StripSecrets(*req))
+
+	if req.MaxEntries < 0 {
+		return nil, status.Error(codes.InvalidArgument,
+			fmt.Sprintf("Validation failed, max entries request %v, must not be negative ", req.MaxEntries))
+	}
+
+	opts := cloudvolumes.ListOpts{
+		Marker: req.StartingToken,
+		Limit:  int(req.MaxEntries),
+	}
+	volumes, err := services.ListVolumes(cs.Driver.cloudCredentials, opts)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	entries := make([]*csi.ListVolumesResponse_Entry, 0, len(volumes))
+	for _, vol := range volumes {
+		publishedNodeIds := make([]string, len(vol.Attachments))
+		for _, attachment := range vol.Attachments {
+			publishedNodeIds = append(publishedNodeIds, attachment.ServerID)
+		}
+
+		entry := csi.ListVolumesResponse_Entry{
+			Volume: &csi.Volume{
+				VolumeId:      vol.ID,
+				CapacityBytes: int64(vol.Size * common.GbByteSize),
+			},
+			Status: &csi.ListVolumesResponse_VolumeStatus{
+				PublishedNodeIds: publishedNodeIds,
+			},
+		}
+
+		entries = append(entries, &entry)
+	}
+
+	response := &csi.ListVolumesResponse{
+		Entries: entries,
+	}
+
+	log.Infof("Successfully obtained volume list, size: %v", len(entries))
+	if len(volumes) > 0 && len(volumes) == opts.Limit {
+		response.NextToken = volumes[len(volumes)-1].ID
+	}
+
+	return response, nil
 }
 
 func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSnapshotRequest) (
 	*csi.CreateSnapshotResponse, error) {
 	log.Infof("CreateSnapshot called with request %v", protosanitizer.StripSecrets(*req))
+
 	credentials := cs.Driver.cloudCredentials
 	name := req.GetName()
 	volumeId := req.GetSourceVolumeId()
-	if err := checkCreateSnapshotParamEmpty(name, volumeId); err != nil {
+	if err := createSnapshotValidation(name, volumeId); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to check create snapshot param, %v", err)
 	}
+
 	response, err := checkDuplicateSnapshotName(credentials, name, volumeId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to check duplicate snapshot name: %v", err)
@@ -281,19 +379,19 @@ func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSna
 		log.Infof("Snapshot with name: %s | volumeId: %s already exist. detail: %v", name, volumeId, response)
 		return response, nil
 	}
-	if err := checkVolumeIsExist(credentials, volumeId); err != nil {
-		return nil, status.Errorf(codes.Internal,
-			"Failed to check volume is exist. volumeId: %s, error: %v", volumeId, err)
+
+	if _, err := services.GetVolume(credentials, volumeId); err != nil {
+		return nil, err
 	}
-	snapshot, err := services.CreateSnapshotToCompleted(credentials, name, volumeId)
+	snapshot, err := services.CreateSnapshotCompleted(credentials, name, volumeId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create snapshot to completed: %v", err)
 	}
 	log.Infof("Successful create snapshot. detail: %v", protosanitizer.StripSecrets(snapshot))
-	return generateSnapshotResponse(snapshot), nil
+	return buildSnapshotResponse(snapshot), nil
 }
 
-func generateSnapshotResponse(snap *snapshots.Snapshot) *csi.CreateSnapshotResponse {
+func buildSnapshotResponse(snap *snapshots.Snapshot) *csi.CreateSnapshotResponse {
 	return &csi.CreateSnapshotResponse{
 		Snapshot: &csi.Snapshot{
 			SnapshotId:     snap.ID,
@@ -305,7 +403,7 @@ func generateSnapshotResponse(snap *snapshots.Snapshot) *csi.CreateSnapshotRespo
 	}
 }
 
-func checkCreateSnapshotParamEmpty(name string, volumeId string) error {
+func createSnapshotValidation(name string, volumeId string) error {
 	if volumeId == "" {
 		return status.Error(codes.InvalidArgument, "CreateSnapshot volumeId cannot be empty")
 	}
@@ -330,7 +428,7 @@ func checkDuplicateSnapshotName(credentials *config.CloudCredentials, name strin
 		if snap.VolumeID != volumeId {
 			return nil, status.Error(codes.AlreadyExists, "CreateSnapshot same name with different volumeId")
 		}
-		return generateSnapshotResponse(snap), nil
+		return buildSnapshotResponse(snap), nil
 	}
 	if len(listSnapshots) > 1 {
 		return nil, status.Error(codes.Internal, "Multiple snapshots reported by EVS with same name")
@@ -437,9 +535,8 @@ func generateListSnapshotsResponseEntry(snapshot *snapshots.Snapshot) *csi.ListS
 
 // ControllerGetCapabilities implements the default GRPC callout.
 // Default supports all capabilities
-func (cs *ControllerServer) ControllerGetCapabilities(_ context.Context, req *csi.ControllerGetCapabilitiesRequest) (
+func (cs *ControllerServer) ControllerGetCapabilities(_ context.Context, _ *csi.ControllerGetCapabilitiesRequest) (
 	*csi.ControllerGetCapabilitiesResponse, error) {
-
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: cs.Driver.cscap,
 	}, nil
@@ -447,15 +544,147 @@ func (cs *ControllerServer) ControllerGetCapabilities(_ context.Context, req *cs
 
 func (cs *ControllerServer) ValidateVolumeCapabilities(_ context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (
 	*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ValidateVolumeCapabilities: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volCapabilities := req.GetVolumeCapabilities()
+	volumeID := req.GetVolumeId()
+
+	if len(volCapabilities) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume capabilities cannot be empty")
+	}
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	if _, err := services.GetVolume(cs.Driver.cloudCredentials, volumeID); err != nil {
+		return nil, err
+	}
+
+	for _, capability := range volCapabilities {
+		if capability.GetAccessMode().GetMode() != cs.Driver.vcap[0].Mode {
+			return &csi.ValidateVolumeCapabilitiesResponse{Message: "Requested volume capability not supported"}, nil
+		}
+	}
+
+	return &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+			VolumeCapabilities: []*csi.VolumeCapability{
+				{
+					AccessMode: cs.Driver.vcap[0],
+				},
+			},
+		},
+	}, nil
 }
 
-func (cs *ControllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (
+func (cs *ControllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (
 	*csi.GetCapacityResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	return nil, status.Error(codes.Unimplemented, "GetCapacity is not yet implemented")
 }
 
-func (cs *ControllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (
+func (cs *ControllerServer) ControllerExpandVolume(_ context.Context, req *csi.ControllerExpandVolumeRequest) (
 	*csi.ControllerExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ControllerExpandVolume: called with args %v", protosanitizer.StripSecrets(*req))
+	cc := cs.Driver.cloudCredentials
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	capRange := req.GetCapacityRange()
+	if capRange == nil {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, capacity range cannot be empty")
+	}
+
+	sizeBytes := req.GetCapacityRange().GetRequiredBytes()
+	sizeGB := int(utils.RoundUpSize(sizeBytes, common.GbByteSize))
+	maxSizeBytes := capRange.GetLimitBytes()
+	if maxSizeBytes > 0 && maxSizeBytes < sizeBytes {
+		return nil, status.Errorf(codes.OutOfRange,
+			"Validation failed, after round-up volume size %v exceeds the max size %v", sizeBytes, maxSizeBytes)
+	}
+
+	volume, err := services.GetVolume(cc, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	if volume.Size >= sizeGB {
+		log.Warningf("Volume %v has been already expanded to %v, requested %v", volumeID, volume.Size, sizeGB)
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes:         int64(volume.Size * common.GbByteSize),
+			NodeExpansionRequired: true,
+		}, nil
+	}
+
+	err = services.ExpandVolume(cc, volumeID, sizeGB)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"Error resizing volume %v to size %v, error: %s", volumeID, sizeGB, err)
+	}
+
+	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeGB)
+
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         sizeBytes,
+		NodeExpansionRequired: true,
+	}, nil
+}
+
+func getAZFromTopology(requirement *csi.TopologyRequirement) string {
+	for _, topology := range requirement.GetPreferred() {
+		zone, exists := topology.GetSegments()[topologyKey]
+		if exists {
+			return zone
+		}
+	}
+
+	for _, topology := range requirement.GetRequisite() {
+		zone, exists := topology.GetSegments()[topologyKey]
+		if exists {
+			return zone
+		}
+	}
+	return ""
+}
+
+func buildCreateVolumeResponse(vol *cloudvolumes.Volume, dssID string) *csi.CreateVolumeResponse {
+	accessibleTopology := []*csi.Topology{
+		{
+			Segments: map[string]string{topologyKey: vol.AvailabilityZone},
+		},
+	}
+
+	VolumeContext := make(map[string]string)
+	if dssID != "" {
+		VolumeContext[DssIDKey] = dssID
+	}
+
+	response := &csi.CreateVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:           vol.ID,
+			CapacityBytes:      int64(vol.Size * common.GbByteSize),
+			AccessibleTopology: accessibleTopology,
+			VolumeContext:      VolumeContext,
+		},
+	}
+
+	if vol.SnapshotID != "" {
+		response.Volume.ContentSource = &csi.VolumeContentSource{
+			Type: &csi.VolumeContentSource_Snapshot{
+				Snapshot: &csi.VolumeContentSource_SnapshotSource{
+					SnapshotId: vol.SnapshotID,
+				},
+			},
+		}
+	}
+
+	if vol.SourceVolID != "" {
+		response.Volume.ContentSource = &csi.VolumeContentSource{
+			Type: &csi.VolumeContentSource_Volume{
+				Volume: &csi.VolumeContentSource_VolumeSource{
+					VolumeId: vol.SourceVolID,
+				},
+			},
+		}
+	}
+	return response
 }

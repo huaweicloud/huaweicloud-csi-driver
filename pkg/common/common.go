@@ -6,6 +6,8 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -18,7 +20,7 @@ const (
 )
 
 func IsNotFound(err error) bool {
-	return errors.As(err, &golangsdk.ErrDefault404{})
+	return errors.As(err, &golangsdk.ErrDefault404{}) || status.Code(err) == codes.NotFound
 }
 
 func WaitForCompleted(condition wait.ConditionFunc) error {
