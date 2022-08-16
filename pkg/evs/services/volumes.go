@@ -26,7 +26,7 @@ func CreateVolumeCompleted(c *config.CloudCredentials, otps *cloudvolumes.Create
 
 	job, err := cloudvolumes.Create(client, *otps).Extract()
 	if err != nil {
-		return "", fmt.Errorf("Error creating EVS Volume, error: %s, createOpts: %#v", err, otps)
+		return "", fmt.Errorf("Error creating EVS volume, error: %s, createOpts: %#v", err, otps)
 	}
 
 	log.V(4).Infof("[DEBUG] The volume creation is submitted successfully and the job is running.")
@@ -68,7 +68,6 @@ func CheckVolumeExists(credentials *config.CloudCredentials, name string, sizeGB
 		log.Infof("Volume %s already exists in AZ %s of size %d GiB", vol.ID, vol.AvailabilityZone, vol.Size)
 		return &vol, nil
 	} else if len(volumes) > 1 {
-		log.Infof("found multiple existing volumes with selected name (%s) during create", name)
 		return nil, status.Error(codes.AlreadyExists, "Found multiple volumes with same name")
 	}
 
@@ -85,7 +84,7 @@ func GetVolumeDevicePath(c *config.CloudCredentials, id string) (string, error) 
 		}
 		return "", status.Error(codes.Internal, fmt.Sprintf("Querying volume details fails with error %s", err))
 	}
-
+	// shared disk will not be used and will only have an attachment if mounted.
 	if len(volume.Attachments) > 0 {
 		return volume.Attachments[0].Device, nil
 	}
@@ -121,7 +120,6 @@ func DeleteVolume(c *config.CloudCredentials, id string) error {
 	if err != nil {
 		return err
 	}
-
 	return cloudvolumes.Delete(client, id, nil).Err
 }
 
@@ -134,7 +132,7 @@ func ListVolumes(c *config.CloudCredentials, opts cloudvolumes.ListOpts) ([]clou
 
 	volumes, err := cloudvolumes.ListPage(client, opts)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Error querying volume list, error: %v", err))
+		return nil, status.Errorf(codes.Internal, "Error querying volume list, error: %v", err)
 	}
 	return volumes, nil
 }
@@ -159,7 +157,7 @@ func waitForJobFinished(c *config.CloudCredentials, title, jobID string) (string
 		}
 
 		if job.Status == "FAIL" {
-			return false, status.Error(codes.Unavailable,
+			return false, status.Error(codes.Internal,
 				fmt.Sprintf("Error waiting for the %s volume job to be complete, job: %#v", title, job))
 		}
 

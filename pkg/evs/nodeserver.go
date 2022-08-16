@@ -32,7 +32,7 @@ type nodeServer struct {
 
 func (ns *nodeServer) NodeStageVolume(_ context.Context, req *csi.NodeStageVolumeRequest) (
 	*csi.NodeStageVolumeResponse, error) {
-	log.Infof("NodeStageVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("NodeStageVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	cc := ns.Driver.cloudCredentials
 	stagingTarget := req.GetStagingTargetPath()
@@ -123,7 +123,7 @@ func nodeStageValidation(cc *config.CloudCredentials, volumeID, target string, v
 
 func (ns *nodeServer) NodeUnstageVolume(_ context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.
 	NodeUnstageVolumeResponse, error) {
-	log.Infof("NodeUnstageVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("NodeUnstageVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
 	stagingTargetPath := req.GetStagingTargetPath()
@@ -158,7 +158,7 @@ func unstagetValidation(cc *config.CloudCredentials, volumeID, target string) er
 
 func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishVolumeRequest) (
 	*csi.NodePublishVolumeResponse, error) {
-	log.Infof("NodePublishVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("NodePublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	cc := ns.Driver.cloudCredentials
 	volumeID := req.GetVolumeId()
@@ -237,7 +237,7 @@ func nodePublishValidation(cc *config.CloudCredentials, volumeID, sourcePath, ta
 
 func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (
 	*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("NodeUnpublishVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("NodeUnpublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	cc := ns.Driver.cloudCredentials
 	volumeID := req.GetVolumeId()
@@ -318,7 +318,7 @@ func (ns *nodeServer) NodeGetCapabilities(_ context.Context, req *csi.NodeGetCap
 
 func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolumeStatsRequest) (
 	*csi.NodeGetVolumeStatsResponse, error) {
-	log.Infof("NodeGetVolumeStats: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("NodeGetVolumeStats: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
 	volumePath := req.GetVolumePath()
@@ -370,7 +370,7 @@ func nodeGetStatsValidation(volumeID, volumePath string) error {
 
 func (ns *nodeServer) NodeExpandVolume(_ context.Context, req *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
-	log.Infof("NodeExpandVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("NodeExpandVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
 	volumePath := req.GetVolumePath()
@@ -425,7 +425,7 @@ func collectMountOptions(fsType string, mntFlags []string) []string {
 }
 
 func nodeUnpublishEphemeral(ns *nodeServer, vol *cloudvolumes.Volume) (*csi.NodeUnpublishVolumeResponse, error) {
-	log.Infof("nodeUnpublishEphemeral: called with args %+v", protosanitizer.StripSecrets(*vol))
+	log.Infof("nodeUnpublishEphemeral: called with args %v", protosanitizer.StripSecrets(*vol))
 
 	cc := ns.Driver.cloudCredentials
 	volumeID := vol.ID
@@ -451,7 +451,7 @@ func nodeUnpublishEphemeral(ns *nodeServer, vol *cloudvolumes.Volume) (*csi.Node
 }
 
 func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*csi.NodePublishVolumeResponse, error) {
-	log.Infof("nodePublishEphemeral: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("nodePublishEphemeral: called with args %v", protosanitizer.StripSecrets(*req))
 
 	cc := ns.Driver.cloudCredentials
 	size := 10 // default size is 1GB
@@ -544,7 +544,7 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 
 func nodePublishVolumeForBlock(req *csi.NodePublishVolumeRequest, ns *nodeServer, mountOptions []string) (
 	*csi.NodePublishVolumeResponse, error) {
-	log.Infof("nodePublishVolumeForBlock: called with args %+v", protosanitizer.StripSecrets(*req))
+	log.Infof("nodePublishVolumeForBlock: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
 	targetPath := req.GetTargetPath()

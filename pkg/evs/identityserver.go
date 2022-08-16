@@ -35,7 +35,7 @@ func (ids *identityServer) Probe(_ context.Context, _ *csi.ProbeRequest) (*csi.P
 
 func (ids *identityServer) GetPluginCapabilities(_ context.Context, req *csi.GetPluginCapabilitiesRequest) (*csi.
 	GetPluginCapabilitiesResponse, error) {
-	logs.Infof("GetPluginCapabilities called with req %+v", req)
+	logs.Infof("GetPluginCapabilities called with req %v", req)
 
 	return &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{

@@ -46,8 +46,8 @@ func AttachVolumeCompleted(c *config.CloudCredentials, serverID, volumeID string
 
 	job, err := block_devices.Attach(client, opts)
 	if err != nil {
-		log.Errorf("Attach volume failed, serviceID: %s, volumeID: %s, error: %s", serverID, volumeID, err)
-		return status.Error(codes.Internal, fmt.Sprintf("Attach volume failed with error %v", err))
+		return status.Errorf(codes.Internal, "Attach volume failed, serviceID: %s, volumeID: %s, error: %s",
+			serverID, volumeID, err)
 	}
 
 	err = waitForVolumeAttached(c, job.ID)
@@ -77,7 +77,7 @@ func DetachVolumeCompleted(c *config.CloudCredentials, serverID, volumeID string
 	err = waitForVolumeDetached(c, job.ID)
 	if err != nil {
 		return status.Error(codes.Internal,
-			fmt.Sprintf("Error waitting for detaching volume with error %s, job ID: %s", err, job.ID))
+			fmt.Sprintf("Error waiting for detaching volume with error %s, job ID: %s", err, job.ID))
 	}
 	log.V(4).Infof("[DEBUG] Volume detached successfully.")
 	return nil
