@@ -58,6 +58,31 @@ func AttachVolumeCompleted(c *config.CloudCredentials, serverID, volumeID string
 	return nil
 }
 
+func WaitForVolumeAttaching(c *config.CloudCredentials, volumeID string) error {
+	condition, err := waitForVolumeAttachingCondition(c, volumeID)
+	if err != nil {
+		return err
+	}
+	return common.WaitForCompleted(condition)
+}
+
+func waitForVolumeAttachingCondition(c *config.CloudCredentials, volumeID string) (wait.ConditionFunc, error) {
+	return func() (bool, error) {
+		volume, err := GetVolume(c, volumeID)
+		if err != nil {
+			return false, status.Errorf(codes.Internal, "Error waiting for volume attaching, %v", err)
+		}
+		if volume.Status == EvsInUseStatus {
+			return true, nil
+		}
+		if volume.Status == EvsAttachingStatus {
+			return false, nil
+		}
+		return false, status.Errorf(codes.Internal,
+			"Error waiting for volume: %s attaching, status is not in-use", volumeID)
+	}, nil
+}
+
 func DetachVolumeCompleted(c *config.CloudCredentials, serverID, volumeID string) error {
 	client, err := getEcsV1Client(c)
 	if err != nil {

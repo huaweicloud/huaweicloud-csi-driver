@@ -191,32 +191,66 @@ func (cs *ControllerServer) ControllerGetVolume(_ context.Context, req *csi.Cont
 	return &response, nil
 }
 
+type VolumeAttachmentStatus int32
+
+const (
+	VolumeAttachmentAvailable VolumeAttachmentStatus = iota + 1
+	VolumeAttachmentAttachingMatchServer
+	VolumeAttachmentAttachingNotMatchServer
+	VolumeAttachmentInUseMatchServer
+	VolumeAttachmentInUseNotMatchServer
+	VolumeAttachmentError
+)
+
 func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.ControllerPublishVolumeRequest) (
 	*csi.ControllerPublishVolumeResponse, error) {
-	log.Infof("ControllerPublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
-
+	log.Infof("ControllerPublishVolume: called with args %+v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloudCredentials
 	instanceID := req.GetNodeId()
 	volumeID := req.GetVolumeId()
 	if err := publishValidation(credentials, volumeID, instanceID, req.GetVolumeCapability()); err != nil {
 		return nil, err
 	}
-
-	if err := services.AttachVolumeCompleted(credentials, instanceID, volumeID); err != nil {
-		if strings.Contains(err.Error(), "Ecs.0005") {
-			log.Warningf("Warning, duplicate publish volume, skip publish volume")
-			return nil, nil
-		}
-		return nil, status.Errorf(codes.Internal, "Failed to publish volume %s to ECS %s with error %v",
-			volumeID, instanceID, err)
-	}
-
-	log.Infof("Successfully published volume %s to EVS %s, obtaining device path", volumeID, instanceID)
-
 	volume, err := services.GetVolume(credentials, volumeID)
 	if err != nil {
 		return nil, err
 	}
+
+	attachmentStatus := volumeAttachmentStatus(volume, instanceID)
+	log.Infof("ControllerPublishVolume: attachmentStatus is %s", attachmentStatus)
+	switch attachmentStatus {
+	case VolumeAttachmentAvailable:
+		if err := services.AttachVolumeCompleted(credentials, instanceID, volumeID); err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to publish volume %s to ECS %s with error %v",
+				volumeID, instanceID, err)
+		}
+		break
+	case VolumeAttachmentAttachingMatchServer:
+		if err := services.WaitForVolumeAttaching(credentials, volumeID); err != nil {
+			return nil, status.Errorf(codes.Internal,
+				"Failed to wait for volume: %s attaching ECS: %s with error %v", volumeID, instanceID, err)
+		}
+		break
+	case VolumeAttachmentAttachingNotMatchServer:
+		return nil, status.Errorf(codes.Internal, "Error, volume: %s is attaching another server", volumeID)
+	case VolumeAttachmentInUseMatchServer:
+		log.Infof("ControllerPublishVolume volume: %s already attached on server: %s", volumeID, instanceID)
+		return buildPublishVolumeResponse(volume, instanceID), nil
+	case VolumeAttachmentInUseNotMatchServer:
+		return nil, status.Errorf(codes.Internal, "Error, volume: %s is in used by another server", volumeID)
+	default:
+		return nil, status.Errorf(codes.Internal, "Error, status: %s was found in volume: %s, ",
+			volume.Status, volume.ID)
+	}
+
+	log.Infof("Successfully published volume %s to EVS %s, obtaining device path", volumeID, instanceID)
+	if volume, err = services.GetVolume(credentials, volumeID); err != nil {
+		return nil, err
+	}
+	return buildPublishVolumeResponse(volume, instanceID), nil
+}
+
+func buildPublishVolumeResponse(volume *cloudvolumes.Volume, instanceID string) *csi.ControllerPublishVolumeResponse {
 	devicePath := ""
 	for _, attach := range volume.Attachments {
 		if attach.ServerID == instanceID {
@@ -225,12 +259,39 @@ func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.
 		}
 	}
 	log.Infof("Got device path: %s", devicePath)
-
 	return &csi.ControllerPublishVolumeResponse{
 		PublishContext: map[string]string{
 			"DevicePath": devicePath,
 		},
-	}, nil
+	}
+}
+
+func volumeAttachmentStatus(volume *cloudvolumes.Volume, instanceID string) VolumeAttachmentStatus {
+	attachment := false // use to decide whether volume has attached on current instance
+	for _, v := range volume.Attachments {
+		if v.ServerID == instanceID {
+			attachment = true
+			break
+		}
+	}
+
+	volumeStatus := volume.Status
+	if services.EvsAvailableStatus == volumeStatus {
+		return VolumeAttachmentAvailable
+	}
+	if services.EvsAttachingStatus == volumeStatus && attachment {
+		return VolumeAttachmentAttachingMatchServer
+	}
+	if services.EvsAttachingStatus == volumeStatus && !attachment {
+		return VolumeAttachmentAttachingNotMatchServer
+	}
+	if services.EvsInUseStatus == volumeStatus && attachment {
+		return VolumeAttachmentInUseMatchServer
+	}
+	if services.EvsInUseStatus == volumeStatus && !attachment {
+		return VolumeAttachmentInUseNotMatchServer
+	}
+	return VolumeAttachmentError
 }
 
 func publishValidation(cc *config.CloudCredentials, volumeID, instanceID string,
@@ -434,17 +495,6 @@ func checkDuplicateSnapshotName(credentials *config.CloudCredentials, name strin
 		return nil, status.Error(codes.Internal, "Multiple snapshots reported by EVS with same name")
 	}
 	return nil, nil
-}
-
-func checkVolumeIsExist(credentials *config.CloudCredentials, volumeId string) error {
-	volume, err := services.GetVolume(credentials, volumeId)
-	if err != nil {
-		return err
-	}
-	if volume == nil {
-		return status.Error(codes.NotFound, "Volume not exist")
-	}
-	return nil
 }
 
 func (cs *ControllerServer) DeleteSnapshot(_ context.Context, req *csi.DeleteSnapshotRequest) (
