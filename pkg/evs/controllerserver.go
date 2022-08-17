@@ -472,38 +472,9 @@ func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapsh
 	log.Infof("ListSnapshots called with request %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloudCredentials
 
-	var response *csi.ListSnapshotsResponse
-	var err error
-	snapshotId := req.GetSnapshotId()
-	if snapshotId != "" {
-		response, err = querySnapshotBySnapshotId(credentials, snapshotId)
-	} else {
-		response, err = querySnapshotPageList(credentials, req)
-	}
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to query snapshots list: %v", err)
-	}
-	log.Infof("Successful query snapshot list. detail: %v", protosanitizer.StripSecrets(response))
-	return response, nil
-}
-
-func querySnapshotBySnapshotId(credentials *config.CloudCredentials, id string) (*csi.ListSnapshotsResponse, error) {
-	snapshot, err := services.GetSnapshot(credentials, id)
-	if err != nil {
-		if common.IsNotFound(err) {
-			log.Infof("Snapshot %s not found", id)
-			return &csi.ListSnapshotsResponse{}, nil
-		}
-		return nil, err
-	}
-	responseEntry := generateListSnapshotsResponseEntry(snapshot)
-	return &csi.ListSnapshotsResponse{Entries: []*csi.ListSnapshotsResponse_Entry{responseEntry}}, nil
-}
-
-func querySnapshotPageList(credentials *config.CloudCredentials, req *csi.ListSnapshotsRequest) (
-	*csi.ListSnapshotsResponse, error) {
 	availableStatus := "available"
 	opts := snapshots.ListOpts{
+		ID:       req.GetSnapshotId(),
 		VolumeID: req.GetSourceVolumeId(),
 		Status:   availableStatus, // Only retrieve snapshots available
 		Limit:    int(req.MaxEntries),
@@ -517,6 +488,7 @@ func querySnapshotPageList(credentials *config.CloudCredentials, req *csi.ListSn
 	for _, element := range pageList.Snapshots {
 		responses = append(responses, generateListSnapshotsResponseEntry(&element))
 	}
+	log.Infof("Successful query snapshot list. detail: %v", protosanitizer.StripSecrets(responses))
 	return &csi.ListSnapshotsResponse{Entries: responses}, nil
 }
 
