@@ -17,6 +17,7 @@ limitations under the License.
 package sfs
 
 import (
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"net"
 	"os"
 	"sync"
@@ -71,8 +72,7 @@ func (s *nonBlockingGRPCServer) ForceStop() {
 }
 
 func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-
-	proto, addr, err := ParseEndpoint(endpoint)
+	proto, addr, err := utils.ParseEndpoint(endpoint)
 	if err != nil {
 		klog.Fatal(err.Error())
 	}
@@ -90,7 +90,7 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 	}
 
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(logGRPC),
+		grpc.UnaryInterceptor(utils.LogGRPC),
 	}
 	server := grpc.NewServer(opts...)
 	s.server = server

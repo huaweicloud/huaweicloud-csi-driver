@@ -21,14 +21,14 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 )
 
 const (
-	driverName  = "sfs.csi.huaweicloud.com"
+	driverName = "sfs.csi.huaweicloud.com"
 )
 
 var (
@@ -36,12 +36,12 @@ var (
 )
 
 type SfsDriver struct {
-	name        string
-	nodeID      string
-	version     string
-	endpoint    string
-	shareProto  string
-	cloud       config.CloudCredentials
+	name       string
+	nodeID     string
+	version    string
+	endpoint   string
+	shareProto string
+	cloud      config.CloudCredentials
 
 	ids *identityServer
 	cs  *controllerServer
@@ -60,7 +60,7 @@ func NewDriver(nodeID, endpoint, shareProto string, cloud config.CloudCredential
 	d.nodeID = nodeID
 	d.version = version
 	d.endpoint = endpoint
-    d.shareProto = strings.ToUpper(shareProto)
+	d.shareProto = strings.ToUpper(shareProto)
 	d.cloud = cloud
 
 	d.AddControllerServiceCapabilities(
@@ -75,9 +75,9 @@ func NewDriver(nodeID, endpoint, shareProto string, cloud config.CloudCredential
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
 	})
 
-	d.ids = NewIdentityServer(d)
-	d.cs = NewControllerServer(d)
-	d.ns = NewNodeServer(d)
+	d.ids = &identityServer{Driver: d}
+	d.cs = &controllerServer{Driver: d}
+	d.ns = &nodeServer{Driver: d}
 
 	return d
 }
@@ -87,7 +87,13 @@ func (d *SfsDriver) AddControllerServiceCapabilities(cl []csi.ControllerServiceC
 
 	for _, c := range cl {
 		klog.Infof("Enabling controller service capability: %v", c.String())
-		csc = append(csc, NewControllerServiceCapability(c))
+		csc = append(csc, &csi.ControllerServiceCapability{
+			Type: &csi.ControllerServiceCapability_Rpc{
+				Rpc: &csi.ControllerServiceCapability_RPC{
+					Type: c,
+				},
+			},
+		})
 	}
 
 	d.cscap = csc
@@ -99,7 +105,7 @@ func (d *SfsDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_Acc
 	var vca []*csi.VolumeCapability_AccessMode
 	for _, c := range vc {
 		klog.Infof("Enabling volume access mode: %v", c.String())
-		vca = append(vca, NewVolumeCapabilityAccessMode(c))
+		vca = append(vca, &csi.VolumeCapability_AccessMode{Mode: c})
 	}
 	d.vcap = vca
 	return vca
@@ -123,5 +129,7 @@ func (d *SfsDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_Acc
 }
 
 func (d *SfsDriver) Run() {
-	RunControllerandNodePublishServer(d.endpoint, d.ids, d.cs, d.ns)
+	s := NewNonBlockingGRPCServer()
+	s.Start(d.endpoint, d.ids, d.cs, d.ns)
+	s.Wait()
 }

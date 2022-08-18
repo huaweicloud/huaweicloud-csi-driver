@@ -17,21 +17,21 @@ limitations under the License.
 package sfs
 
 import (
-	"github.com/huaweicloud/golangsdk"
-	"github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares"
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/sfs/v2/shares"
 	"k8s.io/klog"
 )
 
 const (
 	waitForAvailableShareTimeout = 3
 
-	shareAvailable     = "available"
+	shareAvailable = "available"
 
 	shareDescription = "provisioned-by=sfs.csi.huaweicloud.org"
 )
 
 func createShare(client *golangsdk.ServiceClient, createOpts *shares.CreateOpts) (*shares.Share, error) {
-    createOpts.Description = shareDescription
+	createOpts.Description = shareDescription
 	share, err := shares.Create(client, createOpts).Extract()
 	if err != nil {
 		return nil, err
