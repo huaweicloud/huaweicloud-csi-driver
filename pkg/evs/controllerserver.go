@@ -306,10 +306,6 @@ func publishValidation(cc *config.CloudCredentials, volumeID, instanceID string,
 		return status.Error(codes.InvalidArgument, "Validation failed, volume capability cannot be empty")
 	}
 
-	if _, err := services.GetVolume(cc, volumeID); err != nil {
-		return err
-	}
-
 	if _, err := services.GetServer(cc, instanceID); err != nil {
 		return err
 	}
