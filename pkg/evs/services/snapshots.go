@@ -10,8 +10,6 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
-const debugPrefix = "[DEBUG] "
-
 func GetSnapshot(c *config.CloudCredentials, id string) (*snapshots.Snapshot, error) {
 	client, err := getEvsV2Client(c)
 	if err != nil {
@@ -31,7 +29,7 @@ func ListSnapshots(c *config.CloudCredentials, opts snapshots.ListOpts) (*snapsh
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to query snapshot list page: %v", err)
 	}
-	log.V(4).Infof(debugPrefix+"query snapshot list page detail: %v", page)
+	log.V(4).Infof("[DEBUG] query snapshot list page detail: %v", page)
 	return page, nil
 }
 
@@ -41,12 +39,12 @@ func CreateSnapshotCompleted(credentials *config.CloudCredentials, name string, 
 		VolumeID: volumeId,
 		Name:     name,
 	}
-	log.V(4).Infof(debugPrefix+"createSnapshot opts: %v", *opts)
+	log.V(4).Infof("[DEBUG] createSnapshot opts: %v", *opts)
 	snap, err := CreateSnapshot(credentials, opts)
 	if err != nil {
 		return nil, err
 	}
-	log.V(4).Infof(debugPrefix+"createSnapshot response detail: %v", snap)
+	log.V(4).Infof("[DEBUG] createSnapshot response detail: %v", snap)
 	err = WaitSnapshotReady(credentials, snap.ID)
 	if err != nil {
 		return nil, err
@@ -71,7 +69,7 @@ func WaitSnapshotReady(c *config.CloudCredentials, snapshotId string) error {
 			return false, status.Errorf(codes.Internal,
 				"Failed to query snapshot when wait snapshot ready: %v", err)
 		}
-		log.V(4).Infof(debugPrefix+"query snapshot detail when wait snapshot ready detail: %v", snapshot)
+		log.V(4).Infof("[DEBUG] query snapshot detail when wait snapshot ready detail: %v", snapshot)
 		if snapshot.Status == availableStatus {
 			return true, nil
 		}
