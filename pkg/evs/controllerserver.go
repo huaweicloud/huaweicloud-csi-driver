@@ -2,6 +2,7 @@ package evs
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
@@ -480,6 +481,11 @@ func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapsh
 		opts.VolumeID = req.GetSourceVolumeId()
 		opts.Status = availableStatus // Only retrieve snapshots available
 		opts.Limit = int(req.MaxEntries)
+		offset, err := strconv.Atoi(req.GetStartingToken())
+		if err != nil {
+			offset = 0
+		}
+		opts.Offset = offset
 	}
 	pageList, err := services.ListSnapshots(credentials, opts)
 	if err != nil {
@@ -490,8 +496,13 @@ func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapsh
 	for _, element := range pageList.Snapshots {
 		responses = append(responses, generateListSnapshotsResponseEntry(&element))
 	}
-	log.Infof("Successful query snapshot list. detail: %v", protosanitizer.StripSecrets(responses))
-	return &csi.ListSnapshotsResponse{Entries: responses}, nil
+	response := &csi.ListSnapshotsResponse{Entries: responses}
+	currentOffset := opts.Offset + len(responses)
+	if currentOffset < pageList.Count {
+		response.NextToken = strconv.Itoa(currentOffset)
+	}
+	log.Infof("Successful query snapshot list. detail: %v", protosanitizer.StripSecrets(response))
+	return response, nil
 }
 
 func generateListSnapshotsResponseEntry(snapshot *snapshots.Snapshot) *csi.ListSnapshotsResponse_Entry {
