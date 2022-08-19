@@ -473,11 +473,13 @@ func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapsh
 	credentials := cs.Driver.cloudCredentials
 
 	availableStatus := "available"
-	opts := snapshots.ListOpts{
-		ID:       req.GetSnapshotId(),
-		VolumeID: req.GetSourceVolumeId(),
-		Status:   availableStatus, // Only retrieve snapshots available
-		Limit:    int(req.MaxEntries),
+	opts := snapshots.ListOpts{}
+	if req.GetSnapshotId() != "" {
+		opts.ID = req.GetSnapshotId()
+	} else {
+		opts.VolumeID = req.GetSourceVolumeId()
+		opts.Status = availableStatus // Only retrieve snapshots available
+		opts.Limit = int(req.MaxEntries)
 	}
 	pageList, err := services.ListSnapshots(credentials, opts)
 	if err != nil {
