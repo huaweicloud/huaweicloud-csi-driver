@@ -194,12 +194,12 @@ func (cs *ControllerServer) ControllerGetVolume(_ context.Context, req *csi.Cont
 type VolumeAttachmentStatus int32
 
 const (
-	VolumeAttachmentAvailable VolumeAttachmentStatus = iota + 1
-	VolumeAttachmentAttachingMatchServer
-	VolumeAttachmentAttachingNotMatchServer
-	VolumeAttachmentInUseMatchServer
-	VolumeAttachmentInUseNotMatchServer
-	VolumeAttachmentError
+	VolumeNotAttached VolumeAttachmentStatus = iota + 1
+	VolumeAttachingCurrentServer
+	VolumeAttachingOtherServer
+	VolumeAttachedCurrentServer
+	VolumeAttachedOtherServer
+	VolumeAttachError
 )
 
 func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.ControllerPublishVolumeRequest) (
@@ -219,24 +219,24 @@ func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.
 	attachmentStatus := volumeAttachmentStatus(volume, instanceID)
 	log.Infof("ControllerPublishVolume: attachmentStatus is %s", attachmentStatus)
 	switch attachmentStatus {
-	case VolumeAttachmentAvailable:
+	case VolumeNotAttached:
 		if err := services.AttachVolumeCompleted(credentials, instanceID, volumeID); err != nil {
 			return nil, status.Errorf(codes.Internal, "Failed to publish volume %s to ECS %s with error %v",
 				volumeID, instanceID, err)
 		}
 		break
-	case VolumeAttachmentAttachingMatchServer:
+	case VolumeAttachingCurrentServer:
 		if err := services.WaitForVolumeAttaching(credentials, volumeID); err != nil {
 			return nil, status.Errorf(codes.Internal,
 				"Failed to wait for volume: %s attaching ECS: %s with error %v", volumeID, instanceID, err)
 		}
 		break
-	case VolumeAttachmentAttachingNotMatchServer:
+	case VolumeAttachingOtherServer:
 		return nil, status.Errorf(codes.Internal, "Error, volume: %s is attaching another server", volumeID)
-	case VolumeAttachmentInUseMatchServer:
+	case VolumeAttachedCurrentServer:
 		log.Infof("ControllerPublishVolume volume: %s already attached on server: %s", volumeID, instanceID)
 		return buildPublishVolumeResponse(volume, instanceID), nil
-	case VolumeAttachmentInUseNotMatchServer:
+	case VolumeAttachedOtherServer:
 		return nil, status.Errorf(codes.Internal, "Error, volume: %s is in used by another server", volumeID)
 	default:
 		return nil, status.Errorf(codes.Internal, "Error, status: %s was found in volume: %s, ",
@@ -277,21 +277,21 @@ func volumeAttachmentStatus(volume *cloudvolumes.Volume, instanceID string) Volu
 
 	volumeStatus := volume.Status
 	if services.EvsAvailableStatus == volumeStatus {
-		return VolumeAttachmentAvailable
+		return VolumeNotAttached
 	}
 	if services.EvsAttachingStatus == volumeStatus && attachment {
-		return VolumeAttachmentAttachingMatchServer
+		return VolumeAttachingCurrentServer
 	}
 	if services.EvsAttachingStatus == volumeStatus && !attachment {
-		return VolumeAttachmentAttachingNotMatchServer
+		return VolumeAttachingOtherServer
 	}
 	if services.EvsInUseStatus == volumeStatus && attachment {
-		return VolumeAttachmentInUseMatchServer
+		return VolumeAttachedCurrentServer
 	}
 	if services.EvsInUseStatus == volumeStatus && !attachment {
-		return VolumeAttachmentInUseNotMatchServer
+		return VolumeAttachedOtherServer
 	}
-	return VolumeAttachmentError
+	return VolumeAttachError
 }
 
 func publishValidation(cc *config.CloudCredentials, volumeID, instanceID string,
