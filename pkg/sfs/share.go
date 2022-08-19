@@ -41,7 +41,7 @@ func createShare(client *golangsdk.ServiceClient, createOpts *shares.CreateOpts)
 
 	err = waitForShareStatus(client, share.ID, shareAvailable, waitForAvailableShareTimeout)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to wait for share create, %v", err)
+		return nil, status.Errorf(codes.Internal, "Error waiting for share to be created: %v", err)
 	}
 	return share, nil
 }
