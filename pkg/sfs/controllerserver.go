@@ -46,26 +46,31 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}
 	name := req.GetName()
 	capacityRange := req.GetCapacityRange()
-	if err := createVolumeValidation(client, name, capacityRange); err != nil {
+	if err := createVolumeValidation(name, capacityRange); err != nil {
 		return nil, err
 	}
 
-	requestedSize := req.GetCapacityRange().GetRequiredBytes()
+	requestedSize := capacityRange.GetRequiredBytes()
 	if requestedSize == 0 {
 		// At least 1GiB
 		requestedSize = 1 * common.GbByteSize
 	}
-
 	sizeInGiB := int(utils.RoundUpSize(requestedSize, common.GbByteSize))
-	// Creating a share
-	createOpts := shares.CreateOpts{
-		ShareProto: cs.Driver.shareProto,
-		Size:       sizeInGiB,
-		Name:       req.GetName(),
-	}
-	share, err := createShare(client, &createOpts)
+	share, err := checkVolumeExist(client, name, sizeInGiB, cs.Driver.shareProto)
 	if err != nil {
 		return nil, err
+	}
+	if share == nil {
+		// Creating a share
+		createOpts := shares.CreateOpts{
+			ShareProto: cs.Driver.shareProto,
+			Size:       sizeInGiB,
+			Name:       req.GetName(),
+		}
+		share, err = createShare(client, &createOpts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Grant access to the share
@@ -82,27 +87,36 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}, nil
 }
 
-func createVolumeValidation(client *golangsdk.ServiceClient, name string, capacityRange *csi.CapacityRange) error {
+func createVolumeValidation(name string, capacityRange *csi.CapacityRange) error {
 	if len(name) == 0 {
 		return status.Error(codes.InvalidArgument, "Validation failed, name cannot be empty")
 	}
 	if capacityRange == nil {
 		return status.Error(codes.InvalidArgument, "Validation failed, capacityRange cannot be nil")
 	}
+	return nil
+}
+
+func checkVolumeExist(client *golangsdk.ServiceClient, name string, sizeInGiB int, shareProto string) (
+	*shares.Share, error) {
 	opts := shares.ListOpts{
 		Name: name,
 	}
 	list, err := shareList(client, opts)
 	if err != nil {
-		return status.Errorf(codes.Internal,
+		return nil, status.Errorf(codes.Internal,
 			"Failed to query SFS by name, cannot verify whether it exists: %v", err)
 	}
 	for _, v := range list {
 		if v.Name == name {
-			return status.Errorf(codes.InvalidArgument, "SFS name: %s already exists", name)
+			// if name, share proto and size are the same, return success
+			if v.ShareProto == shareProto && v.Size == sizeInGiB {
+				return &v, nil
+			}
+			return nil, status.Errorf(codes.InvalidArgument, "SFS name: %s already exists", name)
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
