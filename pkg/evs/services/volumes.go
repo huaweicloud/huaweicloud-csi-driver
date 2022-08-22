@@ -16,6 +16,8 @@ import (
 
 const (
 	EvsAvailableStatus = "available"
+	EvsAttachingStatus = "attaching"
+	EvsInUseStatus     = "in-use"
 )
 
 func CreateVolumeCompleted(c *config.CloudCredentials, otps *cloudvolumes.CreateOpts) (string, error) {
