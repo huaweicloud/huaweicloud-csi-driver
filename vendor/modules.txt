@@ -1,4 +1,4 @@
-# github.com/chnsz/golangsdk v0.0.0-20220802123257-6d62ca9bcbcf
+# github.com/chnsz/golangsdk v0.0.0-20220822023433-7b9807832133
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/openstack
 github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices
