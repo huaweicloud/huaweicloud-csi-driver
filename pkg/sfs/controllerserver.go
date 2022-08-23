@@ -113,7 +113,8 @@ func checkVolumeExist(client *golangsdk.ServiceClient, name string, sizeInGiB in
 			if v.ShareProto == shareProto && v.Size == sizeInGiB {
 				return &v, nil
 			}
-			return nil, status.Errorf(codes.InvalidArgument, "SFS name: %s already exists", name)
+			return nil, status.Errorf(codes.InvalidArgument,
+				"SFS name: %s already exists with a different size or share_proto", name)
 		}
 	}
 	return nil, nil
