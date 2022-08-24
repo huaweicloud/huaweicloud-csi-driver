@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: temp-test-block
+spec:
+  containers:
+    - image: nginx
+      imagePullPolicy: IfNotPresent
+      name: nginx
+      ports:
+        - containerPort: 80
+          protocol: TCP
+      volumeDevices:
+        - devicePath: /var/lib/www/html
+          name: csi-data-temp
+  volumes:
+    - name: csi-data-temp
+      persistentVolumeClaim:
+        claimName: csi-pvc-evs-shareable.ap-southeast-1b
+        readOnly: false

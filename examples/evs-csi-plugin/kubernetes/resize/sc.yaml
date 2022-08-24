@@ -1,0 +1,7 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: evs-sc
+provisioner: evs.csi.huaweicloud.com
+allowVolumeExpansion: true
+reclaimPolicy: Delete
