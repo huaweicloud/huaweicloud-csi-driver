@@ -44,7 +44,7 @@ evs:
 .PHONY: evs-image
 evs-image:evs
 	cp ./evs-csi-plugin ./cmd/evs-csi-plugin
-	docker build cmd/evs-csi-plugin -t swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:latest
+	docker build cmd/evs-csi-plugin -t deerhang/evs-csi-plugin:v1.0.0
 
 .PHONY: fmt
 fmt:

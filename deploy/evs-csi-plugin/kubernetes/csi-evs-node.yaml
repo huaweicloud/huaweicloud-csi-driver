@@ -14,7 +14,7 @@ spec:
     spec:
       tolerations:
         - operator: Exists
-      serviceAccount: csi-evs-node-sa
+      serviceAccountName: csi-evs-node-sa
       containers:
         - name: evs-driver-registrar
           image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0
@@ -47,7 +47,7 @@ spec:
         - name: evs-csi-plugin
           securityContext:
             privileged: true
-          image: swr.cn-north-4.myhuaweicloud.com/development/evs-csi-plugin:latest
+          image: docker.io/deerhang/evs-csi-plugin:v1.0.0
           args:
             - /bin/evs-csi-plugin
             - "--v=5"

@@ -12,7 +12,7 @@ spec:
       labels:
         app: csi-evs-provisioner
     spec:
-      serviceAccount: csi-evs-controller-sa
+      serviceAccountName: csi-evs-controller-sa
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-cluster-critical
@@ -90,7 +90,7 @@ spec:
             - mountPath: /var/lib/csi/sockets/pluginproxy/
               name: socket-dir
         - name: evs-csi-provisioner
-          image: swr.cn-north-4.myhuaweicloud.com/development/evs-csi-plugin:latest
+          image: docker.io/deerhang/evs-csi-plugin:v1.0.0
           args:
             - /bin/evs-csi-plugin
             - "-v=5"
@@ -125,7 +125,7 @@ spec:
               mountPath: /etc/evs/
       volumes:
         - name: socket-dir
-          emptyDir:
+          emptyDir: {}
         - name: evs-config
           hostPath:
             path: /etc/evs/
