@@ -17,6 +17,7 @@ limitations under the License.
 package sfs
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/chnsz/golangsdk"
@@ -80,6 +81,38 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			CapacityBytes: int64(sizeInGiB) * bytesInGiB,
 		},
 	}, nil
+}
+
+func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
+	if req.GetName() == "" {
+		return errors.New("volume name cannot be empty")
+	}
+
+	reqCaps := req.GetVolumeCapabilities()
+	if reqCaps == nil {
+		return errors.New("volume capabilities cannot be empty")
+	}
+
+	/*
+		for _, cap := range reqCaps {
+			if cap.GetBlock() != nil {
+				return errors.New("block access type not allowed")
+			}
+		}
+	*/
+
+	return nil
+}
+
+func bytesToGiB(sizeInBytes int64) int {
+	sizeInGiB := int(sizeInBytes / bytesInGiB)
+
+	if int64(sizeInGiB)*bytesInGiB < sizeInBytes {
+		// Round up
+		return sizeInGiB + 1
+	}
+
+	return sizeInGiB
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
