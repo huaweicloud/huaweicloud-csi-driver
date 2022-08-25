@@ -52,7 +52,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 
 	requestedSize := capacityRange.GetRequiredBytes()
 	if requestedSize == 0 {
-		// At least 1GiB
+		// At least 10GiB
 		requestedSize = 10 * common.GbByteSize
 	}
 	sizeInGiB := int(utils.RoundUpSize(requestedSize, common.GbByteSize))
