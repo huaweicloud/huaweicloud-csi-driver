@@ -53,7 +53,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	requestedSize := capacityRange.GetRequiredBytes()
 	if requestedSize == 0 {
 		// At least 1GiB
-		requestedSize = 1 * common.GbByteSize
+		requestedSize = 10 * common.GbByteSize
 	}
 	sizeInGiB := int(utils.RoundUpSize(requestedSize, common.GbByteSize))
 	share, err := checkVolumeExist(client, name, sizeInGiB, cs.Driver.shareProto)
