@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: resize-nginx
+  name: test-evs-resize-nginx
 spec:
   containers:
     - image: nginx
@@ -12,9 +12,9 @@ spec:
           protocol: TCP
       volumeMounts:
         - mountPath: /var/lib/www/html
-          name: csi-data-resize
+          name: csi-data-evs
   volumes:
-    - name: csi-data-resize
+    - name: csi-data-evs
       persistentVolumeClaim:
-        claimName: pvc-resize-demo
+        claimName: evs-normal-resize-pvc
         readOnly: false

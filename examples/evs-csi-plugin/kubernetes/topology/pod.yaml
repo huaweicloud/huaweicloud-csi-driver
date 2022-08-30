@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: app
+  name: test-evs-topology-nginx
 spec:
   containers:
     - image: nginx
@@ -12,9 +12,9 @@ spec:
           protocol: TCP
       volumeMounts:
         - mountPath: /var/lib/www/data
-          name: mydata
+          name: data
   volumes:
-    - name: mydata
+    - name: data
       persistentVolumeClaim:
-        claimName: pvc1
+        claimName: evs-topology-pvc
         readOnly: false

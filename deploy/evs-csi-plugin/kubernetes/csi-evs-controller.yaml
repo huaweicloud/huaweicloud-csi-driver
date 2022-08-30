@@ -1,7 +1,7 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: csi-evs-provisioner
+  name: csi-evs-controller
   namespace: kube-system
 spec:
   selector:
@@ -12,7 +12,7 @@ spec:
       labels:
         app: csi-evs-provisioner
     spec:
-      serviceAccountName: csi-evs-controller-sa
+      serviceAccount: csi-evs-controller-sa
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-cluster-critical
@@ -90,7 +90,7 @@ spec:
             - mountPath: /var/lib/csi/sockets/pluginproxy/
               name: socket-dir
         - name: evs-csi-provisioner
-          image: swr.cn-north-4.myhuaweicloud.com/development/evs-csi-plugin:latest
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.0.1
           args:
             - /bin/evs-csi-plugin
             - "-v=5"
@@ -125,8 +125,7 @@ spec:
               mountPath: /etc/evs/
       volumes:
         - name: socket-dir
-          emptyDir: {}
+          emptyDir:
         - name: evs-config
-          hostPath:
-            path: /etc/evs/
-            type: Directory
+          secret:
+            secretName: cloud-config

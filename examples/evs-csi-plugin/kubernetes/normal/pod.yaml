@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: temp-test-block
+  name: test-evs-normal-nginx
 spec:
   containers:
     - image: nginx
@@ -10,11 +10,11 @@ spec:
       ports:
         - containerPort: 80
           protocol: TCP
-      volumeDevices:
-        - devicePath: /var/lib/www/html
-          name: csi-data-temp
+      volumeMounts:
+        - mountPath: /var/lib/www/html
+          name: csi-data-evs
   volumes:
-    - name: csi-data-temp
+    - name: csi-data-evs
       persistentVolumeClaim:
-        claimName: csi-pvc-evs-shareable.ap-southeast-1b
+        claimName: evs-normal-pvc
         readOnly: false

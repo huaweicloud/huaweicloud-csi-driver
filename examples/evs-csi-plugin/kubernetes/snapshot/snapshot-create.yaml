@@ -3,6 +3,6 @@ kind: VolumeSnapshot
 metadata:
   name: new-snapshot-demo
 spec:
-  volumeSnapshotClassName: csi-evs-snapclass
+  volumeSnapshotClassName: evs-snapshot-class
   source:
-    persistentVolumeClaimName: pvc-snapshot-demo
+    persistentVolumeClaimName: evs-snapshot-pvc

@@ -1,11 +1,9 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: evs-share-sc.ap-southeast-1b
+  name: evs-sc
 provisioner: evs.csi.huaweicloud.com
 allowVolumeExpansion: true
 parameters:
   type: SSD
-  availability: ap-southeast-1b
-  shareable: "true"
 reclaimPolicy: Delete

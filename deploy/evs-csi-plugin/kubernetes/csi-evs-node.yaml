@@ -14,7 +14,7 @@ spec:
     spec:
       tolerations:
         - operator: Exists
-      serviceAccountName: csi-evs-node-sa
+      serviceAccount: csi-evs-node-sa
       containers:
         - name: evs-driver-registrar
           image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0
@@ -47,7 +47,7 @@ spec:
         - name: evs-csi-plugin
           securityContext:
             privileged: true
-          image: swr.cn-north-4.myhuaweicloud.com/development/evs-csi-plugin:latest
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.0.1
           args:
             - /bin/evs-csi-plugin
             - "--v=5"
@@ -101,6 +101,5 @@ spec:
             path: /dev
             type: Directory
         - name: evs-config
-          hostPath:
-            path: /etc/evs/
-            type: Directory
+          secret:
+            secretName: cloud-config

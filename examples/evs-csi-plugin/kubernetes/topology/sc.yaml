@@ -1,7 +1,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: topology-aware-standard
+  name: topology-evs-sc
 provisioner: evs.csi.huaweicloud.com
 volumeBindingMode: WaitForFirstConsumer
 allowedTopologies:

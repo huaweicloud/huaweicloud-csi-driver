@@ -3,6 +3,7 @@ kind: StorageClass
 metadata:
   name: evs-sc
 provisioner: evs.csi.huaweicloud.com
+allowVolumeExpansion: true
 parameters:
   type: SSD
 reclaimPolicy: Delete
