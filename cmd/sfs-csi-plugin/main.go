@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
 	"k8s.io/klog"
 )
 
@@ -66,7 +66,7 @@ func main() {
 
 			// Make this configurable when ther are more options.
 			defaultShareProto := "NFS"
-			d := sfs.NewDriver(nodeID, endpoint, defaultShareProto, cloud)
+			d := sfs.NewDriver(nodeID, endpoint, defaultShareProto, *cloud)
 			d.Run()
 		},
 	}

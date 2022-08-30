@@ -13,6 +13,7 @@ github.com/chnsz/golangsdk/openstack/identity/v3/catalog
 github.com/chnsz/golangsdk/openstack/identity/v3/domains
 github.com/chnsz/golangsdk/openstack/identity/v3/projects
 github.com/chnsz/golangsdk/openstack/identity/v3/tokens
+github.com/chnsz/golangsdk/openstack/sfs/v2/shares
 github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares
 github.com/chnsz/golangsdk/openstack/utils
 github.com/chnsz/golangsdk/pagination
