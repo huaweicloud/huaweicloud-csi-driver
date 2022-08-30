@@ -17,11 +17,11 @@ limitations under the License.
 package sfs
 
 import (
-    "fmt"
+	"fmt"
 	"os"
 
+	"github.com/chnsz/golangsdk"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/golangsdk"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -29,7 +29,7 @@ import (
 )
 
 type nodeServer struct {
-	Driver   *SfsDriver
+	Driver *SfsDriver
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
@@ -60,10 +60,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	//Get Volume
 	volumeID := req.GetVolumeId()
 	client, err := ns.Driver.cloud.SFSV2Client()
-    if err != nil {
+	if err != nil {
 		klog.V(3).Infof("NodePublishVolume Failed to create SFS v2 client: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
-    }
+	}
 
 	share, err := getShare(client, volumeID)
 	if err != nil {

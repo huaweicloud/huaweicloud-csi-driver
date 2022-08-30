@@ -59,6 +59,10 @@ var allServiceCatalog = map[string]serviceCatalog{
 		Name:    "evs",
 		Version: "v2.1",
 	},
+	"sfsV2": {
+		Name:    "sfs",
+		Version: "v2",
+	},
 }
 
 func newServiceClient(cc *CloudCredentials, catalogName, region string) (*golangsdk.ServiceClient, error) {
@@ -146,10 +150,7 @@ func (c *CloudCredentials) newCloudClient() error {
 }
 
 func (c *CloudCredentials) SFSV2Client() (*golangsdk.ServiceClient, error) {
-	return openstack.NewSharedFileSystemV2(c.CloudClient, golangsdk.EndpointOpts{
-		Region:       c.Global.Region,
-		Availability: golangsdk.AvailabilityPublic,
-	})
+	return newServiceClient(c, "sfsV2", c.Global.Region)
 }
 
 func (c *CloudCredentials) EcsV1Client() (*golangsdk.ServiceClient, error) {
