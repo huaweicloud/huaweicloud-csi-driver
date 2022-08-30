@@ -37,18 +37,6 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
 github.com/golang/protobuf/ptypes/wrappers
-# github.com/huaweicloud/golangsdk v0.0.0-20210831081626-d823fe11ceba
-github.com/huaweicloud/golangsdk
-github.com/huaweicloud/golangsdk/openstack
-github.com/huaweicloud/golangsdk/openstack/identity/v2/tenants
-github.com/huaweicloud/golangsdk/openstack/identity/v2/tokens
-github.com/huaweicloud/golangsdk/openstack/identity/v3/catalog
-github.com/huaweicloud/golangsdk/openstack/identity/v3/domains
-github.com/huaweicloud/golangsdk/openstack/identity/v3/projects
-github.com/huaweicloud/golangsdk/openstack/identity/v3/tokens
-github.com/huaweicloud/golangsdk/openstack/sfs/v2/shares
-github.com/huaweicloud/golangsdk/openstack/utils
-github.com/huaweicloud/golangsdk/pagination
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
 # github.com/kubernetes-csi/csi-lib-utils v0.9.1
