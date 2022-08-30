@@ -1,0 +1,8 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-evs-snapclass
+driver: evs.csi.huaweicloud.com
+deletionPolicy: Delete
+parameters:
+  force-create: "false"
