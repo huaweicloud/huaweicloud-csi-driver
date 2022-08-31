@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: evs-block-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  volumeMode: Block
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: evs-sc
