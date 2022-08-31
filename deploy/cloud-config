@@ -1,0 +1,10 @@
+[Global]
+cloud=
+auth-url=
+region=
+access-key=
+secret-key=
+project-id=
+[Vpc]
+#The VPC where your cluster resides
+id=
