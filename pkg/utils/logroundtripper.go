@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -42,8 +41,7 @@ var (
 // LogRoundTripper satisfies the http.RoundTripper interface and is used to
 // customize the default http client RoundTripper to allow for logging.
 type LogRoundTripper struct {
-	Rt      http.RoundTripper
-	OsDebug bool
+	Rt http.RoundTripper
 }
 
 // RoundTrip performs a round-trip HTTP request and logs relevant information about it.
@@ -56,15 +54,13 @@ func (lrt *LogRoundTripper) RoundTrip(request *http.Request) (*http.Response, er
 
 	var err error
 
-	if lrt.OsDebug {
-		log.Printf("Request URL: %s %s", request.Method, request.URL)
-		log.Printf("Request Headers:\n%s", FormatHeaders(request.Header, "\n"))
+	klog.V(6).Infof("Request URL: %s %s", request.Method, request.URL)
+	klog.V(6).Infof("Request Headers:\n%s", FormatHeaders(request.Header, "\n"))
 
-		if request.Body != nil {
-			request.Body, err = lrt.logRequest(request.Body, request.Header.Get("Content-Type"))
-			if err != nil {
-				return nil, err
-			}
+	if request.Body != nil {
+		request.Body, err = lrt.logRequest(request.Body, request.Header.Get("Content-Type"))
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -73,12 +69,10 @@ func (lrt *LogRoundTripper) RoundTrip(request *http.Request) (*http.Response, er
 		return nil, err
 	}
 
-	if lrt.OsDebug {
-		log.Printf("Response Code: %d", response.StatusCode)
-		log.Printf("Response Headers:\n%s", FormatHeaders(response.Header, "\n"))
+	klog.V(6).Infof("Response Code: %d", response.StatusCode)
+	klog.V(6).Infof("Response Headers:\n%s", FormatHeaders(response.Header, "\n"))
 
-		response.Body, err = lrt.logResponse(response.Body, response.Header.Get("Content-Type"))
-	}
+	response.Body, err = lrt.logResponse(response.Body, response.Header.Get("Content-Type"))
 
 	return response, err
 }
@@ -97,9 +91,9 @@ func (lrt *LogRoundTripper) logRequest(original io.ReadCloser, contentType strin
 	// Handle request contentType
 	if strings.HasPrefix(contentType, "application/json") {
 		debugInfo := lrt.formatJSON(bs.Bytes())
-		log.Printf("Request Body: %s", debugInfo)
+		klog.V(6).Infof("Request Body: %s", debugInfo)
 	} else {
-		log.Printf("Request Body: %s", bs.String())
+		klog.V(6).Infof("Request Body: %s", bs.String())
 	}
 
 	return ioutil.NopCloser(strings.NewReader(bs.String())), nil
@@ -117,12 +111,12 @@ func (lrt *LogRoundTripper) logResponse(original io.ReadCloser, contentType stri
 		}
 		debugInfo := lrt.formatJSON(bs.Bytes())
 		if debugInfo != "" {
-			log.Printf("Response Body: %s", debugInfo)
+			klog.V(6).Infof("Response Body: %s", debugInfo)
 		}
 		return ioutil.NopCloser(strings.NewReader(bs.String())), nil
 	}
 
-	log.Printf("Not logging because response body isn't JSON")
+	klog.V(6).Infof("Not logging because response body isn't JSON")
 	return original, nil
 }
 
@@ -133,7 +127,7 @@ func (lrt *LogRoundTripper) formatJSON(raw []byte) string {
 
 	err := json.Unmarshal(raw, &data)
 	if err != nil {
-		log.Printf("Unable to parse JSON: %s", err)
+		klog.V(6).Infof("Unable to parse JSON: %s", err)
 		return string(raw)
 	}
 
@@ -157,7 +151,7 @@ func (lrt *LogRoundTripper) formatJSON(raw []byte) string {
 
 	pretty, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		log.Printf("Unable to re-marshal JSON: %s", err)
+		klog.V(6).Infof("Unable to re-marshal JSON: %s", err)
 		return string(raw)
 	}
 
@@ -170,7 +164,7 @@ func RedactHeaders(headers http.Header) (processedHeaders []string) {
 	var redactheaders = []string{"x-auth-token", "x-auth-key", "x-service-token",
 		"x-storage-token", "x-account-meta-temp-url-key", "x-account-meta-temp-url-key-2",
 		"x-container-meta-temp-url-key", "x-container-meta-temp-url-key-2", "set-cookie",
-		"x-subject-token"}
+		"x-subject-token", "authorization"}
 
 	for name, header := range headers {
 		for _, v := range header {
@@ -201,7 +195,7 @@ func LogGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, h
 	klog.V(5).Infof("[ID:%d] GRPC request: %s", callID, protosanitizer.StripSecrets(req))
 	resp, err := handler(ctx, req)
 	if err != nil {
-		klog.Errorf("[ID:%d] GRPC call %s, error: %v", info.FullMethod, callID, err)
+		klog.Errorf("[ID:%d] GRPC call %s, error: %v", callID, info.FullMethod, err)
 	} else {
 		klog.V(5).Infof("[ID:%d] GRPC response: %s", callID, protosanitizer.StripSecrets(resp))
 	}

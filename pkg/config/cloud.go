@@ -2,11 +2,9 @@ package config
 
 import (
 	"fmt"
-	"net/http"
-	"os"
-
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack"
+	"net/http"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
@@ -125,17 +123,10 @@ func (c *CloudCredentials) newCloudClient() error {
 		return err
 	}
 
-	// if OS_DEBUG is set, log the requests and responses
-	var osDebug bool
-	if os.Getenv("OS_DEBUG") != "" {
-		osDebug = true
-	}
-
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	client.HTTPClient = http.Client{
 		Transport: &utils.LogRoundTripper{
 			Rt:      transport,
-			OsDebug: osDebug,
 		},
 	}
 

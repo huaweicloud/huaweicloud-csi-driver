@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-PKG=github.com/huaweicloud/huaweicloud-csi-driver
-
 GO111MODULE=on
 GOPROXY=direct
 
 .EXPORT_ALL_VARIABLES:
+
+VERSION	?= $(shell git describe --exact-match 2> /dev/null || \
+			   git describe --match=$(git rev-parse --short=8 HEAD) --always --dirty --abbrev=8)
+LDFLAGS	:= "-X 'github.com/huaweicloud/huaweicloud-csi-driver/pkg/version.Version=${VERSION}'"
 
 .PHONY: sfs
 sfs:
@@ -39,12 +41,12 @@ sfsturbo-image:sfsturbo
 
 .PHONY: evs
 evs:
-	go build -o evs-csi-plugin ./cmd/evs-csi-plugin
+	go build -ldflags $(LDFLAGS) -o evs-csi-plugin cmd/evs-csi-plugin/main.go
 
 .PHONY: evs-image
 evs-image:evs
 	cp ./evs-csi-plugin ./cmd/evs-csi-plugin
-	docker build cmd/evs-csi-plugin -t swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:latest
+	docker build cmd/evs-csi-plugin -t swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:${VERSION}
 
 .PHONY: fmt
 fmt:
