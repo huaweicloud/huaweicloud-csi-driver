@@ -2,6 +2,7 @@ package evs
 
 import (
 	"fmt"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -20,9 +21,7 @@ const (
 
 var (
 	// CSI spec version
-	specVersion = "1.3.0"
-	// Driver version
-	Version = "1.0.0"
+	specVersion = "1.5.0"
 )
 
 type EvsDriver struct {
@@ -46,13 +45,13 @@ type EvsDriver struct {
 func NewDriver(cc *config.CloudCredentials, endpoint, cluster, nodeID string) *EvsDriver {
 	d := &EvsDriver{}
 	d.name = driverName
-	d.version = fmt.Sprintf("%s@%s", Version, specVersion)
+	d.version = fmt.Sprintf("%s@%s", version.Version, specVersion)
 	d.endpoint = endpoint
 	d.cluster = cluster
 	d.nodeID = nodeID
 	d.cloudCredentials = cc
 
-	log.Infof("Driver: %s, Version: %s, CSI Spec version: %s", d.name, d.version, specVersion)
+	log.Infof("Driver: %s, Version: %s, CSI Spec version: %s", d.name, version.Version, specVersion)
 
 	d.AddControllerServiceCapabilities(
 		[]csi.ControllerServiceCapability_RPC_Type{
