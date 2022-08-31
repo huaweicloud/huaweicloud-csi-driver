@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -49,8 +50,8 @@ func main() {
 	flag.CommandLine.Parse([]string{})
 
 	cmd := &cobra.Command{
-		Use:   "HuaweiCloud EVS CSI plugin",
-		Short: "CSI based EVS driver",
+		Use:   "evs-csi-plugin",
+		Short: fmt.Sprintf("HuaweiCloud EVS CSI plugin %s", version.Version),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Glog requires this otherwise it complains.
 			flag.CommandLine.Parse(nil)
