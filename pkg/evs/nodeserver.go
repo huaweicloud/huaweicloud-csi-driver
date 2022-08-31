@@ -24,6 +24,10 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 )
 
+const (
+	maxVolumes = 24 // the maximum number of volumes for a KVM instance is 24
+)
+
 type nodeServer struct {
 	Driver   *EvsDriver
 	Mount    mounts.IMount
@@ -303,7 +307,7 @@ func (ns *nodeServer) NodeGetInfo(_ context.Context, req *csi.NodeGetInfoRequest
 	return &csi.NodeGetInfoResponse{
 		NodeId:             nodeID,
 		AccessibleTopology: topology,
-		MaxVolumesPerNode:  16,
+		MaxVolumesPerNode:  maxVolumes,
 	}, nil
 }
 
