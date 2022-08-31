@@ -1,0 +1,13 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: topology-evs-sc
+provisioner: evs.csi.huaweicloud.com
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: topology.evs.csi.huaweicloud.com/zone
+        values:
+          - ap-southeast-1b
+parameters:
+  type: SSD
