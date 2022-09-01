@@ -102,8 +102,7 @@ spec:
             path: /var/lib/kubelet/plugins_registry/
             type: DirectoryOrCreate
           name: registration-dir
-        - hostPath:
-            path: /etc/sfs/
-            type: Directory
+        - secret:
+            secretName: cloud-config
           name: sfs-config
 ---

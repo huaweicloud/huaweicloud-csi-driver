@@ -98,6 +98,5 @@ spec:
         - name: socket-dir
           emptyDir: {}
         - name: sfs-config
-          hostPath:
-            path: /etc/sfs/
-            type: Directory
+          secret:
+            secretName: cloud-config
