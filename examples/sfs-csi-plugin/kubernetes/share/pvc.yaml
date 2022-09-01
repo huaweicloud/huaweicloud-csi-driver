@@ -8,4 +8,4 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: sfs.csi.huaweicloud.com 
+  storageClassName: sfs-sc
