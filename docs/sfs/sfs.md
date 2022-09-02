@@ -13,7 +13,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 | CSI version   | SFS CSI Plugin Version | Kubernetes Version Tested | Features                |
 |---------------|------------------------|---------------------------|-------------------------|
-| v1.5.0        | v0.1.0                 | v1.20 v1.21 v1.22 v1.23   | shareVolume accessRules |
+| v1.5.0        | v0.1.0                 | v1.18 v1.19 v1.20 v1.21   | shareVolume accessRules |
 
 ## Deploy
 
@@ -60,9 +60,12 @@ kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-d
 
 ```
 # kubectl get all -A
-NAME                                   READY   STATUS    RESTARTS       AGE
+NAMESPACE      NAME                                         READY   STATUS    RESTARTS   AGE
 ...
-
+kube-system    pod/csi-sfs-controller-65f7488778-zmqpp      4/4     Running   0          50s
+kube-system    pod/csi-sfs-node-9qckv                       3/3     Running   0          36s
+kube-system    pod/csi-sfs-node-n5chb                       3/3     Running   0          36s
+kube-system    pod/csi-sfs-node-wl4p4                       3/3     Running   0          36s
 ```
 
 ## How to use
