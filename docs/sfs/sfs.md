@@ -13,7 +13,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 | CSI version   | SFS CSI Plugin Version | Kubernetes Version Tested | Features                |
 |---------------|------------------------|---------------------------|-------------------------|
-| v1.5.0        | v0.1.0                 | v1.18 v1.19 v1.20 v1.21   | shareVolume accessRules |
+| v1.5.0        | v0.1.0                 | v1.20 v1.21 v1.22 v1.23   | shareVolume accessRules |
 
 ## Deploy
 
