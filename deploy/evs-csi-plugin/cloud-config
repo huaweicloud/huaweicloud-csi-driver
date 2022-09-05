@@ -1,0 +1,10 @@
+[Global]
+region=
+access-key=
+secret-key=
+
+# Optional
+project-id=
+# Only needed if you are not on Huawei Cloud
+cloud=
+auth-url=

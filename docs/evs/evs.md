@@ -1,8 +1,7 @@
-# Huawei Cloud EVS CSI Plugin
+# Huawei Cloud EVS CSI Driver
 
-EVS CSI Plugin provides the ability to interface with Huawei Cloud EVS storage resources.
-
-Such as: create volume, attach volume, create snapshot, expand volume.
+The EVS CSI Driver is a CSI Specification compliant driver used by Container Orchestrators to manage
+the lifecycle of Huawei Cloud EVS Volumes.
 
 ## Compatibility
 
@@ -25,7 +24,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 - Create the config file
 
-The driver initialization depends on a [cloud config file](../../deploy/cloud-config). 
+The driver initialization depends on a [cloud config file](../../deploy/evs-csi-plugin/cloud-config). 
 Make sure it's in `/etc/evs/cloud-config` on your master.
 
 Click to view the detailed description of the file: [cloud-config](../cloud-config.md).
@@ -66,18 +65,18 @@ csi-evs-plugin-bkkpb                   3/3     Running   0              3m22s
 csi-evs-provisioner-54c44b746f-22p46   6/6     Running   0              88s
 ```
 
-## How to use
+## Examples
 
 The following are examples of specific functions:
 
-**Dynamic Provisioning:** [sample app](evs-normal.md)
+**Dynamic Provisioning:** [evs normal](evs-normal.md)
 
-**Volume Expansion:** [sample app](evs-resize.md)
+**Volume Expansion:** [evs resize](evs-resize.md)
 
-**Using Block Volume:** [sample app](evs-block.md)
+**Using Block Volume:** [evs block](evs-block.md)
 
-**Volume Snapshots:** [sample app](evs-snapshot.md)
+**Volume Snapshots:** [evs snapshot](evs-snapshot.md)
 
-**Ephemeral Volume:** [sample app](evs-ephemeral.md)
+**Ephemeral Volume:** [evs ephemeral](evs-ephemeral.md)
 
-**Topology:** [sample app](evs-topology.md)
+**Topology:** [evs topology](evs-topology.md)

@@ -2,18 +2,17 @@
 
 [English](./README.md) | 简体中文
 
-华为云存储插件对接了华为云平台的云存储服务，使用者通过这个插件可以很方便的接入华为云存储服务。
+华为云CSI插件为容器编排服务提供了用来管理华为云存储服务的生命周期接口
 
-该存储库包含与华为云和Kubernetes集成相关的各种插件。
+该仓库包含了华为云和Kubernetes集成相关的各种CSI插件。
 
 ### 云硬盘插件
 
 EVS CSI 插件支持卷的创建、挂载和扩容。云硬盘支持ReadWriteOnce模式并且只能挂载一台服务器。
 
-更多详情请参考[云硬盘](./docs/evs/evs.md)
+更多详情请参考[云硬盘CSI插件](./docs/evs/evs.md)
 
-## Lin链接
+## 链接
 
-- [Kubernetes CSI 文档](https://kubernetes-csi.github.io/docs/Home.html)
-- [CSI 驱动](https://github.com/kubernetes-csi/drivers)
-- [Container Storage Interface (CSI) 规格](https://github.com/container-storage-interface/spec)
+- [Kubernetes CSI Documentation](https://kubernetes-csi.github.io/docs/)
+- [Container Storage Interface (CSI) Specification](https://github.com/container-storage-interface/spec)
