@@ -3,14 +3,14 @@
 ## File Structure
 ```
 [Global]
-cloud=     
-auth-url=  
-region=    
+region=
 access-key=
 secret-key=
 project-id=
+cloud=
+auth-url=
 [Vpc]
-id=        
+id=
 ```
 
 ## Introduction
@@ -19,17 +19,17 @@ id=
 
 ### Global
 
-* `cloud` Optional. The endpoint of the cloud provider. Defaults to 'myhuaweicloud.com'.
-
-* `auth-url` Optional. The Identity authentication URL. Defaults to 'https://iam.{cloud}:443/v3/'.
-
 * `region` Required. This is the Huawei Cloud region.
 
 * `access-key` Required. The access key of the Huawei Cloud to use.
 
 * `secret-key` Required. The secret key of the Huawei Cloud to use.
 
-* `project-id` Required. Default Enterprise Project ID for supported resources.
+* `project-id` Optional. The Project ID of the Huawei Cloud to use. See [Obtaining a Project ID](https://support.huaweicloud.com/intl/en-us/api-evs/evs_04_0046.html)
+
+* `cloud` Optional. The endpoint of the cloud provider. Defaults to 'myhuaweicloud.com'.
+
+* `auth-url` Optional. The Identity authentication URL. Defaults to 'https://iam.{cloud}:443/v3/'.
 
 ### Vpc
 
