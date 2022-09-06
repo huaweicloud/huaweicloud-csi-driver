@@ -18,6 +18,7 @@ package sfs
 
 import (
 	"fmt"
+
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
@@ -92,7 +93,7 @@ func createVolumeValidation(name string, capacityRange *csi.CapacityRange) error
 		return status.Error(codes.InvalidArgument, "Validation failed, name cannot be empty")
 	}
 	if capacityRange == nil {
-		return status.Error(codes.InvalidArgument, "Validation failed, capacityRange cannot be nil")
+		return status.Error(codes.InvalidArgument, "Validation failed, capacityRange cannot be empty")
 	}
 	return nil
 }
