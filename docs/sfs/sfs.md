@@ -11,9 +11,9 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ## Support version
 
-| CSI version   | SFS CSI Plugin Version | Kubernetes Version Tested | Features                |
-|---------------|------------------------|---------------------------|-------------------------|
-| v1.5.0        | v0.1.0                 | v1.20 v1.21 v1.22 v1.23   | shareVolume accessRules |
+| CSI version | SFS CSI Plugin Version | Kubernetes Version Tested | Features           |
+| ----------- | ---------------------- | ------------------------- | ------------------ |
+| v1.5.0      | v0.1.0                 | v1.20 v1.21 v1.22 v1.23   | volume accessRules |
 
 ## Deploy
 
@@ -56,7 +56,7 @@ kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-d
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/csi-sfs-node.yaml
 ```
 
-- Waiting for all the pods in running
+- Waiting for all the PODs in running
 
 ```
 # kubectl get all -A

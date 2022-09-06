@@ -16,7 +16,7 @@ See [EVS CSI Plugin](./docs/evs/evs.md) for details.
 
 ### SFS CSI Plugin
 
-SFS CSI Plugin supports share volume creation, add access rules.
+SFS CSI Plugin supports share volume creation add access rules.
 
 See [SFS CSI Plugin](./docs/sfs/sfs.md) for details.
 
