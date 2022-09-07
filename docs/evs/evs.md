@@ -10,9 +10,27 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ## Support version
 
-| CSI version   | EVS CSI Plugin Version | Kubernetes Version Tested | Features                |
+| CSI version   | EVS CSI Driver Version | Kubernetes Version Tested | Features                |
 |---------------|------------------------|---------------------------|-------------------------|
 | v1.5.0        | v0.1.0                 | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
+
+## Supported Parameters
+
+* `type` Required. Volume type, corresponding volume type should exist in EVS. It is located under `parameters`.
+
+* `availability` Optional. Availability Zone(AZ) of the volume. It is located under `parameters`.
+
+* `dssId` Optional. ID of the dedicated distributed storage used when creating a dedicated file system.
+  It is located under `parameters`.
+
+* `scsi` Optional. The device type of the EVS disks to be created. Defaults to `"false"`.
+  It is located under `parameters`.
+  - `"true"`:  the disk device type will be SCSI, which allows ECS OSs to directly access underlying storage media.
+    SCSI reservation commands are supported.
+  - `"false"`: the disk device type will be VBD, which supports only simple SCSI read/write commands.
+
+* `capacity` Optional. The EVS disk size. The value ranges from 10 GB to 32,768 GB. Defaults to 10 GB.
+  It is located under `volumeAttributes`.
 
 ## Deploy
 
@@ -47,7 +65,7 @@ kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-d
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/evs-csi-plugin/kubernetes/rbac-csi-evs-secret.yaml
 ```
 
-- Install HuaweiCloud EVS CSI Plugin
+- Install HuaweiCloud EVS CSI Driver
 
 ```
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/evs-csi-plugin/kubernetes/csi-evs-driver.yaml
