@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- kubernetes, EVS CSI Plugin
+- kubernetes, EVS CSI Driver
 
 ## How to use
 
