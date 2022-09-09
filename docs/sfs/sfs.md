@@ -1,7 +1,7 @@
 # Huawei Cloud SFS CSI Driver
 
 The SFS CSI Driver is a CSI Specification compliant driver used by Container Orchestrators to manage
-the lifecycle of Huawei Cloud SFS Volumes.
+the lifecycle of Huawei Cloud SFS.
 
 ## Compatibility
 
@@ -10,9 +10,9 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ## Support version
 
-| CSI version | SFS CSI Plugin Version | Kubernetes Version Tested | Features           |
-| ----------- | ---------------------- | ------------------------- | ------------------ |
-| v1.5.0      | v0.1.0                 | v1.20 v1.21 v1.22 v1.23   | volume accessRules |
+| CSI version | Driver | Kubernetes Version Tested | Features |
+| ----------- | ------ | ------------------------- | -------- |
+| v1.5.0      | v0.1.0 | v1.20 v1.21 v1.22 v1.23   | shares   |
 
 ## Deploy
 
@@ -47,7 +47,7 @@ kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-d
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/rbac-csi-sfs-secret.yaml
 ```
 
-- Install Huawei Cloud SFS CSI Plugin
+- Install Huawei Cloud SFS CSI driver
 
 ```
 kubectl apply -f https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/deploy/sfs-csi-plugin/kubernetes/csi-sfs-driver.yaml
@@ -69,4 +69,4 @@ kube-system    pod/csi-sfs-node-wl4p4                       3/3     Running   0 
 
 ## Examples
 
-**Shares Volume:** [evs share](sfs-share.md)
+**SFS Shares:** [share](sfs-share.md)
