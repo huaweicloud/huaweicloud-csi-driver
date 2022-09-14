@@ -21,7 +21,9 @@ import (
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
@@ -29,6 +31,7 @@ import (
 
 const (
 	driverName  = "sfsturbo.csi.huaweicloud.com"
+	topologyKey = "topology." + driverName + "/zone"
 )
 
 var (
@@ -36,12 +39,12 @@ var (
 )
 
 type SfsTurboDriver struct {
-	name        string
-	nodeID      string
-	version     string
-	endpoint    string
-	shareProto  string
-	cloud       config.CloudCredentials
+	name       string
+	nodeID     string
+	version    string
+	endpoint   string
+	shareProto string
+	cloud      *config.CloudCredentials
 
 	ids *identityServer
 	cs  *controllerServer
@@ -52,7 +55,7 @@ type SfsTurboDriver struct {
 	nscap []*csi.NodeServiceCapability
 }
 
-func NewDriver(nodeID, endpoint, shareProto string, cloud config.CloudCredentials) *SfsTurboDriver {
+func NewDriver(nodeID, endpoint, shareProto string, cloud *config.CloudCredentials) *SfsTurboDriver {
 	klog.Infof("Driver: %v version: %v", driverName, version)
 
 	d := &SfsTurboDriver{}
@@ -60,24 +63,34 @@ func NewDriver(nodeID, endpoint, shareProto string, cloud config.CloudCredential
 	d.nodeID = nodeID
 	d.version = version
 	d.endpoint = endpoint
-    d.shareProto = strings.ToUpper(shareProto)
+	d.shareProto = strings.ToUpper(shareProto)
 	d.cloud = cloud
 
 	d.AddControllerServiceCapabilities(
 		[]csi.ControllerServiceCapability_RPC_Type{
 			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
+			csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
+			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
+			csi.ControllerServiceCapability_RPC_GET_VOLUME,
 		})
 	d.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
-		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
-		csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER,
-		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+		csi.VolumeCapability_AccessMode_UNKNOWN,
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
+		csi.VolumeCapability_AccessMode_MULTI_NODE_READER_ONLY,
+		csi.VolumeCapability_AccessMode_MULTI_NODE_MULTI_WRITER,
+		csi.VolumeCapability_AccessMode_SINGLE_NODE_SINGLE_WRITER,
+		csi.VolumeCapability_AccessMode_SINGLE_NODE_MULTI_WRITER,
 	})
 
-	d.ids = NewIdentityServer(d)
-	d.cs = NewControllerServer(d)
-	d.ns = NewNodeServer(d)
+	d.AddNodeServiceCapabilities([]csi.NodeServiceCapability_RPC_Type{
+		csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+		csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
+	})
+
+	d.ids = &identityServer{Driver: d}
+	d.cs = &controllerServer{Driver: d}
+	d.ns = &nodeServer{Driver: d}
 
 	return d
 }
@@ -87,7 +100,13 @@ func (d *SfsTurboDriver) AddControllerServiceCapabilities(cl []csi.ControllerSer
 
 	for _, c := range cl {
 		klog.Infof("Enabling controller service capability: %v", c.String())
-		csc = append(csc, NewControllerServiceCapability(c))
+		csc = append(csc, &csi.ControllerServiceCapability{
+			Type: &csi.ControllerServiceCapability_Rpc{
+				Rpc: &csi.ControllerServiceCapability_RPC{
+					Type: c,
+				},
+			},
+		})
 	}
 
 	d.cscap = csc
@@ -99,10 +118,26 @@ func (d *SfsTurboDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapabilit
 	var vca []*csi.VolumeCapability_AccessMode
 	for _, c := range vc {
 		klog.Infof("Enabling volume access mode: %v", c.String())
-		vca = append(vca, NewVolumeCapabilityAccessMode(c))
+		vca = append(vca, &csi.VolumeCapability_AccessMode{Mode: c})
 	}
 	d.vcap = vca
 	return vca
+}
+
+func (d *SfsTurboDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) error {
+	var nsc []*csi.NodeServiceCapability
+	for _, n := range nl {
+		klog.Infof("Enabling node service capability: %v", n.String())
+		nsc = append(nsc, &csi.NodeServiceCapability{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: n,
+				},
+			},
+		})
+	}
+	d.nscap = nsc
+	return nil
 }
 
 func (d *SfsTurboDriver) ValidateControllerServiceRequest(c csi.ControllerServiceCapability_RPC_Type) error {
@@ -122,6 +157,13 @@ func (d *SfsTurboDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapabilit
 	return d.vcap
 }
 
+func (d *SfsTurboDriver) SetupDriver(mount mounts.IMount, metadata metadatas.IMetadata) {
+	d.ns.Mount = mount
+	d.ns.Metadata = metadata
+}
+
 func (d *SfsTurboDriver) Run() {
-	RunControllerandNodePublishServer(d.endpoint, d.ids, d.cs, d.ns)
+	s := NewNonBlockingGRPCServer()
+	s.Start(d.endpoint, d.ids, d.cs, d.ns)
+	s.Wait()
 }

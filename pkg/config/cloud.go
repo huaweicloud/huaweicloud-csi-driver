@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack"
-	"net/http"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
@@ -25,7 +26,9 @@ type CloudCredentials struct {
 	}
 
 	Vpc struct {
-		ID string `gcfg:"id"`
+		ID              string `gcfg:"id"`
+		SubnetID        string `gcfg:"subnet-id"`
+		SecurityGroupID string `gcfg:"security-group-id"`
 	}
 
 	CloudClient *golangsdk.ProviderClient
@@ -60,6 +63,10 @@ var allServiceCatalog = map[string]serviceCatalog{
 	"sfsV2": {
 		Name:    "sfs",
 		Version: "v2",
+	},
+	"sfsTurboV1": {
+		Name:    "sfs-turbo",
+		Version: "v1",
 	},
 }
 
@@ -126,7 +133,7 @@ func (c *CloudCredentials) newCloudClient() error {
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	client.HTTPClient = http.Client{
 		Transport: &utils.LogRoundTripper{
-			Rt:      transport,
+			Rt: transport,
 		},
 	}
 
@@ -138,6 +145,10 @@ func (c *CloudCredentials) newCloudClient() error {
 	c.CloudClient = client
 	c.CloudClient.UserAgent.Prepend(UserAgent)
 	return nil
+}
+
+func (c *CloudCredentials) SFSTurboV1Client() (*golangsdk.ServiceClient, error) {
+	return newServiceClient(c, "sfsTurboV1", c.Global.Region)
 }
 
 func (c *CloudCredentials) SFSV2Client() (*golangsdk.ServiceClient, error) {

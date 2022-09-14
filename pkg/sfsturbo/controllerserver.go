@@ -18,179 +18,425 @@ package sfsturbo
 
 import (
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/chnsz/golangsdk"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"reflect"
+	"strconv"
+
 	"github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares"
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo/services"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	log "k8s.io/klog/v2"
 )
 
 type controllerServer struct {
 	Driver *SfsTurboDriver
 }
 
-func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	klog.V(2).Infof("CreateVolume called with request %v", *req)
-	if err := validateCreateVolumeRequest(req); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+const (
+	defaultShareProto = "NFS"
+	defaultShareType  = "STANDARD"
+	minSizeInGiB      = 500
+	maxSizeInGiB      = 32768
+	expandStepInGiB   = 100
+)
+
+// resourcemode from SC
+const (
+	Availability = "availability"
+	ShareType    = "shareType"
+)
+
+func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolumeRequest) (
+	*csi.CreateVolumeResponse, error) {
+	log.Infof("CreateVolume called with request %v", protosanitizer.StripSecrets(*req))
+	cloud := cs.Driver.cloud
+
+	name := req.GetName()
+	capacityRange := req.GetCapacityRange()
+	if err := createVolumeValidation(name, capacityRange); err != nil {
+		return nil, err
+	}
+	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
+	// 500 ~ 32768
+	if sizeInGiB < minSizeInGiB {
+		sizeInGiB = minSizeInGiB
+	} else if sizeInGiB > maxSizeInGiB {
+		sizeInGiB = maxSizeInGiB
 	}
 
-	client, err := cs.Driver.cloud.SFSTurboV1Client()
-    if err != nil {
-		klog.V(3).Infof("Failed to create SFS Turbo v1 client: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
-    }
-
-	requestedSize := req.GetCapacityRange().GetRequiredBytes()
-    if requestedSize == 0 {
-        // At least 500GiB
-        requestedSize = 500 * tInGiB
-    }
-
-    sizeInGiB := bytesToGiB(requestedSize)
-
-	// Creating a share
-	createOpts := shares.CreateOpts{}
-	createOpts.VpcID = cs.Driver.cloud.Vpc.Id
-	createOpts.SecurityGroupID = cs.Driver.cloud.Vpc.SecurityGroupId
-	createOpts.SubnetID = cs.Driver.cloud.Vpc.SubnetId
-	createOpts.AvailabilityZone = cs.Driver.cloud.Global.AvailabilityZone
-	// build name
-	createOpts.Name = req.GetName()
-	// build share proto
-	createOpts.ShareProto = cs.Driver.shareProto
-	createOpts.Size = sizeInGiB
-	// build type
-	createOpts.ShareType = cs.Driver.cloud.Ext.ShareProto
-	if createOpts.ShareType == "" {
-		createOpts.ShareType = "STANDARD"
-		klog.V(2).Infof("Creating params STANDARD default")
+	var accessibleTopology []*csi.Topology
+	parameters := req.GetParameters()
+	// First check if volAvailability is already specified, if not get preferred from Topology
+	// Required, incase vol AZ is different from node AZ
+	volumeAz := parameters[Availability]
+	if len(volumeAz) == 0 {
+		if volumeAz = getAZFromTopology(req.GetAccessibilityRequirements()); volumeAz == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "Validation failed, volumeAz cannot be empty")
+		}
+		log.Infof("Get AZ By GetAccessibilityRequirements Availability Zone: %s", volumeAz)
+		// Topology need to be returned by response
+		accessibleTopology = []*csi.Topology{
+			{Segments: map[string]string{topologyKey: volumeAz}},
+		}
 	}
-	klog.V(2).Infof("Creating params: %v", createOpts)
 
-    share, err := createShare(client, &createOpts)
+	shareType := parameters[ShareType]
+	if len(shareType) == 0 {
+		shareType = defaultShareType
+	}
+
+	createOpts := shares.CreateOpts{
+		Name:             name,
+		ShareProto:       defaultShareProto,
+		ShareType:        shareType,
+		Size:             sizeInGiB,
+		AvailabilityZone: volumeAz,
+		VpcID:            cs.Driver.cloud.Vpc.ID,
+		SubnetID:         cs.Driver.cloud.Vpc.SubnetID,
+		SecurityGroupID:  cs.Driver.cloud.Vpc.SecurityGroupID,
+	}
+	log.Infof("CreateVolume creating param: %v", protosanitizer.StripSecrets(createOpts))
+	// Check if there are any volumes with the same name
+	share, err := checkVolumeExists(cloud, createOpts)
 	if err != nil {
-		klog.V(2).Infof("Failed to create SFS Turbo volume: %v", err)
-		return nil, fmt.Errorf("Failed to create share: %v", err)
-    }
+		return nil, err
+	}
 
-	// Grant access to the share
-	klog.V(2).Infof("Get share: %s", share.ID)
-	return &csi.CreateVolumeResponse{
-		Volume: &csi.Volume{
-			VolumeId:      share.ID,
-			ContentSource: req.GetVolumeContentSource(),
-			CapacityBytes: int64(sizeInGiB) * bytesInGiB,
-		},
-	}, nil
+	if share != nil {
+		log.Infof("CreateVolume already exist share: %v", protosanitizer.StripSecrets(share))
+		size, err := strconv.ParseFloat(share.Size, 64)
+		if err != nil {
+			return nil, err
+		}
+		return buildCreateVolumeResponse(share.ID, int(size), req, accessibleTopology), nil
+	}
+	turboResponse, err := services.CreateShareCompleted(cloud, &createOpts)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Successfully createVolume response detail: %v", protosanitizer.StripSecrets(turboResponse))
+	return buildCreateVolumeResponse(turboResponse.ID, sizeInGiB, req, accessibleTopology), nil
 }
 
-func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
-	klog.V(2).Infof("DeleteVolume called with request %v", *req)
-
-	volID := req.GetVolumeId()
-	if len(volID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "DeleteVolume Volume ID must be provided")
+func buildCreateVolumeResponse(shareID string, sizeInGiB int, req *csi.CreateVolumeRequest,
+	accessibleTopology []*csi.Topology) *csi.CreateVolumeResponse {
+	return &csi.CreateVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:           shareID,
+			ContentSource:      req.GetVolumeContentSource(),
+			CapacityBytes:      int64(sizeInGiB) * common.GbByteSize,
+			AccessibleTopology: accessibleTopology,
+		},
 	}
+}
 
-	client, err := cs.Driver.cloud.SFSTurboV1Client()
-    if err != nil {
-		klog.V(3).Infof("Failed to create SFS Turbo v1 client: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
-    }
-	err = deleteShare(client, volID)
+func checkVolumeExists(cloud *config.CloudCredentials, createOpts shares.CreateOpts) (
+	*shares.Turbo, error) {
+	turbos, err := services.ListTotalShares(cloud)
 	if err != nil {
-		klog.V(3).Infof("Failed to DeleteVolume: %v", err)
-		return nil, status.Error(codes.Internal, fmt.Sprintf("DeleteVolume failed with error %v", err))
+		return nil, err
+	}
+	log.Infof("CreateVolume checkVolumeExists list total shares: %v", protosanitizer.StripSecrets(turbos))
+	for _, v := range turbos {
+		if v.Name == createOpts.Name {
+			size, err := strconv.ParseFloat(v.Size, 64)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal,
+					"Failed to convert string size to number size, %v", v.Size)
+			}
+			turboOpts := shares.CreateOpts{
+				Name:             v.Name,
+				ShareProto:       v.ShareProto,
+				ShareType:        v.ShareType,
+				Size:             int(size),
+				AvailabilityZone: v.AvailabilityZone,
+				VpcID:            v.VpcID,
+				SubnetID:         v.SubnetID,
+				SecurityGroupID:  v.SecurityGroupID,
+			}
+			if reflect.DeepEqual(turboOpts, createOpts) {
+				return &v, nil
+			}
+			return nil, status.Errorf(codes.InvalidArgument,
+				"SFS-Turbo name: %s already exists with different attributes", createOpts.Name)
+		}
+	}
+	return nil, nil
+}
+
+func getAZFromTopology(requirement *csi.TopologyRequirement) string {
+	if requirement == nil {
+		return ""
 	}
 
-	klog.V(4).Infof("Delete volume %s", volID)
+	for _, topology := range requirement.GetPreferred() {
+		zone, exists := topology.GetSegments()[topologyKey]
+		if exists {
+			return zone
+		}
+	}
 
+	for _, topology := range requirement.GetRequisite() {
+		zone, exists := topology.GetSegments()[topologyKey]
+		if exists {
+			return zone
+		}
+	}
+	return ""
+}
+
+func createVolumeValidation(name string, capacityRange *csi.CapacityRange) error {
+	if len(name) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, name cannot be empty")
+	}
+
+	if capacityRange == nil {
+		return status.Error(codes.InvalidArgument, "Validation failed, capacityRange cannot be empty")
+	}
+	return nil
+}
+
+func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolumeRequest) (
+	*csi.DeleteVolumeResponse, error) {
+	log.Infof("DeleteVolume called with request %v", protosanitizer.StripSecrets(*req))
+	cloud := cs.Driver.cloud
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+
+	if err := services.DeleteShareCompleted(cloud, volumeID); err != nil {
+		return nil, err
+	}
+	log.Infof("Successfully deleted volume %s", volumeID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
-func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.ControllerGetVolumeRequest) (*csi.ControllerGetVolumeResponse, error) {
+func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
+	*csi.ControllerGetVolumeResponse, error) {
+	log.Infof("ControllerGetVolume called with request %v", protosanitizer.StripSecrets(*req))
+	cloud := cs.Driver.cloud
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	volume, err := services.GetShare(cloud, volumeID)
+	if err != nil {
+		if common.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Volume %s not exist: %v", volumeID, err)
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to query volume %s, error: %v", volumeID, err)
+	}
+	size, err := strconv.ParseFloat(volume.Size, 64)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to convert string size to number size: %v", volume.Size)
+	}
+
+	response := csi.ControllerGetVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:      volumeID,
+			CapacityBytes: int64(size * common.GbByteSize),
+		},
+		Status: &csi.ControllerGetVolumeResponse_VolumeStatus{},
+	}
+	log.Infof("Successfully get volume detail: %v", protosanitizer.StripSecrets(response))
+	return &response, nil
+}
+
+func (cs *controllerServer) ControllerPublishVolume(_ context.Context, _ *csi.ControllerPublishVolumeRequest) (
+	*csi.ControllerPublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerPublishVolume(ctx context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
+func (cs *controllerServer) ControllerUnpublishVolume(_ context.Context, _ *csi.ControllerUnpublishVolumeRequest) (
+	*csi.ControllerUnpublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerUnpublishVolume(ctx context.Context, req *csi.ControllerUnpublishVolumeRequest) (*csi.ControllerUnpublishVolumeResponse, error) {
+func (cs *controllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesRequest) (
+	*csi.ListVolumesResponse, error) {
+	log.Infof("ListVolumes called with request %v", protosanitizer.StripSecrets(*req))
+	cloud := cs.Driver.cloud
+
+	if req.GetMaxEntries() == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "Validation failed, maxEntries cannot be zero")
+	}
+	offset, err := strconv.Atoi(req.GetStartingToken())
+	if err != nil {
+		offset = 0
+	}
+	opts := shares.ListOpts{
+		Limit:  int(req.GetMaxEntries()),
+		Offset: offset,
+	}
+	pageList, err := services.ListPageShares(cloud, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	entries := make([]*csi.ListVolumesResponse_Entry, 0, len(pageList.Shares))
+	for _, element := range pageList.Shares {
+		size, err := strconv.ParseFloat(element.Size, 64)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to convert string size to number size, %v", element.Size)
+		}
+		volume := csi.Volume{
+			VolumeId:      element.ID,
+			CapacityBytes: int64(size * common.GbByteSize),
+		}
+		entry := csi.ListVolumesResponse_Entry{
+			Volume: &volume,
+		}
+		entries = append(entries, &entry)
+	}
+	response := &csi.ListVolumesResponse{Entries: entries}
+	currentOffset := opts.Offset + len(entries)
+	if currentOffset < pageList.Count {
+		response.NextToken = strconv.Itoa(currentOffset)
+	}
+	log.Infof("Successful query volume list. detail: %v", protosanitizer.StripSecrets(response))
+	return response, nil
+}
+
+func (cs *controllerServer) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (
+	*csi.CreateSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ListVolumes(ctx context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse, error) {
+func (cs *controllerServer) DeleteSnapshot(_ context.Context, _ *csi.DeleteSnapshotRequest) (
+	*csi.DeleteSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) CreateSnapshot(ctx context.Context, req *csi.CreateSnapshotRequest) (*csi.CreateSnapshotResponse, error) {
+func (cs *controllerServer) ListSnapshots(_ context.Context, _ *csi.ListSnapshotsRequest) (
+	*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) DeleteSnapshot(ctx context.Context, req *csi.DeleteSnapshotRequest) (*csi.DeleteSnapshotResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-func (cs *controllerServer) ListSnapshots(ctx context.Context, req *csi.ListSnapshotsRequest) (*csi.ListSnapshotsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
-}
-
-// ControllerGetCapabilities implements the default GRPC callout.
-// Default supports all capabilities
-func (cs *controllerServer) ControllerGetCapabilities(ctx context.Context, req *csi.ControllerGetCapabilitiesRequest) (*csi.ControllerGetCapabilitiesResponse, error) {
-	klog.V(2).Infof("ControllerGetCapabilities called with request %v", *req)
-
+func (cs *controllerServer) ControllerGetCapabilities(_ context.Context, req *csi.ControllerGetCapabilitiesRequest) (
+	*csi.ControllerGetCapabilitiesResponse, error) {
+	log.Infof("ControllerGetCapabilities called with request %v", protosanitizer.StripSecrets(*req))
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: cs.Driver.cscap,
 	}, nil
 }
 
-func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (*csi.ValidateVolumeCapabilitiesResponse, error) {
-	klog.V(2).Infof("ValidateVolumeCapabilities called with args %+v", *req)
+func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (
+	*csi.ValidateVolumeCapabilitiesResponse, error) {
+	log.Infof("ValidateVolumeCapabilities called with request %v", protosanitizer.StripSecrets(*req))
 
 	reqVolCap := req.GetVolumeCapabilities()
-
 	if reqVolCap == nil || len(reqVolCap) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "ValidateVolumeCapabilities Volume Capabilities must be provided")
+		return nil, status.Errorf(codes.InvalidArgument, "Validation failed, Volume Capabilities cannot be empty")
 	}
 	volumeID := req.GetVolumeId()
-
 	if len(volumeID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "ValidateVolumeCapabilities Volume ID must be provided")
+		return nil, status.Errorf(codes.InvalidArgument, "Validation failed, Volume ID cannot be empty")
 	}
+	cloud := cs.Driver.cloud
 
-	client, err := cs.Driver.cloud.SFSTurboV1Client()
-    if err != nil {
-		klog.V(3).Infof("ValidateVolumeCapabilities Failed to create SFS Turbo v1 client: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
-    }
-
-	_, err = getShare(client, volumeID)
-	if err != nil {
-		if _, ok := err.(golangsdk.ErrDefault404); ok {
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("ValidateVolumeCapabiltites Volume %s not found", volumeID))
+	if _, err := services.GetShare(cloud, volumeID); err != nil {
+		if common.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound,
+				"ValidateVolumeCapabiltites Volume: %s not fount, Error: %v", volumeID, err)
 		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("ValidateVolumeCapabiltites %v", err))
+		return nil, status.Errorf(codes.Internal,
+			"ValidateVolumeCapabiltites Failed to Get Volume: %s, Error: %v", volumeID, err)
 	}
 
+	m := make(map[csi.VolumeCapability_AccessMode_Mode]bool, len(cs.Driver.vcap))
+	for _, v := range cs.Driver.vcap {
+		m[v.Mode] = true
+	}
+
+	var volumeCapabilities []*csi.VolumeCapability
 	for _, c := range reqVolCap {
-		if c.GetAccessMode().Mode == csi.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER {
-			return &csi.ValidateVolumeCapabilitiesResponse{}, nil
+		if m[c.GetAccessMode().GetMode()] {
+			volumeCapability := &csi.VolumeCapability{
+				AccessMode: &csi.VolumeCapability_AccessMode{
+					Mode: c.GetAccessMode().GetMode(),
+				},
+			}
+			volumeCapabilities = append(volumeCapabilities, volumeCapability)
 		}
 	}
-
-	confirmed := &csi.ValidateVolumeCapabilitiesResponse_Confirmed{VolumeCapabilities: reqVolCap}
+	confirmed := &csi.ValidateVolumeCapabilitiesResponse_Confirmed{VolumeCapabilities: volumeCapabilities}
 	return &csi.ValidateVolumeCapabilitiesResponse{Confirmed: confirmed}, nil
 }
 
-func (cs *controllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
+func (cs *controllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (
+	*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, fmt.Sprintf("GetCapacity is not yet implemented"))
 }
 
-func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.ControllerExpandVolumeRequest) (
+	*csi.ControllerExpandVolumeResponse, error) {
+	log.Infof("ControllerExpandVolume called with request %v", protosanitizer.StripSecrets(*req))
+	volumeID := req.GetVolumeId()
+	capacityRange := req.GetCapacityRange()
+	if err := expandVolumeValidation(volumeID, capacityRange); err != nil {
+		return nil, err
+	}
+	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
+	if sizeInGiB > maxSizeInGiB {
+		return nil, status.Errorf(codes.OutOfRange,
+			"Validation failed, expand required size %v exceeds the max size %v", sizeInGiB, maxSizeInGiB)
+	}
+
+	cloud := cs.Driver.cloud
+	volume, err := services.GetShare(cloud, volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	// current volume size
+	currentSizeInGiBFloat, err := strconv.ParseFloat(volume.Size, 64)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to convert string size to number size, %s", volume.Size)
+	}
+	currentSizeInGiB := int(currentSizeInGiBFloat)
+	if currentSizeInGiB >= sizeInGiB {
+		log.Warningf("Volume %v has been already expanded to %v, requested %v", volumeID, currentSizeInGiB, sizeInGiB)
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes:         int64(currentSizeInGiB * common.GbByteSize),
+			NodeExpansionRequired: true,
+		}, nil
+	}
+
+	if sizeInGiB-currentSizeInGiB < expandStepInGiB {
+		// reset sizeInGiB
+		sizeInGiB = currentSizeInGiB + expandStepInGiB
+		if sizeInGiB > maxSizeInGiB {
+			return nil, status.Errorf(codes.OutOfRange,
+				"Validation failed, required step size less than 100G; expand required size %v exceeds the max size %v",
+				sizeInGiB, maxSizeInGiB)
+		}
+	}
+
+	if err = services.ExpandShareCompleted(cloud, volumeID, sizeInGiB); err != nil {
+		return nil, err
+	}
+	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeInGiB)
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         int64(sizeInGiB),
+		NodeExpansionRequired: true,
+	}, nil
+}
+
+func expandVolumeValidation(volumeID string, capacityRange *csi.CapacityRange) error {
+	if len(volumeID) == 0 {
+		return status.Errorf(codes.InvalidArgument, "Validation failed, volume Id cannot be empty")
+	}
+
+	if capacityRange == nil {
+		return status.Errorf(codes.InvalidArgument, "Validation failed, capacity range cannot be nil")
+	}
+	return nil
 }
