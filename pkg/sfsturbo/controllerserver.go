@@ -64,10 +64,12 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}
 	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
 	// 500 ~ 32768
+	if sizeInGiB > maxSizeInGiB {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Validation failed, required size %v GB exceeds the max size %v GB", sizeInGiB, maxSizeInGiB)
+	}
 	if sizeInGiB < minSizeInGiB {
 		sizeInGiB = minSizeInGiB
-	} else if sizeInGiB > maxSizeInGiB {
-		sizeInGiB = maxSizeInGiB
 	}
 
 	var accessibleTopology []*csi.Topology
@@ -76,7 +78,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	// Required, incase vol AZ is different from node AZ
 	volumeAz := parameters[Availability]
 	if len(volumeAz) == 0 {
-		if volumeAz = getAZFromTopology(req.GetAccessibilityRequirements()); volumeAz == "" {
+		if volumeAz = common.GetAZFromTopology(req.GetAccessibilityRequirements(), topologyKey); volumeAz == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "Validation failed, volumeAz cannot be empty")
 		}
 		log.Infof("Get AZ By GetAccessibilityRequirements Availability Zone: %s", volumeAz)
@@ -168,27 +170,6 @@ func checkVolumeExists(cloud *config.CloudCredentials, createOpts shares.CreateO
 		}
 	}
 	return nil, nil
-}
-
-func getAZFromTopology(requirement *csi.TopologyRequirement) string {
-	if requirement == nil {
-		return ""
-	}
-
-	for _, topology := range requirement.GetPreferred() {
-		zone, exists := topology.GetSegments()[topologyKey]
-		if exists {
-			return zone
-		}
-	}
-
-	for _, topology := range requirement.GetRequisite() {
-		zone, exists := topology.GetSegments()[topologyKey]
-		if exists {
-			return zone
-		}
-	}
-	return ""
 }
 
 func createVolumeValidation(name string, capacityRange *csi.CapacityRange) error {
