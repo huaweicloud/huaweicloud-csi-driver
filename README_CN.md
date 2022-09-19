@@ -12,6 +12,12 @@ EVS CSI 插件支持卷的创建、挂载和扩容。云硬盘支持ReadWriteOnc
 
 更多详情请参考[云硬盘CSI插件](./docs/evs/evs.md)
 
+### 弹性文件服务（SFS容量型）插件
+
+SFS CSI 插件支持创建共享卷及添加共享规则。
+
+更多详情请参考[弹性文件服务插件](./docs/sfs/sfs.md)
+
 ## 链接
 
 - [Kubernetes CSI Documentation](https://kubernetes-csi.github.io/docs/)
