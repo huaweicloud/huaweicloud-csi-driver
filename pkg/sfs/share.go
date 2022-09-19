@@ -19,6 +19,8 @@ package sfs
 import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/sfs/v2/shares"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 )
 
@@ -34,12 +36,12 @@ func createShare(client *golangsdk.ServiceClient, createOpts *shares.CreateOpts)
 	createOpts.Description = shareDescription
 	share, err := shares.Create(client, createOpts).Extract()
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "Failed to create share, %v", err)
 	}
 
 	err = waitForShareStatus(client, share.ID, shareAvailable, waitForAvailableShareTimeout)
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "Error waiting for share to be created: %v", err)
 	}
 	return share, nil
 }
@@ -71,6 +73,10 @@ func getShare(client *golangsdk.ServiceClient, shareID string) (*shares.Share, e
 	return shares.Get(client, shareID).Extract()
 }
 
+func shareList(client *golangsdk.ServiceClient, opts shares.ListOpts) ([]shares.Share, error) {
+	return shares.List(client, opts)
+}
+
 func grantAccess(client *golangsdk.ServiceClient, shareID string, vpcid string) error {
 	// build GrantAccessOpts
 	grantAccessOpts := shares.GrantAccessOpts{}
@@ -81,7 +87,7 @@ func grantAccess(client *golangsdk.ServiceClient, shareID string, vpcid string) 
 	// grant access
 	_, err := shares.GrantAccess(client, shareID, grantAccessOpts).ExtractAccess()
 	if err != nil {
-		return err
+		return status.Errorf(codes.Internal, "Failed to grant access, %v", err)
 	}
 	return nil
 }
