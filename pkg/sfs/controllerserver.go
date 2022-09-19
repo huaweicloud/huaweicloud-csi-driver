@@ -17,8 +17,12 @@ limitations under the License.
 package sfs
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
+	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
+	log "k8s.io/klog/v2"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/sfs/v2/shares"
@@ -34,85 +38,87 @@ type controllerServer struct {
 	Driver *SfsDriver
 }
 
-func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
-	klog.V(2).Infof("CreateVolume called with request %v", *req)
-	if err := validateCreateVolumeRequest(req); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
+func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolumeRequest) (
+	*csi.CreateVolumeResponse, error) {
+	log.Infof("CreateVolume called with request %v", protosanitizer.StripSecrets(*req))
 	client, err := cs.Driver.cloud.SFSV2Client()
 	if err != nil {
-		klog.V(3).Infof("Failed to create SFS v2 client: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, status.Errorf(codes.Internal, "Failed to create SFS v2 client: %v", err)
+	}
+	name := req.GetName()
+	capacityRange := req.GetCapacityRange()
+	if err := createVolumeValidation(name, capacityRange); err != nil {
+		return nil, err
 	}
 
-	requestedSize := req.GetCapacityRange().GetRequiredBytes()
+	requestedSize := capacityRange.GetRequiredBytes()
 	if requestedSize == 0 {
-		// At least 1GiB
-		requestedSize = 1 * bytesInGiB
+		// At least 10GiB
+		requestedSize = 10 * common.GbByteSize
 	}
-
-	sizeInGiB := bytesToGiB(requestedSize)
-
-	// Creating a share
-	createOpts := shares.CreateOpts{
-		ShareProto: cs.Driver.shareProto,
-		Size:       sizeInGiB,
-		Name:       req.GetName(),
-	}
-
-	share, err := createShare(client, &createOpts)
+	sizeInGiB := int(utils.RoundUpSize(requestedSize, common.GbByteSize))
+	share, err := checkVolumeExist(client, name, sizeInGiB, cs.Driver.shareProto)
 	if err != nil {
-		klog.V(3).Infof("Failed to create SFS volume: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
+	}
+	if share == nil {
+		// Creating a share
+		createOpts := shares.CreateOpts{
+			ShareProto: cs.Driver.shareProto,
+			Size:       sizeInGiB,
+			Name:       req.GetName(),
+		}
+		share, err = createShare(client, &createOpts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Grant access to the share
-	klog.V(5).Infof("Creating an access ruleto VPC %s", cs.Driver.cloud.Vpc.ID)
+	log.Infof("Creating an access rule to VPC %s", cs.Driver.cloud.Vpc.ID)
 	if err := grantAccess(client, share.ID, cs.Driver.cloud.Vpc.ID); err != nil {
-		klog.V(3).Infof("Failed to create access rule for share: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
+		return nil, err
 	}
-
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
 			VolumeId:      share.ID,
 			ContentSource: req.GetVolumeContentSource(),
-			CapacityBytes: int64(sizeInGiB) * bytesInGiB,
+			CapacityBytes: int64(sizeInGiB) * common.GbByteSize,
 		},
 	}, nil
 }
 
-func validateCreateVolumeRequest(req *csi.CreateVolumeRequest) error {
-	if req.GetName() == "" {
-		return errors.New("volume name cannot be empty")
+func createVolumeValidation(name string, capacityRange *csi.CapacityRange) error {
+	if len(name) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, name cannot be empty")
 	}
-
-	reqCaps := req.GetVolumeCapabilities()
-	if reqCaps == nil {
-		return errors.New("volume capabilities cannot be empty")
+	if capacityRange == nil {
+		return status.Error(codes.InvalidArgument, "Validation failed, capacityRange cannot be empty")
 	}
-
-	/*
-		for _, cap := range reqCaps {
-			if cap.GetBlock() != nil {
-				return errors.New("block access type not allowed")
-			}
-		}
-	*/
-
 	return nil
 }
 
-func bytesToGiB(sizeInBytes int64) int {
-	sizeInGiB := int(sizeInBytes / bytesInGiB)
-
-	if int64(sizeInGiB)*bytesInGiB < sizeInBytes {
-		// Round up
-		return sizeInGiB + 1
+func checkVolumeExist(client *golangsdk.ServiceClient, name string, sizeInGiB int, shareProto string) (
+	*shares.Share, error) {
+	opts := shares.ListOpts{
+		Name: name,
 	}
-
-	return sizeInGiB
+	list, err := shareList(client, opts)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"Failed to query SFS by name, cannot verify whether it exists: %v", err)
+	}
+	for _, v := range list {
+		if v.Name == name {
+			// if name, share proto and size are the same, return success
+			if v.ShareProto == shareProto && v.Size == sizeInGiB {
+				return &v, nil
+			}
+			return nil, status.Errorf(codes.InvalidArgument,
+				"SFS name: %s already exists with a different size or share_proto", name)
+		}
+	}
+	return nil, nil
 }
 
 func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {
