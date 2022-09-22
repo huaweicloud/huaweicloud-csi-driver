@@ -48,10 +48,12 @@ func (ns *nodeServer) NodeStageVolume(_ context.Context, req *csi.NodeStageVolum
 		return nil, err
 	}
 
+	// Verify whether mounted
+	mount := ns.Mount
 	// Do not trust the path provided by EVS, get the real path on node
-	devicePath, err := services.GetVolumeDevicePath(cc, volumeID)
+	devicePath, err := getDevicePath(cc, volumeID, mount)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Unable to find Device path for volume: %v", err)
+		return nil, status.Errorf(codes.Internal, "Unable to find devicePath for volume: %v", err)
 	}
 
 	if blk := volumeCapability.GetBlock(); blk != nil {
@@ -60,8 +62,6 @@ func (ns *nodeServer) NodeStageVolume(_ context.Context, req *csi.NodeStageVolum
 		return &csi.NodeStageVolumeResponse{}, nil
 	}
 
-	// Verify whether mounted
-	mount := ns.Mount
 	notMnt, err := mount.IsLikelyNotMountPointAttach(stagingTarget)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -104,6 +104,29 @@ func (ns *nodeServer) NodeStageVolume(_ context.Context, req *csi.NodeStageVolum
 
 	log.Infof("Successfully staged volume %v", volumeID)
 	return &csi.NodeStageVolumeResponse{}, nil
+}
+
+func getDevicePath(cc *config.CloudCredentials, volumeID string, mount mounts.IMount) (string, error) {
+	volume, err := services.GetVolume(cc, volumeID)
+	if err != nil {
+		return "", err
+	}
+	// device type: SCSI
+	if volume.Metadata.HwPassthrough == "true" {
+		volumeID = volume.WWN
+	}
+
+	var devicePath string
+	devicePath, _ = mount.GetDevicePath(volumeID)
+	if devicePath == "" {
+		// try to get from metadata service
+		devicePath = metadatas.GetDevicePath(volumeID)
+	}
+
+	if len(strings.TrimSpace(devicePath)) == 0 {
+		return "", fmt.Errorf("the \"devicePath\" is still empty after getting from mount and metadata.")
+	}
+	return devicePath, nil
 }
 
 func nodeStageValidation(cc *config.CloudCredentials, volumeID, target string, vc *csi.VolumeCapability) (
@@ -510,9 +533,9 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	}
 
 	m := ns.Mount
-	devicePath, err := services.GetVolumeDevicePath(cc, volumeID)
+	devicePath, err := getDevicePath(ns.Driver.cloudCredentials, volumeID, m)
 	if err != nil {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("Unable to find Device path for volume: %v", err))
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Unable to find devicePath for volume: %v", err))
 	}
 
 	targetPath := req.GetTargetPath()
@@ -557,9 +580,9 @@ func nodePublishVolumeForBlock(req *csi.NodePublishVolumeRequest, ns *nodeServer
 	m := ns.Mount
 
 	// Do not trust the path provided by cinder, get the real path on node
-	source, err := services.GetVolumeDevicePath(ns.Driver.cloudCredentials, volumeID)
+	source, err := getDevicePath(ns.Driver.cloudCredentials, volumeID, m)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "Error query device path for volume %s: %v", volumeID, err)
+		return nil, status.Errorf(codes.Internal, "Error query devicePath for volume %s: %v", volumeID, err)
 	}
 
 	exists, err := utilpath.Exists(utilpath.CheckFollowSymlink, podVolumePath)
