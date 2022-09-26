@@ -24,6 +24,10 @@ const (
 	shareSubExpandError   = "321"
 
 	shareDescription = "provisioned-by=sfsturbo.csi.huaweicloud.org"
+
+	DefaultInitDelay = 15 * time.Second
+	DefaultFactor    = 1.02
+	DefaultSteps     = 30
 )
 
 func CreateShareCompleted(c *config.CloudCredentials, createOpts *shares.CreateOpts) (
@@ -39,12 +43,6 @@ func CreateShareCompleted(c *config.CloudCredentials, createOpts *shares.CreateO
 	}
 	return turboResponse, nil
 }
-
-const (
-	DefaultInitDelay = 15 * time.Second
-	DefaultFactor    = 1.02
-	DefaultSteps     = 30
-)
 
 // WaitForShareAvailable will cost few minutes
 func WaitForShareAvailable(c *config.CloudCredentials, shareID string) error {
