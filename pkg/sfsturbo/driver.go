@@ -124,7 +124,7 @@ func (d *SfsTurboDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapabilit
 	return vca
 }
 
-func (d *SfsTurboDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) error {
+func (d *SfsTurboDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) {
 	var nsc []*csi.NodeServiceCapability
 	for _, n := range nl {
 		klog.Infof("Enabling node service capability: %v", n.String())
@@ -137,7 +137,6 @@ func (d *SfsTurboDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapabili
 		})
 	}
 	d.nscap = nsc
-	return nil
 }
 
 func (d *SfsTurboDriver) ValidateControllerServiceRequest(c csi.ControllerServiceCapability_RPC_Type) error {
@@ -145,8 +144,8 @@ func (d *SfsTurboDriver) ValidateControllerServiceRequest(c csi.ControllerServic
 		return nil
 	}
 
-	for _, cap := range d.cscap {
-		if c == cap.GetRpc().GetType() {
+	for _, capability := range d.cscap {
+		if c == capability.GetRpc().GetType() {
 			return nil
 		}
 	}
