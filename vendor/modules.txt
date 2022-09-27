@@ -1,4 +1,4 @@
-# github.com/chnsz/golangsdk v0.0.0-20220822023433-7b9807832133
+# github.com/chnsz/golangsdk v0.0.0-20220927014619-cd8064513cee
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/openstack
 github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices
@@ -41,8 +41,6 @@ github.com/golang/protobuf/ptypes/wrappers
 github.com/inconshreveable/mousetrap
 # github.com/kubernetes-csi/csi-lib-utils v0.9.1
 github.com/kubernetes-csi/csi-lib-utils/protosanitizer
-# github.com/mitchellh/go-homedir v1.1.0
-github.com/mitchellh/go-homedir
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
 # github.com/spf13/cobra v1.4.0
