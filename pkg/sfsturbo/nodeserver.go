@@ -93,12 +93,15 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 		mountOptions += ",ro"
 	}
 
-	log.Infof("NodePublishVolume: mounting %s at %s with mountOptions: %v", exportLocation, targetPath, mountOptions)
+	log.Infof("NodePublishVolume: mounting %s at %s with mountOptions: %v",
+		exportLocation, targetPath, mountOptions)
 	if err := Mount(exportLocation, targetPath, mountOptions); err != nil {
 		if removeErr := os.Remove(targetPath); removeErr != nil {
-			return nil, status.Errorf(codes.Internal, "Failed to remove mount target %s: %v", targetPath, removeErr)
+			return nil, status.Errorf(codes.Internal, "Failed to remove mount target %s: %v",
+				targetPath, removeErr)
 		}
-		return nil, status.Errorf(codes.Internal, "Failed to mount %s at %s: %v", exportLocation, targetPath, err)
+		return nil, status.Errorf(codes.Internal, "Failed to mount %s at %s: %v",
+			exportLocation, targetPath, err)
 	}
 	log.Infof("NodePublishVolume: mount %s at %s successfully", exportLocation, targetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
