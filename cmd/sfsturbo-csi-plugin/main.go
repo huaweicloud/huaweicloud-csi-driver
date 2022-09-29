@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"k8s.io/component-base/logs"
 	"os"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
@@ -86,6 +87,9 @@ func main() {
 
 	cmd.PersistentFlags().StringVar(&cloudconfig, "cloud-config", "", "CSI driver cloud config")
 	cmd.MarkPersistentFlagRequired("cloud-config")
+
+	logs.InitLogs()
+	defer logs.FlushLogs()
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err.Error())
