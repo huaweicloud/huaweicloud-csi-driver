@@ -32,10 +32,6 @@ import (
 	utilpath "k8s.io/utils/path"
 )
 
-const (
-	maxVolumes = 24 // the maximum number of volumes for a KVM instance is 24
-)
-
 type nodeServer struct {
 	Driver   *SfsTurboDriver
 	Mount    mounts.IMount
@@ -157,7 +153,6 @@ func (ns *nodeServer) NodeGetInfo(_ context.Context, req *csi.NodeGetInfoRequest
 	return &csi.NodeGetInfoResponse{
 		NodeId:             nodeID,
 		AccessibleTopology: topology,
-		MaxVolumesPerNode:  maxVolumes,
 	}, nil
 }
 
