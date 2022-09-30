@@ -19,8 +19,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 	"os"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -102,7 +103,7 @@ func main() {
 func handle() {
 	cloud, err := config.LoadConfig(cloudConfig)
 	if err != nil {
-		klog.Errorf("Failed to load cloud config: %v", err)
+		klog.Fatalf("Failed to load cloud config: %v", err)
 	}
 
 	d := evs.NewDriver(cloud, endpoint, cluster, nodeID)

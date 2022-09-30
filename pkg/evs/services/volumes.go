@@ -76,23 +76,6 @@ func CheckVolumeExists(credentials *config.CloudCredentials, name string, sizeGB
 	return nil, nil
 }
 
-func GetVolumeDevicePath(c *config.CloudCredentials, id string) (string, error) {
-	volume, err := GetVolume(c, id)
-	log.V(4).Infof("[DEBUG] Got volume details: %#v", volume)
-
-	if err != nil {
-		if common.IsNotFound(err) {
-			return "", status.Errorf(codes.NotFound, "Volume %s does not exist, get device path failed", id)
-		}
-		return "", status.Error(codes.Internal, fmt.Sprintf("Querying volume details fails with error %s", err))
-	}
-	// shared disk will not be used and will only have an attachment if mounted.
-	if len(volume.Attachments) > 0 {
-		return volume.Attachments[0].Device, nil
-	}
-	return "", status.Error(codes.Internal, "Get volume device path failed, volume has no attachment")
-}
-
 func ExpandVolume(c *config.CloudCredentials, id string, newSize int) error {
 	client, err := getEvsV21Client(c)
 	if err != nil {

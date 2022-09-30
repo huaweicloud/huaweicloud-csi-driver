@@ -216,6 +216,45 @@ func getFromMetadataService(metadataVersion string) (*Metadata, error) {
 	return parseMetadata(resp.Body)
 }
 
+func GetDevicePath(volumeID string) string {
+	// Nova Hyper-V hosts cannot override disk SCSI IDs. In order to locate
+	// volumes, we're querying the metadata service. Note that the Hyper-V
+	// driver will include device metadata for untagged volumes as well.
+	//
+	// We're avoiding using cached metadata (or the configdrive),
+	// relying on the metadata service.
+	instanceMetadata, err := getFromMetadataService(defaultMetadataVersion)
+
+	if err != nil {
+		klog.Errorf("Could not retrieve instance metadata. Error: %v", err)
+		return ""
+	}
+
+	for _, device := range instanceMetadata.Devices {
+		if device.Type == "disk" && device.Serial == volumeID {
+			klog.Infof("Found disk metadata for volumeID %q. Bus: %q, Address: %q",
+				volumeID, device.Bus, device.Address)
+
+			diskPattern := fmt.Sprintf("/dev/disk/by-path/*-%s-%s", device.Bus, device.Address)
+			diskPaths, err := filepath.Glob(diskPattern)
+			if err != nil {
+				klog.Errorf("could not retrieve disk path for volumeID: %q. Error filepath.Glob(%q): %v",
+					volumeID, diskPattern, err)
+				return ""
+			}
+
+			if len(diskPaths) == 1 {
+				return diskPaths[0]
+			}
+			klog.Infof("expecting to find one disk path for volumeID %q, found %d: %v",
+				volumeID, len(diskPaths), diskPaths)
+		}
+	}
+
+	klog.Errorf("Could not retrieve device metadata for volumeID: %q", volumeID)
+	return ""
+}
+
 // Get retrieves metadata from either config drive or metadata service.
 // Search order depends on the order set in config file.
 func Get(order string) (*Metadata, error) {
@@ -232,7 +271,7 @@ func Get(order string) (*Metadata, error) {
 			case MetadataID:
 				md, err = getFromMetadataService(defaultMetadataVersion)
 			default:
-				err = fmt.Errorf("%s is not a valid metadata search order option. " +
+				err = fmt.Errorf("%s is not a valid metadata search order option. "+
 					"Supported options are %s and %s", id, ConfigDriveID, MetadataID)
 			}
 

@@ -157,6 +157,8 @@ func (m *Mount) getDevicePathBySerialID(volumeID string) string {
 		fmt.Sprintf("scsi-0QEMU_QEMU_HARDDISK_%s", volumeID[:20]),
 		// KVM virtio-scsi #852
 		fmt.Sprintf("scsi-0QEMU_QEMU_HARDDISK_%s", volumeID),
+		// KVM scsi
+		fmt.Sprintf("scsi-3%s", volumeID),
 		// ESXi
 		fmt.Sprintf("wwn-0x%s", strings.Replace(volumeID, "-", "", -1)),
 	}
