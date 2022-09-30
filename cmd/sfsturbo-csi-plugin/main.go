@@ -19,10 +19,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"k8s.io/component-base/logs"
 	"os"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
@@ -68,6 +71,9 @@ func main() {
 			defaultShareProto := "NFS"
 			klog.V(3).Infof("run sfs turbo csi driver")
 			d := sfsturbo.NewDriver(nodeID, endpoint, defaultShareProto, cloud)
+			mount := mounts.GetMountProvider()
+			metadata := metadatas.GetMetadataProvider(metadatas.MetadataID)
+			d.SetupDriver(mount, metadata)
 			d.Run()
 		},
 	}
@@ -81,6 +87,9 @@ func main() {
 
 	cmd.PersistentFlags().StringVar(&cloudconfig, "cloud-config", "", "CSI driver cloud config")
 	cmd.MarkPersistentFlagRequired("cloud-config")
+
+	logs.InitLogs()
+	defer logs.FlushLogs()
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s", err.Error())
