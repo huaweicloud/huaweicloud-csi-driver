@@ -1,6 +1,9 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: sfsturbo.csi.huaweicloud.com
+  name: sfsturbo-sc
 provisioner: sfsturbo.csi.huaweicloud.com
 reclaimPolicy: Delete
+parameters:
+  # shareType is required, should be 'STANDARD' or 'PERFORMANCE', defaults to 'STANDARD'
+  shareType: STANDARD
