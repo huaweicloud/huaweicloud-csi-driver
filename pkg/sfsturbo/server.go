@@ -24,7 +24,7 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 
 	"google.golang.org/grpc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )
@@ -56,8 +56,6 @@ func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, c
 	s.wg.Add(1)
 
 	go s.serve(endpoint, ids, cs, ns)
-
-	return
 }
 
 func (s *nonBlockingGRPCServer) Wait() {
@@ -109,6 +107,6 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
 
-	server.Serve(listener)
+	server.Serve(listener) //nolint:errcheck
 
 }
