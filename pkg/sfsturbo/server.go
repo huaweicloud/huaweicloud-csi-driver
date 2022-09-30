@@ -24,7 +24,7 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 
 	"google.golang.org/grpc"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 )

@@ -26,7 +26,7 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
