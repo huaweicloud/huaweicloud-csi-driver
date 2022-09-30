@@ -387,7 +387,7 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 		log.Warningf("Volume %v has been already expanded to %v, requested %v", volumeID, currentSizeInGiB, sizeInGiB)
 		return &csi.ControllerExpandVolumeResponse{
 			CapacityBytes:         int64(currentSizeInGiB * common.GbByteSize),
-			NodeExpansionRequired: true,
+			NodeExpansionRequired: false,
 		}, nil
 	}
 
@@ -407,7 +407,7 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeInGiB)
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         int64(sizeInGiB),
-		NodeExpansionRequired: true,
+		NodeExpansionRequired: false,
 	}, nil
 }
 
