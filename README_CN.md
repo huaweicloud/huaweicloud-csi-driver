@@ -12,6 +12,12 @@ EVS CSI 插件支持卷的创建、挂载和扩容。云硬盘支持ReadWriteOnc
 
 更多详情请参考[云硬盘CSI插件](./docs/evs/evs.md)
 
+### 弹性文件服务Turbo插件
+
+SFS Turbo CSI 插件支持共享卷的创建、挂载和扩容。共享卷是一种网络文件系统，可以同时被多台服务器挂载。
+
+更多详情请参考[弹性文件服务Turbo CSI插件](./docs/sfsturbo/sfsturbo.md)
+
 ## 链接
 
 - [Kubernetes CSI Documentation](https://kubernetes-csi.github.io/docs/)

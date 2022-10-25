@@ -12,6 +12,8 @@ auth-url=
 
 [Vpc]
 id=
+subnet-id=
+security-group-id=
 ```
 
 ## Introduction
@@ -34,4 +36,8 @@ id=
 
 ### Vpc
 
-* `id` Optional. The VPC where your cluster resides, it is required for SFS.
+* `id` Optional. The VPC where your cluster resides, it is required for SFS and SFS Turbo.
+* 
+* `subnet-id` Optional. The subnet VPC where your cluster resides, it is required for SFS Turbo.
+* 
+* `security-group-id` Optional. The security group where your cluster resides, it is required for SFS Turbo.
