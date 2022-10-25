@@ -6,6 +6,7 @@ require (
 	github.com/chnsz/golangsdk v0.0.0-20220927014619-cd8064513cee
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.12+incompatible
 	github.com/kubernetes-csi/csi-lib-utils v0.9.1
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/spf13/cobra v1.4.0
