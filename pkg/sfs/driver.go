@@ -18,6 +18,7 @@ package sfs
 
 import (
 	"fmt"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -74,6 +75,9 @@ func NewDriver(nodeID, endpoint, shareProto string, cloud config.CloudCredential
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER,
 		csi.VolumeCapability_AccessMode_SINGLE_NODE_READER_ONLY,
 	})
+	d.AddNodeServiceCapabilities([]csi.NodeServiceCapability_RPC_Type{
+		csi.NodeServiceCapability_RPC_GET_VOLUME_STATS,
+	})
 
 	d.ids = &identityServer{Driver: d}
 	d.cs = &controllerServer{Driver: d}
@@ -111,6 +115,21 @@ func (d *SfsDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_Acc
 	return vca
 }
 
+func (d *SfsDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) {
+	var nsc []*csi.NodeServiceCapability
+	for _, n := range nl {
+		klog.Infof("Enabling node service capability: %v", n.String())
+		nsc = append(nsc, &csi.NodeServiceCapability{
+			Type: &csi.NodeServiceCapability_Rpc{
+				Rpc: &csi.NodeServiceCapability_RPC{
+					Type: n,
+				},
+			},
+		})
+	}
+	d.nscap = nsc
+}
+
 func (d *SfsDriver) ValidateControllerServiceRequest(c csi.ControllerServiceCapability_RPC_Type) error {
 	if c == csi.ControllerServiceCapability_RPC_UNKNOWN {
 		return nil
@@ -126,6 +145,10 @@ func (d *SfsDriver) ValidateControllerServiceRequest(c csi.ControllerServiceCapa
 
 func (d *SfsDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_AccessMode {
 	return d.vcap
+}
+
+func (d *SfsDriver) SetupDriver(mount mounts.IMount) {
+	d.ns.Mount = mount
 }
 
 func (d *SfsDriver) Run() {

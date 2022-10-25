@@ -18,6 +18,10 @@ package sfs
 
 import (
 	"fmt"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
+	log "k8s.io/klog/v2"
+	utilpath "k8s.io/utils/path"
 	"os"
 
 	"github.com/chnsz/golangsdk"
@@ -30,6 +34,7 @@ import (
 
 type nodeServer struct {
 	Driver *SfsDriver
+	Mount  mounts.IMount
 }
 
 func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
@@ -146,7 +151,67 @@ func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetC
 }
 
 func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("NodeGetVolumeStats: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volumeID := req.GetVolumeId()
+	volumePath := req.GetVolumePath()
+	if err := nodeGetStatsValidation(volumeID, volumePath); err != nil {
+		return nil, err
+	}
+
+	stats, err := ns.Mount.GetDeviceStats(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "Failed to get stats by path: %s", err)
+	}
+	log.Infof("NodeGetVolumeStats: stats info :%s", protosanitizer.StripSecrets(*stats))
+
+	if stats.Block {
+		return &csi.NodeGetVolumeStatsResponse{
+			Usage: []*csi.VolumeUsage{
+				{
+					Total: stats.TotalBytes,
+					Unit:  csi.VolumeUsage_BYTES,
+				},
+			},
+		}, nil
+	}
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{
+				Total:     stats.TotalBytes,
+				Available: stats.AvailableBytes,
+				Used:      stats.UsedBytes,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			{
+				Total:     stats.TotalInodes,
+				Available: stats.AvailableInodes,
+				Used:      stats.UsedInodes,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
+	}, nil
+
+}
+
+func nodeGetStatsValidation(volumeID, volumePath string) error {
+	if len(volumeID) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, VolumeID cannot be empty")
+	}
+	if len(volumePath) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, VolumePath cannot be empty")
+	}
+
+	exists, err := utilpath.Exists(utilpath.CheckFollowSymlink, volumePath)
+	if err != nil {
+		return status.Errorf(codes.Unknown,
+			"Failed to check whether VolumePath %s exists: %s", volumePath, err)
+	}
+	if !exists {
+		return status.Errorf(codes.Unknown, "Error, the volume path %s not found", volumePath)
+	}
+	return nil
 }
 
 // NodeExpandVolume node expand volume
