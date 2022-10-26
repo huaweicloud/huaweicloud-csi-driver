@@ -43,9 +43,11 @@ var (
 )
 
 func init() {
+	//nolint:errcheck
 	flag.Set("logtostderr", "true")
 }
 
+//nolint:errcheck
 func main() {
 
 	flag.CommandLine.Parse([]string{})
