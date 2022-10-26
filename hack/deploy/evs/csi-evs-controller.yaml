@@ -22,7 +22,7 @@ spec:
           value: "true"
           effect: "NoSchedule"
       containers:
-        - name: csi-attacher
+        - name: csi-attacher1
           image: k8s.gcr.io/sig-storage/csi-attacher:v3.3.0
           args:
             - "--csi-address=$(ADDRESS)"
@@ -31,7 +31,6 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
@@ -47,11 +46,12 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: csi-snapshotter
+          imagePullPolicy: IfNotPresent
           image: k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.1
           args:
             - "--csi-address=$(ADDRESS)"
@@ -61,11 +61,11 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: Always
           volumeMounts:
             - mountPath: /var/lib/csi/sockets/pluginproxy/
               name: socket-dir
         - name: csi-resizer
+          imagePullPolicy: IfNotPresent
           image: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
           args:
             - "--csi-address=$(ADDRESS)"
@@ -75,11 +75,11 @@ spec:
           env:
             - name: ADDRESS
               value: /var/lib/csi/sockets/pluginproxy/csi.sock
-          imagePullPolicy: "IfNotPresent"
           volumeMounts:
             - name: socket-dir
               mountPath: /var/lib/csi/sockets/pluginproxy/
         - name: liveness-probe
+          imagePullPolicy: IfNotPresent
           image: k8s.gcr.io/sig-storage/livenessprobe:v2.5.0
           args:
             - "--csi-address=$(ADDRESS)"
@@ -90,7 +90,8 @@ spec:
             - mountPath: /var/lib/csi/sockets/pluginproxy/
               name: socket-dir
         - name: evs-csi-provisioner
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.1.2
+          image: {{image_url}}
+          imagePullPolicy: Never
           args:
             - /bin/evs-csi-plugin
             - "-v=5"
@@ -104,7 +105,6 @@ spec:
               value: /etc/evs/cloud-config
             - name: CLUSTER_NAME
               value: kubernetes
-          imagePullPolicy: "IfNotPresent"
           ports:
             - containerPort: 9808
               name: healthz
