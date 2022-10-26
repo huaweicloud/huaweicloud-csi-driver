@@ -10,9 +10,9 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ## Support version
 
-| CSI version   | EVS CSI Driver Version | Kubernetes Version Tested | Features                |
-|---------------|------------------------|---------------------------|-------------------------|
-| v1.5.0        | v0.1.0                 | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
+| EVS CSI Driver Version | CSI version | Kubernetes Version Tested | Features                |
+|------------------------|-------------|---------------------------|-------------------------|
+| v0.1.1                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
 
 ## Supported Parameters
 
