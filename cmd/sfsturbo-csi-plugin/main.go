@@ -37,6 +37,7 @@ var (
 	cloudconfig string
 )
 
+//nolint:errcheck
 func main() {
 	flag.CommandLine.Parse([]string{})
 

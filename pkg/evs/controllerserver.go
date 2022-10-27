@@ -225,13 +225,11 @@ func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.
 			return nil, status.Errorf(codes.Internal, "Failed to publish volume %s to ECS %s with error %v",
 				volumeID, instanceID, err)
 		}
-		break
 	case VolumeAttachingCurrentServer:
 		if err := services.WaitForVolumeAttaching(credentials, volumeID); err != nil {
 			return nil, status.Errorf(codes.Internal,
 				"Failed to wait for volume: %s attaching ECS: %s with error %v", volumeID, instanceID, err)
 		}
-		break
 	case VolumeAttachingOtherServer:
 		return nil, status.Errorf(codes.Internal, "Error, volume: %s is attaching another server", volumeID)
 	case VolumeAttachedCurrentServer:

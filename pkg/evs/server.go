@@ -86,5 +86,7 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 	}
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
+
+	//nolint:errcheck
 	server.Serve(listener)
 }

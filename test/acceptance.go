@@ -25,7 +25,7 @@ func LoadConfig() (*config.CloudCredentials, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer utils.DeleteFile(configFile)
+	defer utils.DeleteFile(configFile) //nolint:errcheck
 
 	cc, err := config.LoadConfig(configFile)
 	if err != nil {

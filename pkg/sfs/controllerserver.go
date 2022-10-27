@@ -19,10 +19,11 @@ package sfs
 import (
 	"fmt"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	log "k8s.io/klog/v2"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/sfs/v2/shares"
@@ -188,7 +189,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 
 	reqVolCap := req.GetVolumeCapabilities()
 
-	if reqVolCap == nil || len(reqVolCap) == 0 {
+	if len(reqVolCap) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "ValidateVolumeCapabilities Volume Capabilities must be provided")
 	}
 	volumeID := req.GetVolumeId()
@@ -221,8 +222,8 @@ func (cs *controllerServer) ValidateVolumeCapabilities(ctx context.Context, req 
 	return &csi.ValidateVolumeCapabilitiesResponse{Confirmed: confirmed}, nil
 }
 
-func (cs *controllerServer) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
-	return nil, status.Error(codes.Unimplemented, fmt.Sprintf("GetCapacity is not yet implemented"))
+func (cs *controllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "GetCapacity is not yet implemented")
 }
 
 func (cs *controllerServer) ControllerExpandVolume(ctx context.Context, req *csi.ControllerExpandVolumeRequest) (*csi.ControllerExpandVolumeResponse, error) {

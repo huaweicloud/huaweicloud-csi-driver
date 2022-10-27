@@ -7,10 +7,6 @@ import (
 	"strings"
 )
 
-const (
-	bytesInGiB = 1024 * 1024 * 1024
-)
-
 func Mount(source, target, mountOptions string) error {
 	cmd := fmt.Sprintf("mount -t nfs -o vers=3,timeo=600,%s %s %s", mountOptions, source, target)
 	_, err := Run(cmd)

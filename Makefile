@@ -12,27 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOOS   ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+GOOS   ?=$(shell go env GOOS)
+GOARCH ?=$(shell go env GOARCH)
 
 # Keep an existing GOPATH, make a private one if it is undefined
-export GOPATH  ?= $(shell pwd)/.go
-export GOBIN   ?= $(GOPATH)/bin
+export GOPATH  ?=$(shell pwd)/../.go
+export GOBIN   ?=$(GOPATH)/bin
 
 # Images management
-REGISTRY          ?=swr.cn-north-4.myhuaweicloud.com/k8s-csi
+REGISTRY_SERVER   ?=swr.cn-north-4.myhuaweicloud.com
+REGISTRY          ?=$(REGISTRY_SERVER)/k8s-csi
 REGISTRY_USERNAME ?=
 REGISTRY_PASSWORD ?=
-REGISTRY_SERVER   ?=swr.cn-north-4.myhuaweicloud.com
 
 SOURCES := $(shell find . -name '*.go' 2>/dev/null)
-VERSION        ?= $(shell git describe --dirty --tags --match='v*')
-LDFLAGS		:= "-w -s -X 'k8s.io/component-base/version.gitVersion=$(VERSION)'"
-TEMP_DIR	:=$(shell mktemp -d)
+VERSION ?= $(shell git describe --dirty --tags --match='v*')
+LDFLAGS	:= "-w -s -X 'k8s.io/component-base/version.gitVersion=$(VERSION)'"
+TEMP_DIR:=$(shell mktemp -d)
 
 ALL ?= evs-csi-plugin \
-		sfs-csi-plugin \
-		sfsturbo-csi-plugin
+		sfs-csi-plugin
+#		sfsturbo-csi-plugin
 
 # CTI targets
 $(GOBIN):
@@ -76,17 +76,16 @@ test: work
 	go test -tags=unit $(shell go list ./... | sed -e '/sanity/ { N; d; }' | sed -e '/tests/ {N; d;}') $(TESTARGS)
 
 lint:
-	@sh hack/check-golint.sh
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run ./...
 
 fmtcheck:
-	@sh hack/check-format.sh
+	hack/check-format.sh
 
 fmt:
-	@sh hack/update-gofmt.sh
+	hack/update-gofmt.sh
 
 vet:
-	@sh hack/check-govet.sh
+	hack/check-govet.sh
 
 version:
 	@echo ${VERSION}
-

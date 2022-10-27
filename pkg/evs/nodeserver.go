@@ -559,7 +559,7 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 			options = append(options, collectMountOptions(fsType, mountFlags)...)
 		}
 		// Mount
-		err = m.Mounter().FormatAndMount(devicePath, targetPath, fsType, nil)
+		err = m.Mounter().FormatAndMount(devicePath, targetPath, fsType, options)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

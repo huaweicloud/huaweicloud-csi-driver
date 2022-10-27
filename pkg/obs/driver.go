@@ -18,15 +18,17 @@ package obs
 
 import (
 	"fmt"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 	log "k8s.io/klog/v2"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
 const (
@@ -102,8 +104,6 @@ func (d *Driver) AddControllerServiceCapabilities(cl []csi.ControllerServiceCapa
 	}
 
 	d.cscap = csc
-
-	return
 }
 
 func (d *Driver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_AccessMode_Mode) []*csi.VolumeCapability_AccessMode {
@@ -141,7 +141,7 @@ func (d *Driver) ValidateControllerServiceRequest(c csi.ControllerServiceCapabil
 			return nil
 		}
 	}
-	return status.Error(codes.InvalidArgument, fmt.Sprintf("%s", c))
+	return status.Errorf(codes.InvalidArgument, "%s", c)
 }
 
 func (d *Driver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_AccessMode {

@@ -183,7 +183,7 @@ func getFromConfigDrive(metadataVersion string) (*Metadata, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error mounting configdrive %s: %v", dev, err)
 	}
-	defer mounter.Unmount(mntDir)
+	defer mounter.Unmount(mntDir) //nolint:errcheck
 
 	klog.Infof("Configdrive mounted on %s", mntDir)
 
