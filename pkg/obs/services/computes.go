@@ -28,6 +28,7 @@ func GetBucketMetadata(c *config.CloudCredentials, bucket string) (*obs.GetBucke
 		return nil, err
 	}
 	input := &obs.GetBucketMetadataInput{}
+	input.Bucket = bucket
 	metadata, err := client.GetBucketMetadata(input)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "Error, OBS instance %s does not exist, error: %v", bucket, err)
@@ -40,10 +41,12 @@ func CheckBucketExists(c *config.CloudCredentials, bucket string) (bool, error) 
 	if err != nil {
 		return false, err
 	}
-	output, err := client.HeadBucket(bucket)
+	_, err = client.HeadBucket(bucket)
 	if err != nil {
-		if output.StatusCode == 404 {
-			return false, nil
+		if obsError, ok := err.(obs.ObsError); ok {
+			if obsError.StatusCode == 404 {
+				return false, nil
+			}
 		}
 		return false, status.Errorf(codes.Internal, "Error, heading OBS instance %s, error:%v", bucket, err)
 	}
@@ -156,7 +159,7 @@ func GetBucketQuota(c *config.CloudCredentials, bucket string) (int64, error) {
 }
 
 func getObsClient(c *config.CloudCredentials) (*obs.ObsClient, error) {
-	client, err := obs.New(c.Global.AccessKey, c.Global.SecretKey, c.Global.Region, nil)
+	client, err := obs.New(c.Global.AccessKey, c.Global.SecretKey, "obs.cn-north-4.myhuaweicloud.com")
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed create OBS client: %s", err))
 	}
