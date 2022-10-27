@@ -2,6 +2,7 @@ package evs
 
 import (
 	"fmt"
+
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -97,8 +98,6 @@ func (d *EvsDriver) AddControllerServiceCapabilities(cl []csi.ControllerServiceC
 	}
 
 	d.cscap = csc
-
-	return
 }
 
 func (d *EvsDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_AccessMode_Mode) []*csi.VolumeCapability_AccessMode {
@@ -111,7 +110,7 @@ func (d *EvsDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_Acc
 	return vca
 }
 
-func (d *EvsDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) error {
+func (d *EvsDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RPC_Type) {
 	var nsc []*csi.NodeServiceCapability
 	for _, n := range nl {
 		log.Infof("Enabling node service capability: %v", n.String())
@@ -124,7 +123,6 @@ func (d *EvsDriver) AddNodeServiceCapabilities(nl []csi.NodeServiceCapability_RP
 		})
 	}
 	d.nscap = nsc
-	return nil
 }
 
 func (d *EvsDriver) ValidateControllerServiceRequest(capType csi.ControllerServiceCapability_RPC_Type) error {

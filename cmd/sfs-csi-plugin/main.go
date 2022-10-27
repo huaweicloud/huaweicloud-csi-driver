@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
 )
 
 var (
@@ -34,6 +35,7 @@ var (
 	cloudconfig string
 )
 
+//nolint:errcheck
 func main() {
 	flag.CommandLine.Parse([]string{})
 
