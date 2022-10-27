@@ -81,7 +81,7 @@ func getBaseMounter() *mount.SafeFormatAndMount {
 	}
 }
 
-//GetMountProvider returns instance of Mounter
+// GetMountProvider returns instance of Mounter
 func GetMountProvider() IMount {
 	if MInstance == nil {
 		MInstance = &Mount{BaseMounter: getBaseMounter()}
@@ -102,7 +102,7 @@ func probeVolume() error {
 		for _, f := range dirs {
 			name := scsiPath + f.Name() + "/scan"
 			data := []byte("- - -")
-			ioutil.WriteFile(name, data, 0666)
+			ioutil.WriteFile(name, data, 0666) //nolint:errcheck
 		}
 	}
 
@@ -132,7 +132,7 @@ func (m *Mount) GetDevicePath(volumeID string) (string, error) {
 			return true, nil
 		}
 		// see issue https://github.com/kubernetes/cloud-provider-openstack/issues/705
-		probeVolume()
+		probeVolume() //nolint:errcheck
 		return false, nil
 	})
 
@@ -193,7 +193,7 @@ func (m *Mount) ScanForAttach(devicePath string) error {
 		select {
 		case <-ticker.C:
 			klog.V(5).Infof("Checking Cinder disk %q is attached.", devicePath)
-			probeVolume()
+			probeVolume() //nolint:errcheck
 
 			exists, err := mount.PathExists(devicePath)
 			if exists && err == nil {
@@ -250,7 +250,7 @@ func (m *Mount) MakeDir(pathname string) error {
 // MakeFile creates an empty file
 func (m *Mount) MakeFile(pathname string) error {
 	f, err := os.OpenFile(pathname, os.O_CREATE, os.FileMode(0644))
-	defer f.Close()
+	defer f.Close() //nolint:staticcheck
 	if err != nil {
 		if !os.IsExist(err) {
 			return err
@@ -261,6 +261,9 @@ func (m *Mount) MakeFile(pathname string) error {
 
 func (m *Mount) GetDeviceStats(path string) (*DeviceStats, error) {
 	isBlock, err := blockdevice.IsBlockDevice(path)
+	if err != nil {
+		return nil, err
+	}
 
 	if isBlock {
 		size, err := blockdevice.GetBlockDeviceSize(path)

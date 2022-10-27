@@ -17,14 +17,14 @@ limitations under the License.
 package sfs
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
 const (
@@ -97,8 +97,6 @@ func (d *SfsDriver) AddControllerServiceCapabilities(cl []csi.ControllerServiceC
 	}
 
 	d.cscap = csc
-
-	return
 }
 
 func (d *SfsDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_AccessMode_Mode) []*csi.VolumeCapability_AccessMode {
@@ -121,7 +119,7 @@ func (d *SfsDriver) ValidateControllerServiceRequest(c csi.ControllerServiceCapa
 			return nil
 		}
 	}
-	return status.Error(codes.InvalidArgument, fmt.Sprintf("%s", c))
+	return status.Errorf(codes.InvalidArgument, "%s", c)
 }
 
 func (d *SfsDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_AccessMode {

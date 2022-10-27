@@ -91,12 +91,3 @@ func grantAccess(client *golangsdk.ServiceClient, shareID string, vpcid string) 
 	}
 	return nil
 }
-
-func expandShare(client *golangsdk.ServiceClient, shareID string, size int) error {
-	expandOpts := shares.ExpandOpts{OSExtend: shares.OSExtendOpts{NewSize: size}}
-	expand := shares.Expand(client, shareID, expandOpts)
-	if expand.Err != nil {
-		return expand.Err
-	}
-	return nil
-}

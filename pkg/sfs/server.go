@@ -17,10 +17,11 @@ limitations under the License.
 package sfs
 
 import (
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"net"
 	"os"
 	"sync"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 
 	"google.golang.org/grpc"
 	"k8s.io/klog"
@@ -55,8 +56,6 @@ func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, c
 	s.wg.Add(1)
 
 	go s.serve(endpoint, ids, cs, ns)
-
-	return
 }
 
 func (s *nonBlockingGRPCServer) Wait() {
@@ -107,6 +106,7 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 
 	klog.Infof("Listening for connections on address: %#v", listener.Addr())
 
+	//nolint:errcheck
 	server.Serve(listener)
 
 }

@@ -516,7 +516,7 @@ type ServerConfig struct {
 	MaxStreams            uint32
 	AuthInfo              credentials.AuthInfo
 	InTapHandle           tap.ServerInHandle
-	StatsHandler          stats.Handler
+	StatsHandlers         []stats.Handler
 	KeepaliveParams       keepalive.ServerParameters
 	KeepalivePolicy       keepalive.EnforcementPolicy
 	InitialWindowSize     int32
@@ -552,8 +552,8 @@ type ConnectOptions struct {
 	CredsBundle credentials.Bundle
 	// KeepaliveParams stores the keepalive parameters.
 	KeepaliveParams keepalive.ClientParameters
-	// StatsHandler stores the handler for stats.
-	StatsHandler stats.Handler
+	// StatsHandlers stores the handler for stats.
+	StatsHandlers []stats.Handler
 	// InitialWindowSize sets the initial window size for a stream.
 	InitialWindowSize int32
 	// InitialConnWindowSize sets the initial window size for a connection.

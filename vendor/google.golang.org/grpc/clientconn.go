@@ -135,6 +135,10 @@ func DialContext(ctx context.Context, target string, opts ...DialOption) (conn *
 	cc.retryThrottler.Store((*retryThrottler)(nil))
 	cc.ctx, cc.cancel = context.WithCancel(context.Background())
 
+	for _, opt := range extraDialOptions {
+		opt.apply(&cc.dopts)
+	}
+
 	for _, opt := range opts {
 		opt.apply(&cc.dopts)
 	}
@@ -714,8 +718,8 @@ func (cc *ClientConn) newAddrConn(addrs []resolver.Address, opts balancer.NewSub
 	ac.ctx, ac.cancel = context.WithCancel(cc.ctx)
 	// Track ac in cc. This needs to be done before any getTransport(...) is called.
 	cc.mu.Lock()
+	defer cc.mu.Unlock()
 	if cc.conns == nil {
-		cc.mu.Unlock()
 		return nil, ErrClientConnClosing
 	}
 	if channelz.IsOn() {
@@ -730,7 +734,6 @@ func (cc *ClientConn) newAddrConn(addrs []resolver.Address, opts balancer.NewSub
 		})
 	}
 	cc.conns[ac] = struct{}{}
-	cc.mu.Unlock()
 	return ac, nil
 }
 
