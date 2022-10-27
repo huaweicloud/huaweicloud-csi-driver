@@ -26,11 +26,11 @@ import (
 	log "k8s.io/klog/v2"
 )
 
-type controllerServer struct {
+type ControllerServer struct {
 	Driver *Driver
 }
 
-func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolumeRequest) (
+func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolumeRequest) (
 	*csi.CreateVolumeResponse, error) {
 	log.Infof("CreateVolume: called with args %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloud
@@ -79,62 +79,62 @@ func buildCreateVolumeResponse(volume string) *csi.CreateVolumeResponse {
 	return response
 }
 
-func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolumeRequest) (
+func (cs *ControllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolumeRequest) (
 	*csi.DeleteVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
+func (cs *ControllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
 	*csi.ControllerGetVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerPublishVolume(_ context.Context, _ *csi.ControllerPublishVolumeRequest) (
+func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, _ *csi.ControllerPublishVolumeRequest) (
 	*csi.ControllerPublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerUnpublishVolume(_ context.Context, _ *csi.ControllerUnpublishVolumeRequest) (
+func (cs *ControllerServer) ControllerUnpublishVolume(_ context.Context, _ *csi.ControllerUnpublishVolumeRequest) (
 	*csi.ControllerUnpublishVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesRequest) (
+func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesRequest) (
 	*csi.ListVolumesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (
+func (cs *ControllerServer) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (
 	*csi.CreateSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) DeleteSnapshot(_ context.Context, _ *csi.DeleteSnapshotRequest) (
+func (cs *ControllerServer) DeleteSnapshot(_ context.Context, _ *csi.DeleteSnapshotRequest) (
 	*csi.DeleteSnapshotResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ListSnapshots(_ context.Context, _ *csi.ListSnapshotsRequest) (
+func (cs *ControllerServer) ListSnapshots(_ context.Context, _ *csi.ListSnapshotsRequest) (
 	*csi.ListSnapshotsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerGetCapabilities(_ context.Context, req *csi.ControllerGetCapabilitiesRequest) (
+func (cs *ControllerServer) ControllerGetCapabilities(_ context.Context, req *csi.ControllerGetCapabilitiesRequest) (
 	*csi.ControllerGetCapabilitiesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (
+func (cs *ControllerServer) ValidateVolumeCapabilities(_ context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (
 	*csi.ValidateVolumeCapabilitiesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (
+func (cs *ControllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (
 	*csi.GetCapacityResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.ControllerExpandVolumeRequest) (
+func (cs *ControllerServer) ControllerExpandVolume(_ context.Context, req *csi.ControllerExpandVolumeRequest) (
 	*csi.ControllerExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }
