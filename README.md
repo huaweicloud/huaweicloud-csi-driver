@@ -2,7 +2,7 @@
 
 English | [简体中文](./README_CN.md)
 
-The Huawei Cloud CSI driver provides interfaces used by Container Orchestrators to manage the lifecycle of 
+The Huawei Cloud CSI driver provides interfaces used by Container Orchestrators to manage the lifecycle of
 Huawei Cloud storage services.
 
 This repository hosts various CSI drivers relevant to Huawei Cloud and Kubernetes integration.
@@ -20,6 +20,12 @@ SFS Turbo CSI driver supports share creation, mount and expansion.
 Share is a kind of Network File System, can be mounted by multiple servers at the same time.
 
 See [SFS Turbo CSI Driver](./docs/sfsturbo/sfsturbo.md) for details.
+
+### SFS CSI Driver
+
+SFS CSI driver supports share volume creation add access rules.
+
+See [SFS CSI Driver](./docs/sfs/sfs.md) for details.
 
 ## Links
 
