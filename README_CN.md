@@ -6,17 +6,23 @@
 
 该仓库包含了华为云和Kubernetes集成相关的各种CSI插件。
 
-### 云硬盘插件
+### 云硬盘（EVS）插件
 
 EVS CSI 插件支持卷的创建、挂载和扩容。云硬盘支持ReadWriteOnce模式并且只能挂载一台服务器。
 
-更多详情请参考[云硬盘CSI插件](./docs/evs/evs.md)
+更多详情请参考[云硬盘（EVS）插件](./docs/evs/evs.md)
 
-### 弹性文件服务Turbo插件
+### SFS Turbo 插件
 
 SFS Turbo CSI 插件支持共享卷的创建、挂载和扩容。共享卷是一种网络文件系统，可以同时被多台服务器挂载。
 
-更多详情请参考[弹性文件服务Turbo CSI插件](./docs/sfsturbo/sfsturbo.md)
+更多详情请参考[SFS Turbo 插件](./docs/sfsturbo/sfsturbo.md)
+
+### SFS 容量型插件
+
+SFS CSI 插件支持创建共享卷及添加共享规则。
+
+更多详情请参考[SFS 容量型插件](./docs/sfs/sfs.md)
 
 ## 链接
 
