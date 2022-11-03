@@ -10,7 +10,7 @@ metadata:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: sfs-turbo-external-provisioner-role
+  name: sfsturbo-external-provisioner-role
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -86,4 +86,44 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: sfsturbo-external-attacher-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+
+# External Resizer
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sfsturbo-csi-resizer-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims/status"]
+    verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list", "watch", "create", "update", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sfsturbo-csi-resizer-binding
+subjects:
+  - kind: ServiceAccount
+    name: csi-sfsturbo-controller-sa
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: sfsturbo-csi-resizer-role
   apiGroup: rbac.authorization.k8s.io
