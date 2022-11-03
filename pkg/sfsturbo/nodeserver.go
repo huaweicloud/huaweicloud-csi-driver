@@ -17,142 +17,213 @@ limitations under the License.
 package sfsturbo
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/chnsz/golangsdk"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo/services"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	log "k8s.io/klog/v2"
+	utilpath "k8s.io/utils/path"
 )
 
 type nodeServer struct {
-	Driver *SfsTurboDriver
+	Driver   *SfsTurboDriver
+	Mount    mounts.IMount
+	Metadata metadatas.IMetadata
 }
 
-func (ns *nodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
+func (ns *nodeServer) NodeStageVolume(_ context.Context, req *csi.NodeStageVolumeRequest) (
+	*csi.NodeStageVolumeResponse, error) {
+	log.Infof("NodeStageVolume: called with args %v", protosanitizer.StripSecrets(*req))
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
+func (ns *nodeServer) NodeUnstageVolume(_ context.Context, req *csi.NodeUnstageVolumeRequest) (
+	*csi.NodeUnstageVolumeResponse, error) {
+	log.Infof("NodeStageVolume: called with args %v", protosanitizer.StripSecrets(*req))
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
-	klog.V(2).Infof("NodePublishVolume called with request %v", *req)
-	if req.GetVolumeCapability() == nil {
-		return nil, status.Error(codes.InvalidArgument, "Volume capability missing in request")
-	}
-	if len(req.GetVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-	if len(req.GetTargetPath()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Target path missing in request")
-	}
-
-	target := req.GetTargetPath()
-	if len(target) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Target path not provided")
-	}
-
-	//Get Volume
+func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishVolumeRequest) (
+	*csi.NodePublishVolumeResponse, error) {
+	log.Infof("NodePublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
+	capability := req.GetVolumeCapability()
 	volumeID := req.GetVolumeId()
-	client, err := ns.Driver.cloud.SFSTurboV1Client()
-	if err != nil {
-		klog.V(3).Infof("NodePublishVolume Failed to create SFS v2 client: %v", err)
-		return nil, status.Error(codes.Internal, err.Error())
+	targetPath := req.GetTargetPath()
+	if err := nodePublishValidation(capability, volumeID, targetPath); err != nil {
+		return nil, err
 	}
 
-	// wait create new share
-	err = waitForShareStatus(client, volumeID)
+	cloud := ns.Driver.cloud
+	share, err := services.GetShare(cloud, volumeID)
+	if err != nil {
+		if common.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "Share %s has already been deleted.", volumeID)
+		}
+		return nil, status.Errorf(codes.Internal, "Failed to query share: %s, error: %v", volumeID, err)
+	}
+
+	//Get Volume export location
+	exportLocation := share.ExportLocation
+	if len(exportLocation) == 0 {
+		return nil, status.Errorf(codes.Internal, "Not found export location from volume %s", volumeID)
+	}
+
+	if isMounted(targetPath) {
+		log.Infof("NodePublishVolume: %s has already mounted", targetPath)
+		return &csi.NodePublishVolumeResponse{}, nil
+	}
+
+	if err := makeDir(targetPath); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to make dir: %s, error: %v", targetPath, err)
+	}
+
+	mountOptions := []string{"vers=3,timeo=600,noresvport,nolock"}
+	if req.GetReadonly() {
+		mountOptions = append(mountOptions, "ro")
+	} else {
+		mountOptions = append(mountOptions, "rw")
+	}
+
+	log.Infof("NodePublishVolume: mounting %s at %s with mountOptions: %v",
+		exportLocation, targetPath, mountOptions)
+	if err := ns.Mount.Mounter().Mount(exportLocation, targetPath, "nfs", mountOptions); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to mount %s at %s: %v",
+			exportLocation, targetPath, err)
+	}
+	log.Infof("NodePublishVolume: mount %s at %s successfully", exportLocation, targetPath)
+	return &csi.NodePublishVolumeResponse{}, nil
+}
+
+func nodePublishValidation(capability *csi.VolumeCapability, volumeID string, targetPath string) error {
+	if capability == nil {
+		return status.Error(codes.InvalidArgument, "Validation failed, volume capability cannot be nil")
+	}
+	if len(volumeID) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, volumeID cannot be empty")
+	}
+	if len(targetPath) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, targetPath cannot be empty")
+	}
+	return nil
+}
+
+func (ns *nodeServer) NodeUnpublishVolume(_ context.Context, req *csi.NodeUnpublishVolumeRequest) (
+	*csi.NodeUnpublishVolumeResponse, error) {
+	log.Infof("NodeUnpublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volumeID := req.GetVolumeId()
+	targetPath := req.GetTargetPath()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volumeId cannot be empty")
+	}
+	if len(targetPath) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, targetPath cannot be empty")
+	}
+	log.Infof("NodeUnpublishVolume: unmounting volume %s on %s", volumeID, targetPath)
+
+	notMnt, err := ns.Mount.IsLikelyNotMountPointAttach(targetPath)
 	if err != nil {
 		return nil, err
 	}
 
-	share, err := getShare(client, volumeID)
-	if err != nil {
-		if _, ok := err.(golangsdk.ErrDefault404); ok {
-			return nil, status.Error(codes.NotFound, fmt.Sprintf("NodePublishVolume Volume %s not found", volumeID))
-		}
-		return nil, status.Error(codes.Internal, fmt.Sprintf("NodePublishVolume %v", err))
+	if notMnt {
+		log.Infof("NodeUnpublishVolume: %s has already uMounted", targetPath)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
-
-	//Get Volume export location
-	source := share.ExportLocation
-	if source == "" {
-		return nil, status.Error(codes.Internal, fmt.Sprintf("NodePublishVolume Volume %s location not found", volumeID))
+	if err := ns.Mount.UnmountPath(targetPath); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to unmount target %q: %v", targetPath, err)
 	}
-
-	mountOptions := "noresvport,nolock"
-	if req.GetReadonly() {
-		mountOptions += ",ro"
-	}
-
-	if isMounted(target) {
-		klog.V(2).Infof("NodePublishVolume: %s is already mounted", target)
-		return &csi.NodePublishVolumeResponse{}, nil
-	}
-
-	klog.V(2).Infof("NodePublishVolume: creating dir %s", target)
-	if err := makeDir(target); err != nil {
-		return nil, status.Errorf(codes.Internal, "Could not create dir %q: %v", target, err)
-	}
-
-	klog.V(2).Infof("NodePublishVolume: mounting %s at %s with mountOptions: %v", source, target, mountOptions)
-	if err := Mount(source, target, mountOptions); err != nil {
-		if removeErr := os.Remove(target); removeErr != nil {
-			return nil, status.Errorf(codes.Internal, "Could not remove mount target %q: %v", target, removeErr)
-		}
-		return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, target, err)
-	}
-	klog.V(2).Infof("NodePublishVolume: mount %s at %s successfully", source, target)
-
-	return &csi.NodePublishVolumeResponse{}, nil
-}
-
-func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	klog.V(2).Infof("NodeUnPublishVolume: called with args %+v", *req)
-	if len(req.GetVolumeId()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-	if len(req.GetTargetPath()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Target path missing in request")
-	}
-	targetPath := req.GetTargetPath()
-	volumeID := req.GetVolumeId()
-
-	klog.V(2).Infof("NodeUnpublishVolume: unmounting volume %s on %s", volumeID, targetPath)
-	err := Unmount(targetPath)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)
-	}
-	klog.V(2).Infof("NodeUnpublishVolume: unmount volume %s on %s successfully", volumeID, targetPath)
-
+	log.Infof("NodeUnpublishVolume: unmount volume %s on %s successfully", volumeID, targetPath)
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (ns *nodeServer) NodeGetInfo(ctx context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	klog.V(2).Infof("NodeGetInfo called with request %v", *req)
+func (ns *nodeServer) NodeGetInfo(_ context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
+	log.Infof("NodeGetInfo: called with args %v", protosanitizer.StripSecrets(*req))
+	nodeID, err := ns.Metadata.GetInstanceID()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to retrieve instance id of node %s", err)
+	}
+
+	zone, err := ns.Metadata.GetAvailabilityZone()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to retrieve availability zone of node %v", err)
+	}
+	topology := &csi.Topology{Segments: map[string]string{topologyKey: zone}}
+	log.Infof("NodeGetInfo nodeID: %s, topology: %s", nodeID, protosanitizer.StripSecrets(*topology))
 	return &csi.NodeGetInfoResponse{
-		NodeId: ns.Driver.nodeID,
+		NodeId:             nodeID,
+		AccessibleTopology: topology,
 	}, nil
 }
 
-func (ns *nodeServer) NodeGetCapabilities(ctx context.Context, req *csi.NodeGetCapabilitiesRequest) (*csi.NodeGetCapabilitiesResponse, error) {
-	klog.V(2).Infof("NodeGetCapabilities called with req: %#v", req)
-
+func (ns *nodeServer) NodeGetCapabilities(_ context.Context, req *csi.NodeGetCapabilitiesRequest) (
+	*csi.NodeGetCapabilitiesResponse, error) {
+	log.Infof("NodeGetCapabilities: called with args %v", protosanitizer.StripSecrets(*req))
 	return &csi.NodeGetCapabilitiesResponse{
 		Capabilities: ns.Driver.nscap,
 	}, nil
 }
 
-func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolumeStatsRequest) (
+	*csi.NodeGetVolumeStatsResponse, error) {
+	log.Infof("NodeGetVolumeStats: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volumeID := req.GetVolumeId()
+	volumePath := req.GetVolumePath()
+	if err := nodeGetStatsValidation(volumeID, volumePath); err != nil {
+		return nil, err
+	}
+
+	stats, err := ns.Mount.GetDeviceStats(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "Failed to get stats by path: %s", err)
+	}
+	log.Infof("NodeGetVolumeStats: stats info :%s", protosanitizer.StripSecrets(*stats))
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{
+				Total:     stats.TotalBytes,
+				Available: stats.AvailableBytes,
+				Used:      stats.UsedBytes,
+				Unit:      csi.VolumeUsage_BYTES,
+			},
+			{
+				Total:     stats.TotalInodes,
+				Available: stats.AvailableInodes,
+				Used:      stats.UsedInodes,
+				Unit:      csi.VolumeUsage_INODES,
+			},
+		},
+	}, nil
+}
+
+func nodeGetStatsValidation(volumeID, volumePath string) error {
+	if len(volumeID) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, VolumeID cannot be empty")
+	}
+	if len(volumePath) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, VolumePath cannot be empty")
+	}
+
+	exists, err := utilpath.Exists(utilpath.CheckFollowSymlink, volumePath)
+	if err != nil {
+		return status.Errorf(codes.Unknown,
+			"Failed to check whether VolumePath %s exists: %s", volumePath, err)
+	}
+	if !exists {
+		return status.Errorf(codes.Unknown, "Error, the volume path %s not found", volumePath)
+	}
+	return nil
 }
 
 // NodeExpandVolume node expand volume
-func (ns *nodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandVolumeRequest) (*csi.NodeExpandVolumeResponse, error) {
+func (ns *nodeServer) NodeExpandVolume(_ context.Context, _ *csi.NodeExpandVolumeRequest) (
+	*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
 }

@@ -17,7 +17,6 @@ limitations under the License.
 package sfsturbo
 
 import (
-	"fmt"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"reflect"
 	"strconv"
@@ -314,7 +313,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *c
 	log.Infof("ValidateVolumeCapabilities called with request %v", protosanitizer.StripSecrets(*req))
 
 	reqVolCap := req.GetVolumeCapabilities()
-	if reqVolCap == nil || len(reqVolCap) == 0 {
+	if len(reqVolCap) == 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "Validation failed, Volume Capabilities cannot be empty")
 	}
 	volumeID := req.GetVolumeId()
@@ -354,7 +353,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *c
 
 func (cs *controllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (
 	*csi.GetCapacityResponse, error) {
-	return nil, status.Error(codes.Unimplemented, fmt.Sprintf("GetCapacity is not yet implemented"))
+	return nil, status.Errorf(codes.Unimplemented, "GetCapacity is not yet implemented")
 }
 
 func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.ControllerExpandVolumeRequest) (

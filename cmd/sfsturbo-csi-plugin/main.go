@@ -28,12 +28,11 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 var (
 	endpoint    string
-	nodeID      string
 	cloudconfig string
 )
 
@@ -71,7 +70,7 @@ func main() {
 			// Make this configurable when ther are more options.
 			defaultShareProto := "NFS"
 			klog.V(3).Infof("run sfs turbo csi driver")
-			d := sfsturbo.NewDriver(nodeID, endpoint, defaultShareProto, cloud)
+			d := sfsturbo.NewDriver(endpoint, defaultShareProto, cloud)
 			mount := mounts.GetMountProvider()
 			metadata := metadatas.GetMetadataProvider(metadatas.MetadataID)
 			d.SetupDriver(mount, metadata)
@@ -82,9 +81,6 @@ func main() {
 	cmd.Flags().AddGoFlagSet(flag.CommandLine)
 
 	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "unix://tmp/csi.sock", "CSI endpoint")
-
-	cmd.PersistentFlags().StringVar(&nodeID, "nodeid", "", "node id")
-	cmd.MarkPersistentFlagRequired("nodeid")
 
 	cmd.PersistentFlags().StringVar(&cloudconfig, "cloud-config", "", "CSI driver cloud config")
 	cmd.MarkPersistentFlagRequired("cloud-config")

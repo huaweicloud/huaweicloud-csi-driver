@@ -18,6 +18,7 @@ package sfsturbo
 
 import (
 	"fmt"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -26,7 +27,8 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
+	log "k8s.io/klog/v2"
 )
 
 const (
@@ -35,12 +37,12 @@ const (
 )
 
 var (
-	version = "1.0.0"
+	// CSI spec version
+	specVersion = "1.0.0"
 )
 
 type SfsTurboDriver struct {
 	name       string
-	nodeID     string
 	version    string
 	endpoint   string
 	shareProto string
@@ -55,16 +57,15 @@ type SfsTurboDriver struct {
 	nscap []*csi.NodeServiceCapability
 }
 
-func NewDriver(nodeID, endpoint, shareProto string, cloud *config.CloudCredentials) *SfsTurboDriver {
-	klog.Infof("Driver: %v version: %v", driverName, version)
-
+func NewDriver(endpoint, shareProto string, cloud *config.CloudCredentials) *SfsTurboDriver {
 	d := &SfsTurboDriver{}
 	d.name = driverName
-	d.nodeID = nodeID
-	d.version = version
+	d.version = fmt.Sprintf("%s@%s", version.Version, specVersion)
 	d.endpoint = endpoint
 	d.shareProto = strings.ToUpper(shareProto)
 	d.cloud = cloud
+
+	log.Infof("Driver: %s, Version: %s, CSI Spec version: %s", d.name, version.Version, specVersion)
 
 	d.AddControllerServiceCapabilities(
 		[]csi.ControllerServiceCapability_RPC_Type{
@@ -110,8 +111,6 @@ func (d *SfsTurboDriver) AddControllerServiceCapabilities(cl []csi.ControllerSer
 	}
 
 	d.cscap = csc
-
-	return
 }
 
 func (d *SfsTurboDriver) AddVolumeCapabilityAccessModes(vc []csi.VolumeCapability_AccessMode_Mode) []*csi.VolumeCapability_AccessMode {
@@ -149,7 +148,7 @@ func (d *SfsTurboDriver) ValidateControllerServiceRequest(c csi.ControllerServic
 			return nil
 		}
 	}
-	return status.Error(codes.InvalidArgument, fmt.Sprintf("%s", c))
+	return status.Errorf(codes.InvalidArgument, "%v", c)
 }
 
 func (d *SfsTurboDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_AccessMode {
