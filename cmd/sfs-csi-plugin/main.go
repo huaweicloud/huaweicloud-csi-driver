@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -69,6 +70,8 @@ func main() {
 			// Make this configurable when ther are more options.
 			defaultShareProto := "NFS"
 			d := sfs.NewDriver(nodeID, endpoint, defaultShareProto, *cloud)
+			mount := mounts.GetMountProvider()
+			d.SetupDriver(mount)
 			d.Run()
 		},
 	}
