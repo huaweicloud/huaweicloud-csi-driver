@@ -18,11 +18,13 @@ package sfs
 
 import (
 	"fmt"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"os"
+
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	log "k8s.io/klog/v2"
 	utilpath "k8s.io/utils/path"
-	"os"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/container-storage-interface/spec/lib/go/csi"
@@ -126,6 +128,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	volumeID := req.GetVolumeId()
 
 	klog.V(2).Infof("NodeUnpublishVolume: unmounting volume %s on %s", volumeID, targetPath)
+	if !isMounted(targetPath) {
+		klog.Warningf("Warn: the target path %s is not mounted", targetPath)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
+
 	err := Unmount(targetPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to unmount target %q: %v", targetPath, err)

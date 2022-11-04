@@ -17,14 +17,16 @@ limitations under the License.
 package sfs
 
 import (
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"strings"
 
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
 )
 
 const (

@@ -19,21 +19,22 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"os"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
 )
 
 var (
 	endpoint    string
 	nodeID      string
-	cloudconfig string
+	cloudConfig string
 )
 
 //nolint:errcheck
@@ -62,7 +63,7 @@ func main() {
 			})
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			cloud, err := config.LoadConfig(cloudconfig)
+			cloud, err := config.LoadConfig(cloudConfig)
 			if err != nil {
 				klog.V(3).Infof("Failed to load cloud config: %v", err)
 			}
@@ -83,7 +84,7 @@ func main() {
 	cmd.PersistentFlags().StringVar(&nodeID, "nodeid", "", "node id")
 	cmd.MarkPersistentFlagRequired("nodeid")
 
-	cmd.PersistentFlags().StringVar(&cloudconfig, "cloud-config", "", "CSI driver cloud config")
+	cmd.PersistentFlags().StringVar(&cloudConfig, "cloud-config", "", "CSI driver cloud config")
 	cmd.MarkPersistentFlagRequired("cloud-config")
 
 	if err := cmd.Execute(); err != nil {
