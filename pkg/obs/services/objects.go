@@ -53,41 +53,28 @@ func DeleteObjects(c *config.CloudCredentials, bucketName string) error {
 		if err != nil {
 			return err
 		}
-		if len(listOutput.Contents) == 0 {
+		objectCount := len(listOutput.Contents)
+		if objectCount == 0 {
 			break
 		}
-		input := &obs.DeleteObjectsInput{Bucket: bucketName}
-		input.Objects = make([]obs.ObjectToDelete, 0, len(listOutput.Contents))
-		for _, object := range listOutput.Contents {
-			input.Objects = append(input.Objects, obs.ObjectToDelete{Key: object.Key})
+
+		objects := make([]obs.ObjectToDelete, 0, objectCount)
+		for _, obj := range listOutput.Contents {
+			objects = append(objects, obs.ObjectToDelete{Key: obj.Key})
 		}
-		_, err = client.DeleteObjects(input)
-		if err == nil {
-			continue
-		}
-		if _, ok := err.(obs.ObsError); ok {
+
+		output, err := client.DeleteObjects(&obs.DeleteObjectsInput{
+			Bucket:  bucketName,
+			Objects: objects,
+		})
+		if err != nil {
 			return status.Errorf(codes.Internal, "Error deleting OBS instance %s object: %v", bucketName, err)
+		}
+		if len(output.Deleteds) != objectCount {
+			return status.Errorf(codes.Internal, "Error deleting OBS instance %s object, fail num: %d", bucketName, len(output.Errors))
 		}
 	}
 	return nil
-}
-
-func DeleteObject(c *config.CloudCredentials, bucketName, objectName string) error {
-	client, err := getObsClient(c)
-	if err != nil {
-		return err
-	}
-	input := &obs.DeleteObjectsInput{Bucket: bucketName}
-	input.Objects = make([]obs.ObjectToDelete, 0)
-	input.Objects = append(input.Objects, obs.ObjectToDelete{Key: objectName})
-	_, err = client.DeleteObjects(input)
-	if err == nil {
-		return nil
-	}
-	if obsError, ok := err.(obs.ObsError); ok && obsError.StatusCode == http.StatusNotFound {
-		return status.Errorf(codes.NotFound, "Error, the OBS instance %s does not exist: %v", bucketName, err)
-	}
-	return status.Errorf(codes.Internal, "Error getting OBS instance %s upload list: %v", bucketName, err)
 }
 
 func AbortMultipartUpload(c *config.CloudCredentials, bucketName string) error {
