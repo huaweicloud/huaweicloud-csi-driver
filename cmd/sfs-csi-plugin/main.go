@@ -29,6 +29,7 @@ import (
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
 var (
@@ -43,7 +44,7 @@ func main() {
 
 	cmd := &cobra.Command{
 		Use:   os.Args[0],
-		Short: "CSI SFS driver",
+		Short: fmt.Sprintf("HuaweiCloud SFS CSI driver %s", version.Version),
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Glog requires this otherwise it complains.
 			flag.CommandLine.Parse(nil)
