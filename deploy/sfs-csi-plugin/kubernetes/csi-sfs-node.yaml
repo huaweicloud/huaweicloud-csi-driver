@@ -51,9 +51,9 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: sfs
-          image: docker.io/zhenguo/sfs-csi-plugin:latest
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/sfs-csi-plugin:v0.1.0
           args:
-            - "--v=2"
+            - "--v=5"
             - "--logtostderr"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--nodeid=$(NODE_ID)"
