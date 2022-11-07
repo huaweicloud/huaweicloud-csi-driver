@@ -27,7 +27,7 @@ REGISTRY_PASSWORD ?=
 
 SOURCES := $(shell find . -name '*.go' 2>/dev/null)
 VERSION ?= $(shell git describe --dirty --tags --match='v*')
-LDFLAGS	:= "-w -s -X 'k8s.io/component-base/version.gitVersion=$(VERSION)'"
+LDFLAGS	:= "-w -s -X 'github.com/huaweicloud/huaweicloud-csi-driver/pkg/version.Version=$(VERSION)'"
 TEMP_DIR:=$(shell mktemp -d)
 
 ALL ?= evs-csi-plugin \
