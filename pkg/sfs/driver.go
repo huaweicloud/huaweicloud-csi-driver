@@ -17,22 +17,25 @@ limitations under the License.
 package sfs
 
 import (
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"fmt"
 	"strings"
 
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
 const (
 	driverName = "sfs.csi.huaweicloud.com"
-)
 
-var (
-	version = "1.0.0"
+	// CSI spec version
+	specVersion = "1.5.0"
 )
 
 type SfsDriver struct {
@@ -53,12 +56,12 @@ type SfsDriver struct {
 }
 
 func NewDriver(nodeID, endpoint, shareProto string, cloud config.CloudCredentials) *SfsDriver {
-	klog.Infof("Driver: %v version: %v", driverName, version)
+	klog.Infof("Driver: %v version: %v", driverName, version.Version)
 
 	d := &SfsDriver{}
 	d.name = driverName
 	d.nodeID = nodeID
-	d.version = version
+	d.version = fmt.Sprintf("%s@%s", version.Version, specVersion)
 	d.endpoint = endpoint
 	d.shareProto = strings.ToUpper(shareProto)
 	d.cloud = cloud

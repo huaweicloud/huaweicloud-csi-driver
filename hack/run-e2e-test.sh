@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Copyright 2019 The Kubernetes Authors.
+# Copyright 2022 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,4 +14,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -euo pipefail
+set -o errexit
+set -o nounset
+set -o pipefail
+
+kubectl version
+
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+
+ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${REPO_ROOT}/e2e-logs"}
+mkdir -p "${ARTIFACTS_PATH}"
+
+# Pre run e2e for extra components
+"${REPO_ROOT}"/hack/pre-run-e2e.sh
+
+# Run e2e
+echo -e "\n>> Run E2E test"
+"${REPO_ROOT}"/test/sfs/sfs-test.sh
+
+TESTING_RESULT=$?
+
+# Collect logs
+echo -e "\n Collected log files at ${ARTIFACTS_PATH}:"
+kubectl logs deployment/csi-sfs-controller -c sfs-csi-plugin -n kube-system > ${ARTIFACTS_PATH}/csi-sfs-controller.log
+kubectl logs daemonset/csi-sfs-node -c sfs -n kube-system > ${ARTIFACTS_PATH}/csi-sfs-node.log
+
+# Post run e2e for delete extra components
+echo -e "\n>> Run post run e2e"
+"${REPO_ROOT}"/hack/post-run-e2e.sh
+
+exit $TESTING_RESULT
