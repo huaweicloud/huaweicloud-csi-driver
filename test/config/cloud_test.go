@@ -6,11 +6,13 @@ import (
 
 	"github.com/chnsz/golangsdk"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	acceptance "github.com/huaweicloud/huaweicloud-csi-driver/test"
 )
 
 func TestLoadConfig(t *testing.T) {
+	if acceptance.AccessKey == "" || acceptance.SecretKey == "" {
+		return
+	}
 	cc, err := acceptance.LoadConfig()
 	if err != nil {
 		t.Errorf("Error loading and verifying config data: %s", err)
@@ -24,6 +26,10 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestEndpoint(t *testing.T) {
+	if acceptance.AccessKey == "" || acceptance.SecretKey == "" {
+		return
+	}
+
 	cc, err := acceptance.LoadConfig()
 	if err != nil {
 		t.Errorf("Error loading and verifying config data: %s", err)
@@ -53,12 +59,4 @@ func assertBasicObj(t *testing.T, name string, a, b interface{}) {
 	if a != b {
 		t.Errorf("%s expectd: %v, but got: %v", name, a, b)
 	}
-}
-
-func TestName(t *testing.T) {
-	fmt.Println(utils.RandomString(10))
-	fmt.Println(utils.RandomString(10))
-	fmt.Println(utils.RandomString(10))
-	fmt.Println(utils.RandomString(10))
-	fmt.Println(utils.RandomString(10))
 }
