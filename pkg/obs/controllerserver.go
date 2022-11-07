@@ -82,7 +82,7 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 	credentials := cs.Driver.cloud
 	if tags, err := services.ListBucketTags(credentials, volName); err != nil {
 		return nil, err
-	} else if !isCreatByCSi(tags, "csi") {
+	} else if !isCreatedByCSI(tags) {
 		log.Infof("Volume %s does not create by csi, skip deleting", volName)
 		return &csi.DeleteVolumeResponse{}, nil
 	}
@@ -101,18 +101,6 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 	log.Infof("Successfully deleted volume %s", volName)
 
 	return &csi.DeleteVolumeResponse{}, nil
-}
-
-func isCreatByCSi(tags []obs.Tag, marker string) bool {
-	if tags == nil {
-		return false
-	}
-	for _, tag := range tags {
-		if tag.Key == marker {
-			return true
-		}
-	}
-	return false
 }
 
 func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
@@ -188,4 +176,16 @@ func buildCreateVolumeResponse(vol *services.Bucket) *csi.CreateVolumeResponse {
 		},
 	}
 	return response
+}
+
+func isCreatedByCSI(tags []obs.Tag) bool {
+	if len(tags) == 0 {
+		return false
+	}
+	for _, tag := range tags {
+		if tag.Key == "csi" {
+			return true
+		}
+	}
+	return false
 }
