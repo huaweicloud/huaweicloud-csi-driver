@@ -17,6 +17,7 @@ limitations under the License.
 package obs
 
 import (
+	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
@@ -105,7 +106,28 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 
 func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
 	*csi.ControllerGetVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ControllerGetVolume: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+
+	credentials := cs.Driver.cloud
+	bucket, err := services.GetParallelFSBucket(credentials, volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := csi.ControllerGetVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:      volumeID,
+			CapacityBytes: bucket.Capacity,
+		},
+	}
+
+	log.Infof("Successfully obtained volume details, volume ID: %s", volumeID)
+	return &response, nil
 }
 
 func (cs *controllerServer) ControllerPublishVolume(_ context.Context, _ *csi.ControllerPublishVolumeRequest) (
@@ -120,7 +142,35 @@ func (cs *controllerServer) ControllerUnpublishVolume(_ context.Context, _ *csi.
 
 func (cs *controllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesRequest) (
 	*csi.ListVolumesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ListVolumes: called with args %v", protosanitizer.StripSecrets(*req))
+
+	if req.MaxEntries < 0 {
+		return nil, status.Error(codes.InvalidArgument,
+			fmt.Sprintf("Validation failed, max entries request %v, must not be negative ", req.MaxEntries))
+	}
+
+	volumes, err := services.ListBuckets(cs.Driver.cloud)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	entries := make([]*csi.ListVolumesResponse_Entry, 0, len(volumes))
+	for _, vol := range volumes {
+		entry := csi.ListVolumesResponse_Entry{
+			Volume: &csi.Volume{
+				VolumeId:      vol.BucketName,
+				CapacityBytes: vol.Capacity,
+			},
+		}
+		entries = append(entries, &entry)
+	}
+
+	response := &csi.ListVolumesResponse{
+		Entries: entries,
+	}
+
+	log.Infof("Successfully obtained volume list, size: %v", len(entries))
+	return response, nil
 }
 
 func (cs *controllerServer) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (

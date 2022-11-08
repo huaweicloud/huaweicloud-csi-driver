@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"net/http"
@@ -196,6 +197,41 @@ func GetBucketCapacity(c *config.CloudCredentials, bucketName string) (int64, er
 		return 0, status.Errorf(codes.NotFound, "Error, the OBS instance %s does not exist: %v", bucketName, err)
 	}
 	return 0, status.Errorf(codes.Internal, "Error getting OBS instance %s capacity: %v", bucketName, err)
+}
+
+func ListBuckets(c *config.CloudCredentials) ([]*Bucket, error) {
+	client, err := getObsClient(c)
+	if err != nil {
+		return nil, err
+	}
+	input := &obs.ListBucketsInput{
+		QueryLocation: false,
+		BucketType:    obs.POSIX,
+	}
+	output, err := client.ListBuckets(input)
+	if err != nil {
+		return nil, err
+	}
+	group := errgroup.Group{}
+	bucketCh := make(chan *Bucket, len(output.Buckets))
+	for _, bucket := range output.Buckets {
+		func(bucketName string) {
+			group.Go(func() error {
+				fsBucket, err := GetParallelFSBucket(c, bucketName)
+				bucketCh <- fsBucket
+				return err
+			})
+		}(bucket.Name)
+	}
+	if err := group.Wait(); err != nil {
+		return nil, err
+	}
+	close(bucketCh)
+	bucketList := make([]*Bucket, 0)
+	for bucket := range bucketCh {
+		bucketList = append(bucketList, bucket)
+	}
+	return bucketList, nil
 }
 
 func getObsClient(c *config.CloudCredentials) (*obs.ObsClient, error) {
