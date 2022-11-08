@@ -17,7 +17,6 @@ limitations under the License.
 package obs
 
 import (
-	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
@@ -113,8 +112,7 @@ func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.Cont
 		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
 
-	credentials := cs.Driver.cloud
-	bucket, err := services.GetParallelFSBucket(credentials, volumeID)
+	bucket, err := services.GetParallelFSBucket(cs.Driver.cloud, volumeID)
 	if err != nil {
 		return nil, err
 	}
@@ -145,11 +143,14 @@ func (cs *controllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 	log.Infof("ListVolumes: called with args %v", protosanitizer.StripSecrets(*req))
 
 	if req.MaxEntries < 0 {
-		return nil, status.Error(codes.InvalidArgument,
-			fmt.Sprintf("Validation failed, max entries request %v, must not be negative ", req.MaxEntries))
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Validation failed, max entries request %v, must not be negative ", req.MaxEntries)
 	}
-
-	volumes, err := services.ListBuckets(cs.Driver.cloud)
+	opts := services.ListOpts{
+		Marker: req.StartingToken,
+		Limit:  int(req.MaxEntries),
+	}
+	volumes, err := services.ListBuckets(cs.Driver.cloud, opts)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -167,6 +168,10 @@ func (cs *controllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 
 	response := &csi.ListVolumesResponse{
 		Entries: entries,
+	}
+	log.Infof("Successfully obtained volume list, size: %v", len(entries))
+	if len(volumes) > 0 && len(volumes) == opts.Limit {
+		response.NextToken = volumes[len(volumes)-1].BucketName
 	}
 
 	log.Infof("Successfully obtained volume list, size: %v", len(entries))
@@ -190,12 +195,43 @@ func (cs *controllerServer) ListSnapshots(_ context.Context, _ *csi.ListSnapshot
 
 func (cs *controllerServer) ControllerGetCapabilities(_ context.Context, req *csi.ControllerGetCapabilitiesRequest) (
 	*csi.ControllerGetCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: cs.Driver.cscap,
+	}, nil
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (
 	*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ValidateVolumeCapabilities: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volCapabilities := req.GetVolumeCapabilities()
+	volumeID := req.GetVolumeId()
+
+	if len(volCapabilities) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume capabilities cannot be empty")
+	}
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	if _, err := services.GetParallelFSBucket(cs.Driver.cloud, volumeID); err != nil {
+		return nil, err
+	}
+
+	for _, capability := range volCapabilities {
+		if capability.GetAccessMode().GetMode() != cs.Driver.vcap[0].Mode {
+			return &csi.ValidateVolumeCapabilitiesResponse{Message: "Requested volume capability not supported"}, nil
+		}
+	}
+
+	return &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+			VolumeCapabilities: []*csi.VolumeCapability{
+				{
+					AccessMode: cs.Driver.vcap[0],
+				},
+			},
+		},
+	}, nil
 }
 
 func (cs *controllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (

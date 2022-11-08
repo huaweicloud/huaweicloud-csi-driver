@@ -199,7 +199,12 @@ func GetBucketCapacity(c *config.CloudCredentials, bucketName string) (int64, er
 	return 0, status.Errorf(codes.Internal, "Error getting OBS instance %s capacity: %v", bucketName, err)
 }
 
-func ListBuckets(c *config.CloudCredentials) ([]*Bucket, error) {
+type ListOpts struct {
+	Marker string
+	Limit  int
+}
+
+func ListBuckets(c *config.CloudCredentials, opts ListOpts) ([]*Bucket, error) {
 	client, err := getObsClient(c)
 	if err != nil {
 		return nil, err
@@ -212,26 +217,37 @@ func ListBuckets(c *config.CloudCredentials) ([]*Bucket, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	i := -1
+	if opts.Marker != "" {
+		i = 0
+	}
+	for ; opts.Marker != "" && i < len(output.Buckets) && opts.Marker != output.Buckets[i].Name; i++ {
+	}
+
+	bucketCount := min(len(output.Buckets)-1-i, opts.Limit)
+	bucketList := make([]*Bucket, bucketCount)
 	group := errgroup.Group{}
-	bucketCh := make(chan *Bucket, len(output.Buckets))
-	for _, bucket := range output.Buckets {
-		func(bucketName string) {
+	for k, j := 0, i+1; j <= i+opts.Limit && j < len(output.Buckets); k, j = k+1, j+1 {
+		func(bucketName string, idx int) {
 			group.Go(func() error {
 				fsBucket, err := GetParallelFSBucket(c, bucketName)
-				bucketCh <- fsBucket
+				bucketList[idx] = fsBucket
 				return err
 			})
-		}(bucket.Name)
+		}(output.Buckets[j].Name, k)
 	}
 	if err := group.Wait(); err != nil {
 		return nil, err
 	}
-	close(bucketCh)
-	bucketList := make([]*Bucket, 0)
-	for bucket := range bucketCh {
-		bucketList = append(bucketList, bucket)
-	}
 	return bucketList, nil
+}
+
+func min(i int, j int) int {
+	if i < j {
+		return i
+	}
+	return j
 }
 
 func getObsClient(c *config.CloudCredentials) (*obs.ObsClient, error) {
