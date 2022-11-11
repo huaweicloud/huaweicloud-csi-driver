@@ -105,7 +105,27 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 
 func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
 	*csi.ControllerGetVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ControllerGetVolume: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+
+	bucket, err := services.GetParallelFSBucket(cs.Driver.cloud, volumeID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := csi.ControllerGetVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:      volumeID,
+			CapacityBytes: bucket.Capacity,
+		},
+	}
+
+	log.Infof("Successfully obtained volume details, volume ID: %s", volumeID)
+	return &response, nil
 }
 
 func (cs *controllerServer) ControllerPublishVolume(_ context.Context, _ *csi.ControllerPublishVolumeRequest) (
@@ -120,7 +140,42 @@ func (cs *controllerServer) ControllerUnpublishVolume(_ context.Context, _ *csi.
 
 func (cs *controllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesRequest) (
 	*csi.ListVolumesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ListVolumes: called with args %v", protosanitizer.StripSecrets(*req))
+
+	if req.MaxEntries < 0 {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Validation failed, max entries request %v, must not be negative ", req.MaxEntries)
+	}
+	opts := services.ListOpts{
+		Marker: req.StartingToken,
+		Limit:  int(req.MaxEntries),
+	}
+	volumes, err := services.ListBuckets(cs.Driver.cloud, opts)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	entries := make([]*csi.ListVolumesResponse_Entry, 0, len(volumes))
+	for _, vol := range volumes {
+		entry := csi.ListVolumesResponse_Entry{
+			Volume: &csi.Volume{
+				VolumeId:      vol.BucketName,
+				CapacityBytes: vol.Capacity,
+			},
+		}
+		entries = append(entries, &entry)
+	}
+
+	response := &csi.ListVolumesResponse{
+		Entries: entries,
+	}
+	log.Infof("Successfully obtained volume list, size: %v", len(entries))
+	if len(volumes) > 0 && len(volumes) == opts.Limit {
+		response.NextToken = volumes[len(volumes)-1].BucketName
+	}
+
+	log.Infof("Successfully obtained volume list, size: %v", len(entries))
+	return response, nil
 }
 
 func (cs *controllerServer) CreateSnapshot(_ context.Context, _ *csi.CreateSnapshotRequest) (
@@ -140,12 +195,43 @@ func (cs *controllerServer) ListSnapshots(_ context.Context, _ *csi.ListSnapshot
 
 func (cs *controllerServer) ControllerGetCapabilities(_ context.Context, req *csi.ControllerGetCapabilitiesRequest) (
 	*csi.ControllerGetCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	return &csi.ControllerGetCapabilitiesResponse{
+		Capabilities: cs.Driver.cscap,
+	}, nil
 }
 
 func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *csi.ValidateVolumeCapabilitiesRequest) (
 	*csi.ValidateVolumeCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ValidateVolumeCapabilities: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volCapabilities := req.GetVolumeCapabilities()
+	volumeID := req.GetVolumeId()
+
+	if len(volCapabilities) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume capabilities cannot be empty")
+	}
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	if _, err := services.GetParallelFSBucket(cs.Driver.cloud, volumeID); err != nil {
+		return nil, err
+	}
+
+	for _, capability := range volCapabilities {
+		if capability.GetAccessMode().GetMode() != cs.Driver.vcap[0].Mode {
+			return &csi.ValidateVolumeCapabilitiesResponse{Message: "Requested volume capability not supported"}, nil
+		}
+	}
+
+	return &csi.ValidateVolumeCapabilitiesResponse{
+		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
+			VolumeCapabilities: []*csi.VolumeCapability{
+				{
+					AccessMode: cs.Driver.vcap[0],
+				},
+			},
+		},
+	}, nil
 }
 
 func (cs *controllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityRequest) (
