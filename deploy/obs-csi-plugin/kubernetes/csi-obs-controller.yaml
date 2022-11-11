@@ -1,0 +1,123 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-obs-controller
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-obs-controller
+  template:
+    metadata:
+      labels:
+        app: csi-obs-controller
+    spec:
+      serviceAccountName: csi-obs-controller-sa
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      hostPID: true
+      containers:
+        - name: csi-provisioner
+          image: k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=10m"
+            - "--extra-create-metadata"
+            - "--leader-election=true"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: csi-attacher
+          image: k8s.gcr.io/sig-storage/csi-attacher:v3.3.0
+          args:
+            - "-v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
+            - "--leader-election=true"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: obs-csi-plugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: [ "SYS_ADMIN" ]
+            allowPrivilegeEscalation: true
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/obs-csi-plugin:v0.1.0
+          args:
+            - "--v=5"
+            - "--logtostderr"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--cloud-config=$(CLOUD_CONFIG)"
+          ports:
+            - containerPort: 28888
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+            periodSeconds: 30
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/obs/cloud-config
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /etc/obs/
+              name: obs-config
+            - name: csi-tool
+              mountPath: /dev/csi-tool
+        - name: csi-resizer
+          image: k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
+            - "--handle-volume-inuse-error=false"
+            - "--leader-election=true"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: liveness-probe
+          imagePullPolicy: Always
+          image: k8s.gcr.io/sig-storage/livenessprobe:v2.6.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --probe-timeout=3s
+            - --health-port=28888
+            - --v=5
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+      volumes:
+        - name: csi-tool
+          hostPath:
+            path: /dev/csi-tool
+            type: DirectoryOrCreate
+        - name: socket-dir
+          emptyDir: { }
+        - name: obs-config
+          secret:
+            secretName: cloud-config
