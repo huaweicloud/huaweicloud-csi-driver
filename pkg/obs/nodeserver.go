@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
@@ -43,7 +44,6 @@ type nodeServer struct {
 
 const (
 	credentialFile = "/dev/csi-tool/passwd-obsfs"
-	defaultOpts    = "-o big_writes -o max_write=131072 -o use_ino"
 	perm           = 0600
 )
 
@@ -91,11 +91,27 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 		return nil, err
 	}
 
-	mntCmd := fmt.Sprintf("obsfs %s %s -o url=obs.%s.%s -o passwd_file=%s %s", volume.BucketName, targetPath,
-		ns.Driver.cloud.Global.Region, ns.Driver.cloud.Global.Cloud, credentialFile, defaultOpts)
-	log.Infof("NodePublishVolume: obsfs cmd : %s", mntCmd)
-
-	if err := sendCommand(mntCmd, "http://unix/mount", ns.MountClient); err != nil {
+	parameters := map[string]string{
+		"bucketName": volume.BucketName,
+		"targetPath": targetPath,
+		"region":     ns.Driver.cloud.Global.Region,
+		"cloud":      ns.Driver.cloud.Global.Cloud,
+		"credential": credentialFile,
+	}
+	md5String, err := utils.Md5SortMap(parameters)
+	if err != nil {
+		return nil, err
+	}
+	token, err := utils.EncryptAESCBC(Secret, md5String)
+	if err != nil {
+		return nil, err
+	}
+	commandRPC := CommandRPC{
+		Action:     ActionMount,
+		Token:      token,
+		Parameters: parameters,
+	}
+	if err := sendCommand(commandRPC, ns.MountClient); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to mount %s at %s: %v",
 			volume.BucketName, targetPath, err)
 	}

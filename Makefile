@@ -27,7 +27,9 @@ REGISTRY_PASSWORD ?=
 
 SOURCES := $(shell find . -name '*.go' 2>/dev/null)
 VERSION ?= $(shell git describe --dirty --tags --match='v*')
-LDFLAGS	:= "-w -s -X 'github.com/huaweicloud/huaweicloud-csi-driver/pkg/version.Version=$(VERSION)'"
+SECRET := $(shell cat </dev/urandom | head -n 1 | md5sum | head -c 32)
+LDFLAGS	:= "-w -s -X 'github.com/huaweicloud/huaweicloud-csi-driver/pkg/version.Version=$(VERSION)' \
+ -X 'github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs.Secret=$(SECRET)'"
 TEMP_DIR:=$(shell mktemp -d)
 
 ALL ?= evs-csi-plugin \
@@ -48,6 +50,10 @@ build-cmd-%: work $(SOURCES)
 		-ldflags $(LDFLAGS) \
 		-o $* \
 		cmd/$*/main.go
+	if [ "$*" == "obs-csi-plugin" ]; then (CGO_ENABLED=0 GOOS=$(GOOS) go build \
+                                        	-ldflags $(LDFLAGS) \
+                                        	-o cluster/images/obs-csi-plugin/socket-server \
+                                        	cluster/images/obs-csi-plugin/socket-server.go);fi
 
 images: $(addprefix image-,$(ALL))
 
