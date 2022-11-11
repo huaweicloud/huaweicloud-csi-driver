@@ -1,0 +1,112 @@
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: csi-obs-plugin
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-obs-node
+  template:
+    metadata:
+      labels:
+        app: csi-obs-node
+    spec:
+      serviceAccountName: csi-obs-node-sa
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-node-critical
+      tolerations:
+        - operator: "Exists"
+      hostPID: true
+      containers:
+        - name: liveness-probe
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+          image: k8s.gcr.io/sig-storage/livenessprobe:v2.6.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --probe-timeout=3s
+            - --health-port=28889
+            - --v=5
+        - name: node-driver-registrar
+          image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
+          args:
+            - --csi-address=$(ADDRESS)
+            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+            - --v=5
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "/bin/sh", "-c", "rm -rf /registration/obs.csi.huaweicloud.com-reg.sock /csi/csi.sock" ]
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/obs.csi.huaweicloud.com/csi.sock
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: obs
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/obs-csi-plugin:v0.1.0
+          args:
+            - "--v=5"
+            - "--logtostderr"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--cloud-config=$(CLOUD_CONFIG)"
+          ports:
+            - containerPort: 28889
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+            periodSeconds: 30
+          env:
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/obs/cloud-config
+          securityContext:
+            privileged: true
+            capabilities:
+              add: [ "SYS_ADMIN" ]
+            allowPrivilegeEscalation: true
+          volumeMounts:
+            - name: csi-tool
+              mountPath: /dev/csi-tool
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+            - mountPath: /etc/obs/
+              name: obs-config
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/obs.csi.huaweicloud.com
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/
+            type: DirectoryOrCreate
+          name: mountpoint-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+          name: registration-dir
+        - secret:
+            secretName: cloud-config
+          name: obs-config
+        - name: csi-tool
+          hostPath:
+            path: /dev/csi-tool
+            type: DirectoryOrCreate

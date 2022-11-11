@@ -1,0 +1,8 @@
+[Global]
+region=
+access-key=
+secret-key=
+
+# Only needed if you are not on Huawei Cloud
+cloud=
+auth-url=
