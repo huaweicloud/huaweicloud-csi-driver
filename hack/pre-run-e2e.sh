@@ -18,7 +18,13 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+CLUSTER_NAME=$1
+if [[ -z "${CLUSTER_NAME}" ]]; then
+  echo "Error, CLUSTER_NAME can be empty"
+  usage
+  exit 1
+fi
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-"${REPO_ROOT}"/hack/build-deploy-sfs.sh
-
+"${REPO_ROOT}"/hack/pre-run-sfsturbo-e2e.sh ${CLUSTER_NAME}

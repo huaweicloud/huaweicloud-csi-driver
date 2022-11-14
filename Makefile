@@ -73,7 +73,8 @@ clean:
 	@for binary in $(ALL); do rm -rf $${binary}*; done
 
 test: work
-	go test -tags=unit $(shell go list ./... | sed -e '/sanity/ { N; d; }' | sed -e '/tests/ {N; d;}') $(TESTARGS)
+	go test --race --v ./pkg/...
+	go test --race --v ./cmd/...
 
 lint:
 	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run ./...
