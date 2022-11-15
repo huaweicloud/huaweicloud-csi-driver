@@ -18,6 +18,7 @@ package obs
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
@@ -148,9 +149,10 @@ func (d *Driver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapability_Access
 	return d.vcap
 }
 
-func (d *Driver) SetupDriver(mount mounts.IMount, metadata metadatas.IMetadata) {
+func (d *Driver) SetupDriver(mount mounts.IMount, metadata metadatas.IMetadata, mountClient http.Client) {
 	d.ns.Mount = mount
 	d.ns.Metadata = metadata
+	d.ns.MountClient = mountClient
 }
 
 func (d *Driver) Run() {

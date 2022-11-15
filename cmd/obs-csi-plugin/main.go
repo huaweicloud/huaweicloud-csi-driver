@@ -17,11 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 	"k8s.io/component-base/logs"
+	"net"
+	"net/http"
 	"os"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
@@ -36,6 +39,8 @@ var (
 	endpoint    string
 	cloudConfig string
 )
+
+const socketPath = "/dev/csi-tool/connector.sock"
 
 //nolint:errcheck
 func main() {
@@ -72,7 +77,14 @@ func main() {
 			d := obs.NewDriver(endpoint, cloud)
 			mount := mounts.GetMountProvider()
 			metadata := metadatas.GetMetadataProvider(metadatas.MetadataID)
-			d.SetupDriver(mount, metadata)
+			mountClient := http.Client{
+				Transport: &http.Transport{
+					DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+						return net.Dial("unix", socketPath)
+					},
+				},
+			}
+			d.SetupDriver(mount, metadata, mountClient)
 			d.Run()
 		},
 	}
