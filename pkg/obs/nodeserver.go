@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	log "k8s.io/klog/v2"
+	utilpath "k8s.io/utils/path"
 	"net/http"
 	"os"
 	"path"
@@ -165,20 +166,86 @@ func (ns *nodeServer) NodeUnpublishVolume(_ context.Context, req *csi.NodeUnpubl
 }
 
 func (ns *nodeServer) NodeGetInfo(_ context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("NodeGetInfo called with request %v", protosanitizer.StripSecrets(*req))
+
+	nodeID, err := ns.Metadata.GetInstanceID()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Unable to retrieve instance id of node %s", err)
+	}
+
+	return &csi.NodeGetInfoResponse{
+		NodeId: nodeID,
+	}, nil
 }
 
 func (ns *nodeServer) NodeGetCapabilities(_ context.Context, req *csi.NodeGetCapabilitiesRequest) (
 	*csi.NodeGetCapabilitiesResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("NodeGetCapabilities called with req: %#v", protosanitizer.StripSecrets(*req))
+
+	return &csi.NodeGetCapabilitiesResponse{
+		Capabilities: ns.Driver.nscap,
+	}, nil
 }
 
 func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolumeStatsRequest) (
 	*csi.NodeGetVolumeStatsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("NodeGetVolumeStats: called with args %v", protosanitizer.StripSecrets(*req))
+
+	volumeID := req.GetVolumeId()
+	volumePath := req.GetVolumePath()
+	if err := nodeGetStatsValidation(volumeID, volumePath); err != nil {
+		return nil, err
+	}
+
+	stats, err := ns.Mount.GetDeviceStats(volumePath)
+	if err != nil {
+		return nil, status.Errorf(codes.Unknown, "Failed to get stats by path: %s", err)
+	}
+	capacity, usedBytes := stats.TotalBytes, stats.UsedBytes
+
+	bucket, err := services.GetParallelFSBucket(ns.Driver.cloud, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	if bucket.Capacity != 0 {
+		capacity = bucket.Capacity
+	}
+	used, _, err := services.GetBucketStorage(ns.Driver.cloud, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	if used != 0 {
+		usedBytes = used
+	}
+
+	return &csi.NodeGetVolumeStatsResponse{
+		Usage: []*csi.VolumeUsage{
+			{Total: capacity, Available: capacity - usedBytes, Used: usedBytes, Unit: csi.VolumeUsage_BYTES},
+			{Total: stats.TotalInodes, Available: stats.AvailableInodes, Used: stats.UsedInodes, Unit: csi.VolumeUsage_INODES},
+		},
+	}, nil
 }
 
 func (ns *nodeServer) NodeExpandVolume(_ context.Context, _ *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
+}
+
+func nodeGetStatsValidation(volumeID, volumePath string) error {
+	if len(volumeID) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, VolumeID cannot be empty")
+	}
+	if len(volumePath) == 0 {
+		return status.Error(codes.InvalidArgument, "Validation failed, VolumePath cannot be empty")
+	}
+
+	exists, err := utilpath.Exists(utilpath.CheckFollowSymlink, volumePath)
+	if err != nil {
+		return status.Errorf(codes.Unknown,
+			"Failed to check whether VolumePath %s exists: %s", volumePath, err)
+	}
+	if !exists {
+		return status.Errorf(codes.Unknown, "Error, the volume path %s not found", volumePath)
+	}
+	return nil
 }
