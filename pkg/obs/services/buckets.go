@@ -243,6 +243,27 @@ func ListBuckets(c *config.CloudCredentials, opts ListOpts) ([]*Bucket, error) {
 	return bucketList, nil
 }
 
+func SetBucketCapacity(c *config.CloudCredentials, bucketName string, capacity int64) error {
+	client, err := getObsClient(c)
+	if err != nil {
+		return err
+	}
+	input := &obs.SetBucketQuotaInput{
+		Bucket: bucketName,
+		BucketQuota: obs.BucketQuota{
+			Quota: capacity,
+		},
+	}
+	_, err = client.SetBucketQuota(input)
+	if err == nil {
+		return nil
+	}
+	if obsError, ok := err.(obs.ObsError); ok && obsError.StatusCode == http.StatusNotFound {
+		return status.Errorf(codes.NotFound, "Error, the OBS instance %s does not exist: %v", bucketName, err)
+	}
+	return status.Errorf(codes.Internal, "Error setting OBS instance %s capacity: %v", bucketName, err)
+}
+
 func min(i int, j int) int {
 	if i < j {
 		return i
