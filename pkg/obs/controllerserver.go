@@ -53,6 +53,12 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	if err := services.CreateBucket(credentials, volName, acl); err != nil {
 		return nil, err
 	}
+	if req.GetCapacityRange() != nil {
+		if err := services.SetBucketCapacity(credentials, volName, req.GetCapacityRange().GetRequiredBytes()); err != nil {
+			return nil, err
+		}
+	}
+
 	tags := []obs.Tag{{
 		Key:   "csi",
 		Value: "csi-created",
@@ -66,7 +72,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		return nil, err
 	}
 
-	log.Infof("Successfully created volume %s", volName)
+	log.Infof("Successfully created volume %s of size %d bytes", volName, volume.Capacity)
 	return buildCreateVolumeResponse(volume), nil
 }
 
@@ -241,7 +247,48 @@ func (cs *controllerServer) GetCapacity(_ context.Context, _ *csi.GetCapacityReq
 
 func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.ControllerExpandVolumeRequest) (
 	*csi.ControllerExpandVolumeResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "")
+	log.Infof("ControllerExpandVolume: called with args %v", protosanitizer.StripSecrets(*req))
+	cc := cs.Driver.cloud
+
+	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	capRange := req.GetCapacityRange()
+	if capRange == nil {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, capacity range cannot be empty")
+	}
+
+	sizeBytes := req.GetCapacityRange().GetRequiredBytes()
+	maxSizeBytes := capRange.GetLimitBytes()
+	if maxSizeBytes > 0 && maxSizeBytes < sizeBytes {
+		return nil, status.Errorf(codes.OutOfRange,
+			"Validation failed, after round-up volume size %v exceeds the max size %v", sizeBytes, maxSizeBytes)
+	}
+
+	volume, err := services.GetParallelFSBucket(cc, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	if volume.Capacity >= sizeBytes {
+		log.Warningf("Volume %v has been already expanded to %v, requested %v", volumeID, volume.Capacity, sizeBytes)
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes:         volume.Capacity,
+			NodeExpansionRequired: true,
+		}, nil
+	}
+
+	err = services.SetBucketCapacity(cc, volumeID, sizeBytes)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"Error resizing volume %v to size %v, error: %s", volumeID, sizeBytes, err)
+	}
+
+	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeBytes)
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         sizeBytes,
+		NodeExpansionRequired: true,
+	}, nil
 }
 
 func createVolumeValidation(volumeName string, capabilities []*csi.VolumeCapability) error {

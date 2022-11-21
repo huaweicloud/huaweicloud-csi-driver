@@ -248,6 +248,9 @@ func SetBucketCapacity(c *config.CloudCredentials, bucketName string, capacity i
 	if err != nil {
 		return err
 	}
+	if capacity < 0 || capacity == int64(0) {
+		return nil
+	}
 	input := &obs.SetBucketQuotaInput{
 		Bucket: bucketName,
 		BucketQuota: obs.BucketQuota{
