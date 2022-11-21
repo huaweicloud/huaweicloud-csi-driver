@@ -1,0 +1,118 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: csi-sfsturbo-controller
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: csi-sfsturbo-controller
+  template:
+    metadata:
+      labels:
+        app: csi-sfsturbo-controller
+    spec:
+      serviceAccountName: csi-sfsturbo-controller-sa
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Equal"
+          value: "true"
+          effect: "NoSchedule"
+      containers:
+        - name: csi-provisioner
+          image: k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
+          args:
+            - "-v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=10m"
+            - "--feature-gates=Topology=true"
+            - "--extra-create-metadata"
+            - "--leader-election=true"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: csi-attacher
+          image: k8s.gcr.io/sig-storage/csi-attacher:v3.3.0
+          args:
+            - "-v=5"
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
+            - "--leader-election=true"
+          env:
+            - name: ADDRESS
+              value: /csi/csi.sock
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: sfsturbo-csi-plugin
+          imagePullPolicy: Never
+          image: {{image_url}}
+          args:
+            - "--v=5"
+            - "--logtostderr"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--cloud-config=$(CLOUD_CONFIG)"
+          ports:
+            - containerPort: 28888
+              name: healthz
+              protocol: TCP
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: healthz
+            initialDelaySeconds: 30
+            timeoutSeconds: 10
+            periodSeconds: 30
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://csi/csi.sock
+            - name: CLOUD_CONFIG
+              value: /etc/sfsturbo/cloud-config
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /etc/sfsturbo/
+              name: sfsturbo-config
+        - name: csi-resizer
+          image: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--timeout=3m"
+            - "--handle-volume-inuse-error=false"
+            - "--leader-election=true"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "IfNotPresent"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: liveness-probe
+          imagePullPolicy: Always
+          image: k8s.gcr.io/sig-storage/livenessprobe:v2.6.0
+          args:
+            - --csi-address=/csi/csi.sock
+            - --probe-timeout=3s
+            - --health-port=28888
+            - --v=5
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+      volumes:
+        - name: socket-dir
+          emptyDir: {}
+        - name: sfsturbo-config
+          secret:
+            secretName: cloud-config

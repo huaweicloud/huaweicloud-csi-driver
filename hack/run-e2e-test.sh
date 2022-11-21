@@ -18,29 +18,41 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-kubectl version
-
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${REPO_ROOT}/e2e-logs"}
-mkdir -p "${ARTIFACTS_PATH}"
+# create cluster
+export CLUSTER_NAME=${CLUSTER_NAME:-"k8s-cluster"}
+${REPO_ROOT}/hack/create-cluster.sh ${CLUSTER_NAME}
 
-# Pre run e2e for extra components
-"${REPO_ROOT}"/hack/pre-run-e2e.sh
+ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${HOME}/e2e-logs"}
+mkdir -p "$ARTIFACTS_PATH"
 
-# Run e2e
-echo -e "\n>> Run E2E test"
-"${REPO_ROOT}"/test/sfs/sfs-test.sh
+GO111MODULE=on go install github.com/onsi/ginkgo/v2/ginkgo@v2.2.0
+GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
+export PATH=$PATH:$GOPATH/bin
 
+# pre run e2e
+"${REPO_ROOT}"/hack/pre-run-e2e.sh ${CLUSTER_NAME}
+
+# run e2e test
+set +e
+ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/
 TESTING_RESULT=$?
 
 # Collect logs
-echo -e "\n Collected log files at ${ARTIFACTS_PATH}:"
-kubectl logs deployment/csi-sfs-controller -c sfs-csi-plugin -n kube-system > ${ARTIFACTS_PATH}/csi-sfs-controller.log
-kubectl logs daemonset/csi-sfs-node -c sfs -n kube-system > ${ARTIFACTS_PATH}/csi-sfs-node.log
+echo "Collect logs to $ARTIFACTS_PATH..."
 
-# Post run e2e for delete extra components
-echo -e "\n>> Run post run e2e"
-"${REPO_ROOT}"/hack/post-run-e2e.sh
+echo "Collecting $CLUSTER_NAME logs..."
+mkdir -p "$ARTIFACTS_PATH/$CLUSTER_NAME"
+kind export logs --name="$CLUSTER_NAME" "$ARTIFACTS_PATH/$CLUSTER_NAME"
+
+echo "Collected logs at $ARTIFACTS_PATH:"
+ls -al "$ARTIFACTS_PATH"
+
+# post run e2e
+"${REPO_ROOT}"/hack/post-run-sfsturbo-e2e.sh
+
+# delete cluster
+${REPO_ROOT}/hack/delete-cluster.sh ${CLUSTER_NAME}
 
 exit $TESTING_RESULT
