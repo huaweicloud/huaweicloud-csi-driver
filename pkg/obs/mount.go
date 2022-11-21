@@ -1,17 +1,32 @@
 package obs
 
 import (
+	"bytes"
+	"encoding/json"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io/ioutil"
 	log "k8s.io/klog/v2"
 	"net/http"
-	"strings"
 )
 
-func sendCommand(cmd, url string, mountClient http.Client) error {
-	log.Infof("Start sending command: %s to socket listener: %s", cmd, url)
-	response, err := mountClient.Post(url, "application/json", strings.NewReader(cmd))
+const (
+	ActionMount string = "mount"
+)
+
+type CommandRPC struct {
+	Action     string
+	Token      string
+	Parameters map[string]string
+}
+
+func sendCommand(cmd CommandRPC, mountClient http.Client) error {
+	marshal, err := json.Marshal(cmd)
+	if err != nil {
+		return err
+	}
+	log.Infof("Start sending command: %s", string(marshal))
+	response, err := mountClient.Post("http://unix", "application/json", bytes.NewReader(marshal))
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to post command, err: %v", err)
 	}
