@@ -27,16 +27,16 @@ echo "OS Code $osCode"
 
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 if [ "$osCode" = 1 ]; then
-    echo "operation system is centos..."
-    fileName=obsfs_CentOS7.6_amd64
-    $HOST_CMD yum install -y openssl-devel fuse fuse-devel
+  echo "operation system is centos..."
+  fileName=obsfs_CentOS7.6_amd64
+  $HOST_CMD yum install -y openssl-devel fuse fuse-devel
 elif [ "$osCode" = 2 ]; then
-    echo "operation system is ubuntu..."
-    fileName=obsfs_Ubuntu16.04_amd64
-    $HOST_CMD apt-get install -y libfuse-dev libcurl4-openssl-dev
+  echo "operation system is ubuntu..."
+  fileName=obsfs_Ubuntu16.04_amd64
+  $HOST_CMD apt-get install -y libfuse-dev libcurl4-openssl-dev
 else
-    echo "operation system not support..."
-    exit
+  echo "operation system not support..."
+  exit
 fi
 
 echo "Starting deploy obs csi-plugin...."
