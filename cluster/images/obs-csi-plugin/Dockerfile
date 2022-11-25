@@ -11,7 +11,8 @@ RUN curl https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsfs/current/${
 COPY entrypoint.sh /entrypoint.sh
 COPY nsenter /nsenter
 COPY socket-server /bin/socket-server
+COPY socket-server.service /bin/socket-server.service
 COPY obs-csi-plugin /bin/obs-csi-plugin
-RUN chmod +x /bin/obs-csi-plugin&& chmod +x /entrypoint.sh && chmod +x /bin/socket-server && chmod +x /nsenter
+RUN chmod +x /bin/obs-csi-plugin && chmod +x /entrypoint.sh && chmod +x /bin/socket-server && chmod +x /nsenter && chmod +x /bin/socket-server.service
 
 ENTRYPOINT ["/entrypoint.sh"]
