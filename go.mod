@@ -6,8 +6,8 @@ require (
 	github.com/chnsz/golangsdk v0.0.0-20221025063414-ec58687a8de7
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/google/uuid v1.1.2
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.12+incompatible
-	github.com/huaweicloud/huaweicloud-sdk-go-v3 v0.1.9
 	github.com/kubernetes-csi/csi-lib-utils v0.9.1
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
@@ -16,6 +16,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/unknwon/com v1.0.1
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 	google.golang.org/grpc v1.50.1
 	google.golang.org/protobuf v1.28.1

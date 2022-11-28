@@ -19,6 +19,7 @@ package obs
 import (
 	"fmt"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/google/uuid"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
@@ -43,8 +44,8 @@ type nodeServer struct {
 }
 
 const (
-	credentialFile = "/dev/csi-tool/passwd-obsfs"
-	perm           = 0600
+	credentialDir = "/dev/csi-tool"
+	perm          = 0600
 )
 
 func (ns *nodeServer) NodeStageVolume(_ context.Context, req *csi.NodeStageVolumeRequest) (
@@ -87,9 +88,14 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	if err := ns.Mount.MakeDir(targetPath); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to make dir: %s, error: %v", targetPath, err)
 	}
-	if err := createCredentialFile(ns.Driver.cloud.Global.AccessKey, ns.Driver.cloud.Global.SecretKey); err != nil {
+
+	credentialFile := fmt.Sprintf("%s/%s", credentialDir, uuid.New().String())
+	accessKey := ns.Driver.cloud.Global.AccessKey
+	secretKey := ns.Driver.cloud.Global.SecretKey
+	if err := createCredentialFile(accessKey, secretKey, credentialFile); err != nil {
 		return nil, err
 	}
+	defer deleteCredentialFile(credentialFile)
 
 	parameters := map[string]string{
 		"bucketName": volume.BucketName,
@@ -98,11 +104,8 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 		"cloud":      ns.Driver.cloud.Global.Cloud,
 		"credential": credentialFile,
 	}
-	md5String, err := utils.Md5SortMap(parameters)
-	if err != nil {
-		return nil, err
-	}
-	token, err := utils.EncryptAESCBC(Secret, md5String)
+	ciphertext := utils.Sha256(parameters)
+	token, err := utils.EncryptAESCBC(Secret, ciphertext)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +122,13 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func createCredentialFile(accessKey, secretKey string) error {
+func deleteCredentialFile(credentialFile string) {
+	if err := os.RemoveAll(credentialFile); err != nil {
+		log.Warningf("Failed to Remove credential file, %v", err)
+	}
+}
+
+func createCredentialFile(accessKey, secretKey, credentialFile string) error {
 	if err := os.MkdirAll(path.Dir(credentialFile), os.ModePerm); err != nil {
 		return status.Errorf(codes.Internal, "Failed to make dir: %s, error: %v", credentialFile, err)
 	}
