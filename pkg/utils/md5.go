@@ -3,11 +3,12 @@ package utils
 import (
 	"crypto/md5"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 	"sort"
 	"strings"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func Md5SortMap(valueMap map[string]string) (string, error) {

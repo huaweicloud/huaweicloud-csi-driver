@@ -17,20 +17,21 @@ limitations under the License.
 package sfsturbo
 
 import (
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"reflect"
 	"strconv"
 
 	"github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares"
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo/services"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	log "k8s.io/klog/v2"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo/services"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
 
 type controllerServer struct {

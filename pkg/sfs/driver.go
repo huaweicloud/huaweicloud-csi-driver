@@ -20,14 +20,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
@@ -38,7 +37,7 @@ const (
 	specVersion = "1.5.0"
 )
 
-type SfsDriver struct {
+type SfsDriver struct { //nolint: revive
 	name       string
 	nodeID     string
 	version    string

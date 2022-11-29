@@ -3,8 +3,6 @@ package evs
 import (
 	"fmt"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
-
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -13,6 +11,7 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
 const (
@@ -25,7 +24,7 @@ var (
 	specVersion = "1.5.0"
 )
 
-type EvsDriver struct {
+type EvsDriver struct { //nolint: revive
 	name     string
 	nodeID   string
 	version  string

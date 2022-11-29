@@ -160,7 +160,7 @@ func nodeStageValidation(cc *config.CloudCredentials, volumeID, target string, v
 }
 
 func (ns *nodeServer) NodeUnstageVolume(_ context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.
-	NodeUnstageVolumeResponse, error) {
+NodeUnstageVolumeResponse, error) {
 	log.Infof("NodeUnstageVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
