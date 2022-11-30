@@ -34,7 +34,6 @@ import (
 
 const (
 	driverName  = "obs.csi.huaweicloud.com"
-	topologyKey = "topology." + driverName + "/zone"
 	specVersion = "1.0.0"
 )
 
@@ -66,6 +65,7 @@ func NewDriver(endpoint string, cloud *config.CloudCredentials) *Driver {
 		[]csi.ControllerServiceCapability_RPC_Type{
 			csi.ControllerServiceCapability_RPC_CREATE_DELETE_VOLUME,
 			csi.ControllerServiceCapability_RPC_LIST_VOLUMES,
+			csi.ControllerServiceCapability_RPC_EXPAND_VOLUME,
 			csi.ControllerServiceCapability_RPC_GET_VOLUME,
 		})
 	d.AddVolumeCapabilityAccessModes([]csi.VolumeCapability_AccessMode_Mode{
