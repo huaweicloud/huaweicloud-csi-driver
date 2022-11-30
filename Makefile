@@ -50,7 +50,7 @@ build-cmd-%: work $(SOURCES)
 		-ldflags $(LDFLAGS) \
 		-o $* \
 		cmd/$*/main.go
-	if [ "$*" == "obs-csi-plugin" ]; then (CGO_ENABLED=0 GOOS=$(GOOS) go build \
+	if [ "$*" = "obs-csi-plugin" ]; then (CGO_ENABLED=0 GOOS=$(GOOS) go build \
                                         	-ldflags $(LDFLAGS) \
                                         	-o cluster/images/obs-csi-plugin/socket-server \
                                         	cluster/images/obs-csi-plugin/socket-server.go);fi

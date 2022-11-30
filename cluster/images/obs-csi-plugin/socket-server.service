@@ -1,0 +1,14 @@
+[Unit]
+Description=service for socker-server
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+ExecStart=/bin/sh -c "/dev/csi-tool/socket-server >/dev/csi-tool/log.out 2>&1 &"
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s QUIT $MAINPID
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

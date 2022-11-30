@@ -1,31 +1,22 @@
 #!/bin/sh
 
-centosCmd="cat /etc/redhat-release | grep -i centos | wc -l"
-ubuntuCmd="cat /etc/issue | grep -i ubuntu | wc -l"
+HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 checkLinuxOS() {
-  if [ -f "/etc/redhat-release" ]; then
-    echo "/etc/redhat-release exists"
-    if [ "$centosCmd" = 0 ]; then
-      return 0
-    else
-      return 1
-    fi
+  osId=$($HOST_CMD cat /etc/redhat-release | grep -i -c centos)
+  if [ "$osId" != 0 ]; then
+    return 1
   fi
 
-  if [ -f "/etc/issue" ]; then
-    echo "/etc/issue exists"
-    if [ "$ubuntuCmd" = 0 ]; then
-      return 0
-    else
+  osId=$($HOST_CMD cat /etc/issue | grep -i -c ubuntu)
+  if [ "$osId" != 0 ]; then
       return 2
-    fi
   fi
+  return 0
 }
 checkLinuxOS
 osCode=$?
 echo "OS Code $osCode"
 
-HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 if [ "$osCode" = 1 ]; then
     echo "operation system is centos..."
     fileName=obsfs_CentOS7.6_amd64
@@ -39,16 +30,24 @@ else
     exit
 fi
 
-echo "Starting deploy obs csi-plugin...."
+echo "Starting install obsfs...."
 mkdir -p /dev/csi-tool/
 tar -zxvf /root/$fileName.tar.gz -C /dev/csi-tool/
 $HOST_CMD cp -r /dev/csi-tool/$fileName/. ./
 $HOST_CMD bash install_obsfs.sh
 
-echo "Starting run obs socket server...."
+echo "Starting install obs socket-server...."
+rm -rf /dev/csi-tool/socket-server
+rm -rf /dev/csi-tool/connector.sock
 cp /bin/socket-server /dev/csi-tool/socket-server
 chmod 755 /dev/csi-tool/socket-server
-$HOST_CMD /dev/csi-tool/socket-server >log.out 2>&1 &
+
+echo "Starting install obs socket service...."
+cp /bin/socket-server.service /dev/csi-tool/socket-server.service
+$HOST_CMD cp /dev/csi-tool/socket-server.service /lib/systemd/system/socket-server.service
+$HOST_CMD systemctl daemon-reload
+$HOST_CMD systemctl enable socket-server.service
+$HOST_CMD systemctl restart socket-server.service
 
 echo "Starting run obs csi plugin...."
 /bin/obs-csi-plugin $@
