@@ -11,16 +11,18 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 const (
-	socketPath  = "/dev/csi-tool/connector.sock"
-	bucketName  = "bucketName"
-	targetPath  = "targetPath"
-	region      = "region"
-	cloud       = "cloud"
-	credential  = "credential"
-	defaultOpts = "-o big_writes -o max_write=131072 -o use_ino"
+	socketPath    = "/dev/csi-tool/connector.sock"
+	credentialDir = "/dev/csi-tool"
+	bucketName    = "bucketName"
+	targetPath    = "targetPath"
+	region        = "region"
+	cloud         = "cloud"
+	credential    = "credential"
+	defaultOpts   = "-o big_writes -o max_write=131072 -o use_ino"
 )
 
 type ResponseBody struct {
@@ -68,15 +70,12 @@ func (myHandler *MyHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 }
 
 func checkRequestToken(token string, parameters map[string]string) error {
-	hashMd5, err := utils.Md5SortMap(parameters)
-	if err != nil {
-		return err
-	}
+	ciphertext := utils.Sha256(parameters)
 	original, err := utils.DecryptAESCBC(obs.Secret, token)
 	if err != nil {
 		return err
 	}
-	if hashMd5 != original {
+	if ciphertext != original {
 		return fmt.Errorf("invalid token")
 	}
 	return nil
@@ -90,6 +89,9 @@ func checkMountParameters(parameters map[string]string) error {
 		}
 	}
 	credentialValue := parameters[credential]
+	if !strings.HasPrefix(credentialValue, credentialDir) {
+		return fmt.Errorf("credential file can only use DIR: %s", credentialDir)
+	}
 	if !checkFileExists(credentialValue) {
 		return fmt.Errorf("credential file %s not exist", credential)
 	}
@@ -139,6 +141,7 @@ func checkFileExists(filename string) bool {
 }
 
 func mountHandler(parameters map[string]string) error {
+	defer deleteCredential(parameters[credential])
 	mntCmd := fmt.Sprintf("obsfs %s %s -o url=obs.%s.%s -o passwd_file=%s %s",
 		parameters[bucketName], parameters[targetPath],
 		parameters[region], parameters[cloud], parameters[credential], defaultOpts)
@@ -148,10 +151,15 @@ func mountHandler(parameters map[string]string) error {
 		return err
 	}
 	glog.Infof("Success to mount cmd: %s", mntCmd)
-	if err := os.RemoveAll(parameters[credential]); err != nil {
-		glog.Errorf("Failed to remove passwd file, %v", err)
-	}
 	return nil
+}
+
+func deleteCredential(credential string) {
+	if strings.HasPrefix(credential, credentialDir) {
+		if err := os.RemoveAll(credential); err != nil {
+			glog.Warningf("Failed to remove passwd file, %v", err)
+		}
+	}
 }
 
 func run(cmd string) (string, error) {
