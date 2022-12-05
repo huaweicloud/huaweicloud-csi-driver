@@ -12,6 +12,7 @@ provisioner: evs.csi.huaweicloud.com
 allowVolumeExpansion: true
 parameters:
   type: SSD
+  scsi: "true"
 reclaimPolicy: Delete
 EOF
 
@@ -79,9 +80,9 @@ kubectl delete pvc evs-normal-pvc
 kubectl delete sc evs-sc
 
 if [ "$testRes" = "true" ]; then
-    echo -e "------ PASS: EVS(normal) Test\n"
-    exit 0
+  echo -e "------ PASS: EVS(normal) Test\n"
+  exit 0
 else
-    echo -e "------ FAIL: EVS(normal) Test\n"
-    exit 1
+  echo -e "------ FAIL: EVS(normal) Test\n"
+  exit 1
 fi

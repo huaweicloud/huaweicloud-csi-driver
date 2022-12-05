@@ -1,0 +1,4 @@
+[Global]
+region={{region}}
+access-key={{ak}}
+secret-key={{sk}}
