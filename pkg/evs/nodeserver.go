@@ -13,6 +13,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/klog"
 	log "k8s.io/klog/v2"
 	mountutils "k8s.io/mount-utils"
 	utilpath "k8s.io/utils/path"
@@ -111,22 +112,32 @@ func getDevicePath(cc *config.CloudCredentials, volumeID string, mount mounts.IM
 	if err != nil {
 		return "", err
 	}
+	dpMsg := fmt.Sprintf("ID: %s", volumeID)
 	// device type: SCSI
 	if volume.Metadata.HwPassthrough == "true" {
 		volumeID = volume.WWN
+		dpMsg = fmt.Sprintf("WWN: %s", volume.WWN)
 	}
 
-	var devicePath string
-	devicePath, _ = mount.GetDevicePath(volumeID)
+	devicePath := getDevicePathById(mount, volumeID)
 	if devicePath == "" {
-		// try to get from metadata service
-		devicePath = metadatas.GetDevicePath(volumeID)
+		devicePath = getDevicePathById(mount, volume.WWN)
 	}
 
 	if len(strings.TrimSpace(devicePath)) == 0 {
-		return "", fmt.Errorf("the \"devicePath\" is still empty after getting from mount and metadata.")
+		return "", fmt.Errorf("can not get the \"devicePath\" by %s", dpMsg)
 	}
 	return devicePath, nil
+}
+
+func getDevicePathById(mount mounts.IMount, id string) string {
+	devicePath, _ := mount.GetDevicePath(id)
+	if devicePath == "" {
+		// try to get from metadata service
+		devicePath = metadatas.GetDevicePath(id)
+	}
+	klog.Infof("get devicePath by ID: %s", id)
+	return devicePath
 }
 
 func nodeStageValidation(cc *config.CloudCredentials, volumeID, target string, vc *csi.VolumeCapability) (
