@@ -199,7 +199,7 @@ func (cs *controllerServer) ListSnapshots(_ context.Context, _ *csi.ListSnapshot
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-func (cs *controllerServer) ControllerGetCapabilities(_ context.Context, req *csi.ControllerGetCapabilitiesRequest) (
+func (cs *controllerServer) ControllerGetCapabilities(_ context.Context, _ *csi.ControllerGetCapabilitiesRequest) (
 	*csi.ControllerGetCapabilitiesResponse, error) {
 	return &csi.ControllerGetCapabilitiesResponse{
 		Capabilities: cs.Driver.cscap,
@@ -274,7 +274,7 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 		log.Warningf("Volume %v has been already expanded to %v, requested %v", volumeID, volume.Capacity, sizeBytes)
 		return &csi.ControllerExpandVolumeResponse{
 			CapacityBytes:         volume.Capacity,
-			NodeExpansionRequired: true,
+			NodeExpansionRequired: false,
 		}, nil
 	}
 
@@ -287,7 +287,7 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeBytes)
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         sizeBytes,
-		NodeExpansionRequired: true,
+		NodeExpansionRequired: false,
 	}, nil
 }
 
