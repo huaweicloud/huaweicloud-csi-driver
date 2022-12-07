@@ -20,9 +20,6 @@ set -o pipefail
 
 echo "Run post E2E"
 # delete sfs objects
-kubectl delete serviceaccount csi-sfs-controller-sa csi-sfs-node-sa -n kube-system
-kubectl delete clusterrole sfs-external-provisioner-role sfs-external-attacher-role csi-sfs-secret-role
-kubectl delete clusterrolebinding sfs-csi-provisioner-binding sfs-csi-attacher-binding csi-sfs-secret-binding
-kubectl delete csidriver sfs.csi.huaweicloud.com
-kubectl delete deployment csi-sfs-controller -n kube-system
-kubectl delete daemonset csi-sfs-node -n kube-system
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+${REPO_ROOT}/hack/post-run-sfsturbo-e2e.sh
+${REPO_ROOT}/hack/post-run-evs-e2e.sh

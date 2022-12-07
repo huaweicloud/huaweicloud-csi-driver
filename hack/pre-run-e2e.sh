@@ -18,13 +18,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CLUSTER_NAME=$1
-if [[ -z "${CLUSTER_NAME}" ]]; then
-  echo "Error, CLUSTER_NAME can be empty"
-  usage
-  exit 1
-fi
-
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-"${REPO_ROOT}"/hack/pre-run-sfsturbo-e2e.sh ${CLUSTER_NAME}
+kubectl delete secret -n kube-system cloud-config --ignore-not-found=true
+kubectl create secret -n kube-system generic cloud-config --from-file=/actions-runner/cloud-config
+
+${REPO_ROOT}/hack/pre-run-sfsturbo-e2e.sh
+${REPO_ROOT}/hack/pre-run-evs-e2e.sh

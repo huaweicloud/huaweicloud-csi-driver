@@ -20,10 +20,10 @@ set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-kubectl delete -f ${REPO_ROOT}/hack/deploy/evs/csi-evs-controller.yaml
-kubectl delete -f ${REPO_ROOT}/hack/deploy/evs/csi-evs-driver.yaml
-kubectl delete -f ${REPO_ROOT}/hack/deploy/evs/csi-evs-node.yaml
-kubectl delete -f ${REPO_ROOT}/hack/deploy/evs/rbac-csi-evs-controller.yaml
-kubectl delete -f ${REPO_ROOT}/hack/deploy/evs/rbac-csi-evs-node.yaml
-kubectl delete -f ${REPO_ROOT}/hack/deploy/evs/rbac-csi-evs-secret.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/evs-csi-plugin/kubernetes/csi-evs-controller.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/evs-csi-plugin/kubernetes/csi-evs-driver.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/evs-csi-plugin/kubernetes/csi-evs-node.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/evs-csi-plugin/kubernetes/rbac-csi-evs-controller.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/evs-csi-plugin/kubernetes/rbac-csi-evs-node.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/evs-csi-plugin/kubernetes/rbac-csi-evs-secret.yaml
 kubectl delete secret -n kube-system cloud-config --ignore-not-found=true

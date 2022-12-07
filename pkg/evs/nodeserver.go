@@ -159,8 +159,7 @@ func nodeStageValidation(cc *config.CloudCredentials, volumeID, target string, v
 	return vol, nil
 }
 
-func (ns *nodeServer) NodeUnstageVolume(_ context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.
-NodeUnstageVolumeResponse, error) {
+func (ns *nodeServer) NodeUnstageVolume(_ context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Infof("NodeUnstageVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
@@ -194,8 +193,7 @@ func unstagetValidation(cc *config.CloudCredentials, volumeID, target string) er
 	return nil
 }
 
-func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishVolumeRequest) (
-	*csi.NodePublishVolumeResponse, error) {
+func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	cc := ns.Driver.cloudCredentials
@@ -251,8 +249,7 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func nodePublishValidation(cc *config.CloudCredentials, volumeID, sourcePath, targetPath string,
-	vc *csi.VolumeCapability) error {
+func nodePublishValidation(cc *config.CloudCredentials, volumeID, sourcePath, targetPath string, vc *csi.VolumeCapability) error {
 	if len(volumeID) == 0 {
 		return status.Error(codes.InvalidArgument, "Validation failed, volumeID cannot be empty")
 	}
