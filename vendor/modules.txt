@@ -80,7 +80,7 @@ github.com/google/gofuzz/bytesource
 # github.com/google/uuid v1.1.2
 ## explicit
 github.com/google/uuid
-# github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.12+incompatible
+# github.com/huaweicloud/huaweicloud-sdk-go-obs v3.22.11+incompatible
 ## explicit
 github.com/huaweicloud/huaweicloud-sdk-go-obs/obs
 # github.com/imdario/mergo v0.3.12
