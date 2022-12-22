@@ -1,0 +1,8 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: obs-sc
+provisioner: obs.csi.huaweicloud.com
+reclaimPolicy: Delete
+parameters:
+  bucket: custom-bucket

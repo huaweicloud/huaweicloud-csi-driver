@@ -36,6 +36,17 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	log.Infof("CreateVolume: called with args %v", protosanitizer.StripSecrets(*req))
 	credentials := cs.Driver.cloud
 
+	parameters := req.Parameters
+	if bucketName := parameters["bucket"]; len(bucketName) > 0 {
+		log.Infof("Use custom volume from parameters: %s", bucketName)
+		volume, err := services.GetParallelFSBucket(credentials, bucketName)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "Error getting OBS instance: %s, err: %v", bucketName, err)
+		}
+		log.Infof("Successfully get custom volume %s of size %d bytes", volume.BucketName, volume.Capacity)
+		return buildCreateVolumeResponse(volume), nil
+	}
+
 	volName := req.GetName()
 	if err := createVolumeValidation(volName, req.GetVolumeCapabilities()); err != nil {
 		return nil, err
@@ -48,7 +59,6 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		return buildCreateVolumeResponse(volume), nil
 	}
 
-	parameters := req.GetParameters()
 	acl := obs.AclType(parameters["acl"])
 	if err := services.CreateBucket(credentials, volName, acl); err != nil {
 		return nil, err
