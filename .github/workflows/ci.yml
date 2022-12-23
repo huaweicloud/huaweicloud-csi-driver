@@ -74,7 +74,7 @@ jobs:
           ./hack/check-module.sh ${{ github.sha }}
   e2e:
 #    if: ${{ github.repository == 'huaweicloud/huaweicloud-csi-driver' }}
-    if: ${{ needs.before_run_e2e.outputs.skip_e2e == "Y" }}
+    if: ${{ needs.before_run_e2e.outputs.skip_e2e == true }}
     name: e2e test
     needs: [build, before_run_e2e]
     runs-on: self-hosted
