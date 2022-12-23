@@ -119,9 +119,9 @@ func getDevicePath(cc *config.CloudCredentials, volumeID string, mount mounts.IM
 		dpMsg = fmt.Sprintf("WWN: %s", volume.WWN)
 	}
 
-	devicePath := getDevicePathById(mount, volumeID)
+	devicePath := getDevicePathByID(mount, volumeID)
 	if devicePath == "" {
-		devicePath = getDevicePathById(mount, volume.WWN)
+		devicePath = getDevicePathByID(mount, volume.WWN)
 	}
 
 	if len(strings.TrimSpace(devicePath)) == 0 {
@@ -130,7 +130,7 @@ func getDevicePath(cc *config.CloudCredentials, volumeID string, mount mounts.IM
 	return devicePath, nil
 }
 
-func getDevicePathById(mount mounts.IMount, id string) string {
+func getDevicePathByID(mount mounts.IMount, id string) string {
 	devicePath, _ := mount.GetDevicePath(id)
 	if devicePath == "" {
 		// try to get from metadata service
@@ -492,8 +492,8 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	size := 10 // default size is 1GB
 	var err error
 
-	volumeId := req.GetVolumeId()
-	volumeName := fmt.Sprintf("ephemeral-%s", volumeId)
+	volumeID := req.GetVolumeId()
+	volumeName := fmt.Sprintf("ephemeral-%s", volumeID)
 	volumeCapability := req.GetVolumeCapability()
 	volAvailability, err := ns.Metadata.GetAvailabilityZone()
 	if err != nil {
@@ -515,7 +515,7 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	metadata[CreateForVolumeIDKey] = "true"
 	metadata[DssIDKey] = req.VolumeContext[DssIDKey]
 
-	volumeID, err := services.CreateVolumeCompleted(cc, &cloudvolumes.CreateOpts{
+	volumeID, err = services.CreateVolumeCompleted(cc, &cloudvolumes.CreateOpts{
 		Volume: cloudvolumes.VolumeOpts{
 			Name:             volumeName,
 			Size:             size,
@@ -574,7 +574,6 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
-
 }
 
 func nodePublishVolumeForBlock(req *csi.NodePublishVolumeRequest, ns *nodeServer, mountOptions []string) (

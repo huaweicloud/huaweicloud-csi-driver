@@ -1,8 +1,6 @@
 package e2e
 
 import (
-	"fmt"
-
 	"github.com/onsi/ginkgo/v2"
 	corev1 "k8s.io/api/core/v1"
 	storageV1 "k8s.io/api/storage/v1"
@@ -28,7 +26,7 @@ var _ = ginkgo.Describe("EVS CSI normal testing", ginkgo.Label("EVS"), func() {
 		framework.RemoveStorageClass(kubeClient, sc.Name)
 	})
 
-	ginkgo.It(fmt.Sprintf("Mount EVS PVC to a Pod testing"), func() {
+	ginkgo.It("Mount EVS PVC to a Pod testing", func() {
 		pod := newPodWithPvc(pvc)
 		framework.CreatePod(kubeClient, pod)
 		framework.WaitPodPresentOnClusterFitWith(kubeClient, pod.Namespace, pod.Name, func(pod *corev1.Pod) bool {
