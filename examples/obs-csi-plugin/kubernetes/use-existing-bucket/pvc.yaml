@@ -1,11 +1,11 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: pvc-obs-resize
+  name: pvc-obs-static
 spec:
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: 50Gi
-  storageClassName: obs-sc
+      storage: 5Gi
+  volumeName: pv-obs-static

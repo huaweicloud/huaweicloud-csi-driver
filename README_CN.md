@@ -24,6 +24,12 @@ SFS CSI 插件支持创建共享卷及添加共享规则。
 
 更多详情请参考[SFS 容量型插件](./docs/sfs/sfs.md)
 
+### OBS 对象存储服务插件
+
+OBS CSI 插件支持华为云OBS Bucket的创建、挂载和扩容。OBS是一种共享存储，可以同时被多台服务器挂载。
+
+更多详情请参考[OBS 对象存储服务插件](./docs/obs/obs.md)
+
 ## 链接
 
 - [Kubernetes CSI Documentation](https://kubernetes-csi.github.io/docs/)
