@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: nginx-obs-resize
+  name: nginx-obs-static
 spec:
   containers:
     - image: nginx
-      name: nginx-obs-resize
+      name: nginx-obs-custom
       command: ["/bin/sh"]
       args: ["-c", "while true; do echo $(date -u) >> /mnt/obs/outfile; sleep 5; done"]
       volumeMounts:
@@ -14,4 +14,4 @@ spec:
   volumes:
     - name: obs-data
       persistentVolumeClaim:
-        claimName: pvc-obs-resize
+        claimName: pvc-obs-static

@@ -27,6 +27,13 @@ SFS CSI driver supports share volume creation add access rules.
 
 See [SFS CSI Driver](./docs/sfs/sfs.md) for details.
 
+### OBS CSI Driver
+
+OBS CSI driver supports Huawei Cloud OBS Bucket creation, mount and expansion.
+OBS is a kind of Shared Storage System, can be mounted by multiple servers at the same time.
+
+See [OBS CSI Driver](./docs/obs/obs.md) for details.
+
 ## Links
 
 - [Kubernetes CSI Documentation](https://kubernetes-csi.github.io/docs/)
