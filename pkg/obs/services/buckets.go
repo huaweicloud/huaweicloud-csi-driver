@@ -94,7 +94,6 @@ func CreateBucket(c *config.CloudCredentials, bucketName string, acl obs.AclType
 		ACL:               acl,
 		IsFSFileInterface: true,
 		BucketLocation:    obs.BucketLocation{Location: c.Global.Region},
-		Epid:              c.Global.ProjectID,
 	}
 	if _, err = client.CreateBucket(input); err == nil {
 		return nil
