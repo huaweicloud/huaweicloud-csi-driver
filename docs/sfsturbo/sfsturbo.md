@@ -73,9 +73,6 @@ kube-system    pod/csi-sfsturbo-node-mwg6j                    3/3     Running   
 
 ## Examples
 
-The following are examples of specific functions:
-
-**Dynamic Provisioning:** [sfs turbo dynamic](sfsturbo-dynamic.md)
-
-**Share Expansion:** [sfs turbo resize](sfsturbo-resize.md)
-
+- [Automatically create SFS Turbo resources based on PVC](sfsturbo-dynamic.md)
+- [Extending SFS Turbo resources bound to a PVC](sfsturbo-resize.md)
+- [Use an existing SFS Turbo resource](use-existing-sfsturbo.md)
