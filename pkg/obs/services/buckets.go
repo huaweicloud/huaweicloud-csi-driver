@@ -163,6 +163,9 @@ func ListBucketTags(c *config.CloudCredentials, bucketName string) ([]obs.Tag, e
 		return output.Tags, nil
 	}
 	if obsError, ok := err.(obs.ObsError); ok && obsError.StatusCode == http.StatusNotFound {
+		if obsError.Code == "NoSuchTagSet" {
+			return []obs.Tag{}, nil
+		}
 		return nil, status.Errorf(codes.NotFound, "Error, the OBS instance %s does not exist: %v", bucketName, err)
 	}
 	return nil, status.Errorf(codes.Internal, "Error getting OBS instance %s tags: %v", bucketName, err)
