@@ -169,12 +169,6 @@ func (ns *nodeServer) NodeUnpublishVolume(_ context.Context, req *csi.NodeUnpubl
 		return nil, status.Error(codes.InvalidArgument, "Validation failed, targetPath cannot be empty")
 	}
 
-	credentials := ns.Driver.cloud
-	volume, err := services.GetParallelFSBucket(credentials, volumeID)
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("NodeUnpublishVolume: volume detail: %s", protosanitizer.StripSecrets(volume))
 	notMnt, err := ns.Mount.IsLikelyNotMountPointAttach(targetPath)
 	if err != nil {
 		return nil, err
@@ -226,6 +220,7 @@ func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolu
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, "Failed to get stats by path: %s", err)
 	}
+	log.Infof("NodeGetVolumeStats: stats info :%s", protosanitizer.StripSecrets(*stats))
 	capacity, usedBytes := stats.TotalBytes, stats.UsedBytes
 
 	bucket, err := services.GetParallelFSBucket(ns.Driver.cloud, volumeID)
