@@ -1,6 +1,8 @@
 #!/bin/bash
 
-files_changed=$(git diff-tree --no-commit-id -r ${1} --name-only "cmd/" "pkg/" "test/" | grep ".go" )
+shaId=$(git log --before="1 week ago" --pretty=format:"%h" -n 1)
+echo $shaId
+files_changed=$(git diff $shaId --name-only "cmd/" "pkg/" "test/" | grep ".go" )
 
 echo "File(s) Changed:"
 echo "$files_changed"
@@ -28,7 +30,7 @@ fi
 
 sfsturbo_tag=$(echo $files_changed | grep "sfsturbo" | wc -l)
 if [[ "$sfsturbo_tag" -eq 1 ]]; then
-  echo "SFS TURBO has changed, required to run the SFS TURBO E2E tests"
+  echo "SFS Turbo has changed, required to run the SFS Turbo E2E tests"
   addTags "SFS_TURBO"
 fi
 
@@ -46,6 +48,7 @@ else
 fi
 echo "labels=${labels}" >> $GITHUB_OUTPUT
 
+more $GITHUB_OUTPUT
 echo
 echo "Module(s) changed: ${labels}"
 echo

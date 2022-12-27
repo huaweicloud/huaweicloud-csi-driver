@@ -18,10 +18,33 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+function usage() {
+  echo "This script run E2E tests by ginkgo."
+  echo "      Usage: hack/pre-run-e2e.sh <MODULE_NAME>"
+  echo "    Example: hack/pre-run-e2e.sh SFS"
+  echo
+}
+
+e2e_label=${1:-""}
+if [[ -z "${e2e_label}" ]]; then
+  usage
+  exit 1
+fi
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 kubectl delete secret -n kube-system cloud-config --ignore-not-found=true
 kubectl create secret -n kube-system generic cloud-config --from-file=/actions-runner/cloud-config
 
-${REPO_ROOT}/hack/pre-run-sfsturbo-e2e.sh
-${REPO_ROOT}/hack/pre-run-evs-e2e.sh
+if [[ $e2e_label =~ "SFS_TURBO" ]]; then
+  echo "run pre-run-sfsturbo-e2e"
+  ${REPO_ROOT}/hack/pre-run-sfsturbo-e2e.sh
+fi
+if [[ $e2e_label =~ "EVS" ]]; then
+  echo "pre-run-evs-e2e"
+  ${REPO_ROOT}/hack/pre-run-evs-e2e.sh
+fi
+if [[ $e2e_label =~ "OBS" ]]; then
+  echo "pre-run-obs-e2e"
+  ${REPO_ROOT}/hack/pre-run-obs-e2e.sh
+fi

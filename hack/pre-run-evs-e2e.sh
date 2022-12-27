@@ -16,20 +16,6 @@
 
 set -o errexit
 set -o pipefail
-
-function usage() {
-  echo "This script build image and deploy EVS CSI on the kube cluster."
-  echo "      Usage: hack/pre-run-evs-e2e.sh"
-  echo "    Example: hack/pre-run-evs-e2e.sh"
-  echo
-}
-
-if [[ -z "${HC_REGION}" || -z "${HC_ACCESS_KEY}" || -z "${HC_SECRET_KEY}" ]]; then
-  echo "Error, please configure the HC_REGION, HC_ACCESS_KEY and HC_SECRET_KEY environment variables"
-  usage
-  exit 1
-fi
-
 set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
@@ -41,7 +27,6 @@ echo -e "\n>> Build EVS CSI plugin image"
 make image-evs-csi-plugin
 
 TEMP_PATH=$(mktemp -d)
-echo ${TEMP_PATH}
 
 is_containerd=`command -v containerd`
 echo "is_containerd: ${is_containerd}"

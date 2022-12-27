@@ -43,6 +43,22 @@ if [[ "${labels}" = "NONE" ]]; then
   exit 0
 fi
 
+function export_pods_logs() {
+    namespace=$1
+    name=$2
+    container=$3
+    dest=$4
+    if [[ ! -z "${dest}" ]]; then
+      mkdir -p "$dest"
+    fi
+
+    pods=$(kubectl get pod -n "$namespace" | grep "$name" | awk -F ' ' '{ print $1 }')
+    for p in $pods; do
+      echo "Exporting $namespace/$p logs"
+      kubectl logs pod/$p "$container" -n "$namespace" > "${dest}/${namespace}_${name}_${p}.log"
+    done
+}
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 ARTIFACTS_PATH=${ARTIFACTS_PATH:-"${HOME}/e2e-logs"}
@@ -53,20 +69,28 @@ GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
 export PATH=$PATH:$GOPATH/bin
 
 # pre run e2e
-"${REPO_ROOT}"/hack/pre-run-e2e.sh
+"${REPO_ROOT}"/hack/pre-run-e2e.sh "${labels}"
 
 # run e2e test
 set +e
-ginkgo -v --race --trace --fail-fast -procs=4 --randomize-all --label-filter="${labels}" ./test/e2e/
+ginkgo -v --race --trace --fail-fast -procs=2 --randomize-all --label-filter="${labels}" ./test/e2e/
 TESTING_RESULT=$?
 
 # Collect logs
 echo "Collecting logs..."
-#kubectl logs deployment/huawei-cloud-controller-manager -n kube-system > ${ARTIFACTS_PATH}/huawei-cloud-controller-manager.log
+
+export_pods_logs "kube-system" "csi-evs-controller" "evs-csi-provisioner" "${ARTIFACTS_PATH}/evs csi"
+export_pods_logs "kube-system" "evs-csi-plugin" "evs-csi-plugin" "${ARTIFACTS_PATH}/evs csi"
+
+export_pods_logs "kube-system" "csi-obs-controller" "obs-csi-plugin" "${ARTIFACTS_PATH}/obs csi"
+export_pods_logs "kube-system" "csi-obs-plugin" "obs" "${ARTIFACTS_PATH}/obs csi"
+
+export_pods_logs "kube-system" "csi-sfsturbo-controller" "sfsturbo-csi-plugin" "${ARTIFACTS_PATH}/sfs-turbo csi"
+export_pods_logs "kube-system" "csi-sfsturbo-plugin" "sfsturbo" "${ARTIFACTS_PATH}/sfs-turbo csi"
 
 ls -al "$ARTIFACTS_PATH"
 
 # post run e2e
-"${REPO_ROOT}"/hack/post-run-sfsturbo-e2e.sh
+"${REPO_ROOT}"/hack/post-run-e2e.sh "${labels}"
 
 exit $TESTING_RESULT

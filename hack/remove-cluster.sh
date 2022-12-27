@@ -11,8 +11,20 @@ function usage() {
 }
 
 echo "Remove existing kubernetes"
+for service in kube-apiserver kube-controller-manager kubectl kubelet kube-proxy kube-scheduler;
+do
+  systemctl stop $service
+done
+
 kubeadm reset -f
-echo "==========================================================================================="
-yum list installed | grep kube
-echo -e "===========================================================================================\n"
-yum -y remove kubelet kubeadm kubectl kubernetes* cri-tools
+rm -rf ~/.kube/
+rm -rf /etc/kubernetes/
+rm -rf /etc/systemd/system/kubelet.service.d
+rm -rf /etc/systemd/system/kubelet.service
+rm -rf /usr/bin/kube*
+rm -rf /etc/cni
+rm -rf /opt/cni
+rm -rf /var/lib/etcd
+rm -rf /var/etcd
+yum clean all
+yum -y remove kube* > /dev/null 2>&1
