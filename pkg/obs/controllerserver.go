@@ -18,6 +18,7 @@ package obs
 
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
@@ -59,14 +60,6 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		}
 	}
 
-	tags := []obs.Tag{{
-		Key:   "csi",
-		Value: "csi-created",
-	}}
-	if err := services.AddBucketTags(credentials, volName, tags); err != nil {
-		return nil, err
-	}
-
 	volume, err := services.GetParallelFSBucket(credentials, volName)
 	if err != nil {
 		return nil, err
@@ -86,22 +79,21 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 	}
 
 	credentials := cs.Driver.cloud
-	if tags, err := services.ListBucketTags(credentials, volName); err != nil {
-		return nil, err
-	} else if !isCreatedByCSI(tags) {
-		log.Infof("Volume %s does not create by csi, skip deleting", volName)
-		return &csi.DeleteVolumeResponse{}, nil
-	}
-
-	if err := services.CleanBucket(credentials, volName); err != nil {
-		log.Infof("Successfully deleted volume %s", volName)
-		return nil, err
-	}
-	if err := services.DeleteBucket(credentials, volName); err != nil {
-		if status.Code(err) == codes.NotFound {
+	volume, err := services.GetParallelFSBucket(credentials, volName)
+	if err != nil {
+		if common.IsNotFound(err) {
 			log.Infof("Volume %s does not exist, skip deleting", volName)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
+		return nil, err
+	}
+	log.Infof("DeleteVolume: volume detail is: %s", protosanitizer.StripSecrets(volume))
+
+	if err := services.CleanBucket(credentials, volName); err != nil {
+		log.Infof("Failed to clean bucket: %s, err: %v", volName, err)
+		return nil, err
+	}
+	if err := services.DeleteBucket(credentials, volName); err != nil {
 		return nil, status.Errorf(codes.Internal, "Error deleting volume: %s", err)
 	}
 	log.Infof("Successfully deleted volume %s", volName)
@@ -309,16 +301,4 @@ func buildCreateVolumeResponse(vol *services.Bucket) *csi.CreateVolumeResponse {
 		},
 	}
 	return response
-}
-
-func isCreatedByCSI(tags []obs.Tag) bool {
-	if len(tags) == 0 {
-		return false
-	}
-	for _, tag := range tags {
-		if tag.Key == "csi" {
-			return true
-		}
-	}
-	return false
 }
