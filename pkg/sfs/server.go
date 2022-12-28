@@ -21,12 +21,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
-
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc"
 	"k8s.io/klog"
 
-	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
 
 // NonBlockingGRPCServer defines Non blocking GRPC server interfaces
@@ -52,9 +51,7 @@ type nonBlockingGRPCServer struct {
 }
 
 func (s *nonBlockingGRPCServer) Start(endpoint string, ids csi.IdentityServer, cs csi.ControllerServer, ns csi.NodeServer) {
-
 	s.wg.Add(1)
-
 	go s.serve(endpoint, ids, cs, ns)
 }
 
@@ -108,5 +105,4 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 
 	//nolint:errcheck
 	server.Serve(listener)
-
 }

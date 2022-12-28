@@ -15,12 +15,11 @@
 # limitations under the License.
 
 set -o errexit
+set -o nounset
 set -o pipefail
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-obs-controller.yaml
-kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-obs-driver.yaml
-kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-obs-node.yaml
-kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/rbac-csi-obs-controller.yaml --ignore-not-found=true
-kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/rbac-csi-obs-node.yaml --ignore-not-found=true
+bash "$REPO_ROOT/hack/verify-gofmt.sh"
+bash "$REPO_ROOT/hack/verify-vendor.sh"
+bash "$REPO_ROOT/hack/verify-staticcheck.sh"

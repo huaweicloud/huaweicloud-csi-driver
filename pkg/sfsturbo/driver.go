@@ -18,17 +18,18 @@ package sfsturbo
 
 import (
 	"fmt"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 	log "k8s.io/klog/v2"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
 const (
@@ -41,7 +42,7 @@ var (
 	specVersion = "1.0.0"
 )
 
-type SfsTurboDriver struct {
+type SfsTurboDriver struct { //nolint: revive
 	name       string
 	version    string
 	endpoint   string

@@ -33,10 +33,10 @@ func ListSnapshots(c *config.CloudCredentials, opts snapshots.ListOpts) (*snapsh
 	return page, nil
 }
 
-func CreateSnapshotCompleted(credentials *config.CloudCredentials, name string, volumeId string) (
+func CreateSnapshotCompleted(credentials *config.CloudCredentials, name string, volumeID string) (
 	*snapshots.Snapshot, error) {
 	opts := &snapshots.CreateOpts{
-		VolumeID: volumeId,
+		VolumeID: volumeID,
 		Name:     name,
 	}
 	log.V(4).Infof("[DEBUG] createSnapshot opts: %v", *opts)
@@ -60,11 +60,11 @@ func CreateSnapshot(c *config.CloudCredentials, opts *snapshots.CreateOpts) (*sn
 	return snapshots.Create(client, opts).Extract()
 }
 
-func WaitSnapshotReady(c *config.CloudCredentials, snapshotId string) error {
+func WaitSnapshotReady(c *config.CloudCredentials, snapshotID string) error {
 	availableStatus := "available"
 	creatingStatus := "creating"
 	err := common.WaitForCompleted(func() (done bool, err error) {
-		snapshot, err := GetSnapshot(c, snapshotId)
+		snapshot, err := GetSnapshot(c, snapshotID)
 		if err != nil {
 			return false, status.Errorf(codes.Internal,
 				"Failed to query snapshot when wait snapshot ready: %v", err)
@@ -81,10 +81,10 @@ func WaitSnapshotReady(c *config.CloudCredentials, snapshotId string) error {
 	return err
 }
 
-func DeleteSnapshot(c *config.CloudCredentials, snapshotId string) error {
+func DeleteSnapshot(c *config.CloudCredentials, snapshotID string) error {
 	client, err := getEvsV2Client(c)
 	if err != nil {
 		return err
 	}
-	return snapshots.Delete(client, snapshotId).ExtractErr()
+	return snapshots.Delete(client, snapshotID).ExtractErr()
 }

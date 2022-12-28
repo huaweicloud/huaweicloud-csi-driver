@@ -16,43 +16,28 @@
 
 set -o errexit
 set -o pipefail
-
-function usage() {
-  echo "This script build image and deploy EVS CSI on the kube cluster."
-  echo "      Usage: hack/pre-run-evs-e2e.sh"
-  echo "    Example: hack/pre-run-evs-e2e.sh"
-  echo
-}
-
-if [[ -z "${HC_REGION}" || -z "${HC_ACCESS_KEY}" || -z "${HC_SECRET_KEY}" ]]; then
-  echo "Error, please configure the HC_REGION, HC_ACCESS_KEY and HC_SECRET_KEY environment variables"
-  usage
-  exit 1
-fi
-
 set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
 export REGISTRY_SERVER=swr.ap-southeast-1.myhuaweicloud.com
-export VERSION=v$(echo $RANDOM)
+export VERSION=v$(echo $RANDOM | sha1sum |cut -c 1-5)
 
 echo -e "\n>> Build EVS CSI plugin image"
 make image-evs-csi-plugin
 
-echo -e "\n>> Deploy EVS CSI Plugin"
 TEMP_PATH=$(mktemp -d)
-echo ${TEMP_PATH}
 
+is_containerd=`command -v containerd`
+echo "is_containerd: ${is_containerd}"
+if [[ -x ${is_containerd} ]]; then
+  docker save -o "${TEMP_PATH}/evs-csi-plugin.tar" ${REGISTRY_SERVER}/k8s-csi/evs-csi-plugin:${VERSION}
+  ctr -n=k8s.io i import ${TEMP_PATH}/evs-csi-plugin.tar
+  rm -rf ${TEMP_PATH}/evs-csi-plugin.tar
+fi
+
+echo -e "\n>> Deploy EVS CSI Plugin"
 cp -rf ${REPO_ROOT}/hack/deploy/evs/ ${TEMP_PATH}
-## create Secret
-sed -i'' -e "s/{{region}}/${HC_REGION}/g" "${TEMP_PATH}"/evs/cloud-config
-sed -i'' -e "s/{{ak}}/${HC_ACCESS_KEY}/g" "${TEMP_PATH}"/evs/cloud-config
-sed -i'' -e "s/{{sk}}/${HC_SECRET_KEY}/g" "${TEMP_PATH}"/evs/cloud-config
-kubectl delete secret -n kube-system cloud-config --ignore-not-found=true
-kubectl create secret -n kube-system generic cloud-config --from-file=${TEMP_PATH}/evs/cloud-config
-rm -rf ${TEMP_PATH}/evs/cloud-config
-
 image_url=${REGISTRY_SERVER}\\/k8s-csi\\/evs-csi-plugin:${VERSION}
 ## deploy plugin
 sed -i'' -e "s/{{image_url}}/'${image_url}'/g" "${TEMP_PATH}"/evs/csi-evs-controller.yaml
@@ -64,5 +49,5 @@ kubectl apply -f ${TEMP_PATH}/evs/csi-evs-driver.yaml
 kubectl apply -f ${TEMP_PATH}/evs/csi-evs-controller.yaml
 kubectl apply -f ${TEMP_PATH}/evs/csi-evs-node.yaml
 
-kubectl rollout status deployment csi-evs-controller -n kube-system --timeout=2m
-kubectl rollout status daemonset csi-evs-plugin -n kube-system --timeout=2m
+kubectl rollout status deployment csi-evs-controller -n kube-system --timeout=3m
+kubectl rollout status daemonset csi-evs-plugin -n kube-system --timeout=3m

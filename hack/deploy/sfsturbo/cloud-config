@@ -1,9 +1,0 @@
-[Global]
-region={{region}}
-access-key={{ak}}
-secret-key={{sk}}
-
-[Vpc]
-id={{vpc_id}}
-subnet-id={{subnet_id}}
-security-group-id={{security_group_id}}

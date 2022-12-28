@@ -20,10 +20,10 @@ set -o nounset
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-kubectl delete -f ${REPO_ROOT}/hack/deploy/sfsturbo/csi-sfsturbo-controller.yaml --context "${CLUSTER_NAME}"
-kubectl delete -f ${REPO_ROOT}/hack/deploy/sfsturbo/csi-sfsturbo-driver.yaml --context "${CLUSTER_NAME}"
-kubectl delete -f ${REPO_ROOT}/hack/deploy/sfsturbo/csi-sfsturbo-node.yaml --context "${CLUSTER_NAME}"
-kubectl delete -f ${REPO_ROOT}/hack/deploy/sfsturbo/rbac-csi-sfsturbo-controller.yaml --context "${CLUSTER_NAME}"
-kubectl delete -f ${REPO_ROOT}/hack/deploy/sfsturbo/rbac-csi-sfsturbo-node.yaml --context "${CLUSTER_NAME}"
-kubectl delete -f ${REPO_ROOT}/hack/deploy/sfsturbo/rbac-csi-sfsturbo-secret.yaml --context "${CLUSTER_NAME}"
-kubectl delete secret -n kube-system cloud-config --ignore-not-found=true --context "${CLUSTER_NAME}"
+# delete sfsturbo objects
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-sfsturbo-controller.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-sfsturbo-driver.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-sfsturbo-node.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/rbac-csi-sfsturbo-controller.yaml --ignore-not-found=true
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/rbac-csi-sfsturbo-node.yaml --ignore-not-found=true
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/rbac-csi-sfsturbo-secret.yaml --ignore-not-found=true

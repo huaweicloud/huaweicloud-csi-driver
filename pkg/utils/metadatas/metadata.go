@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"k8s.io/klog/v2"
-
 	"k8s.io/utils/exec"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
@@ -111,7 +110,6 @@ type IMetadata interface {
 
 // GetMetadataProvider retrieves instance of IMetadata
 func GetMetadataProvider(order string) IMetadata {
-
 	if MetadataService == nil {
 		MetadataService = &metadataService{searchOrder: order}
 	}
@@ -202,7 +200,7 @@ func getFromMetadataService(metadataVersion string) (*Metadata, error) {
 	// Try to get JSON from metadata server.
 	metadataURL := getMetadataURL(metadataVersion)
 	klog.Infof("Attempting to fetch metadata from %s", metadataURL)
-	resp, err := http.Get(metadataURL)
+	resp, err := http.Get(metadataURL) //nolint: gosec
 	if err != nil {
 		return nil, fmt.Errorf("error fetching %s: %v", metadataURL, err)
 	}
