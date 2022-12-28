@@ -70,7 +70,7 @@ type Mount struct {
 
 var _ IMount = &Mount{}
 
-var MInstance IMount = nil
+var MInstance IMount
 
 func getBaseMounter() *mount.SafeFormatAndMount {
 	nMounter := mount.New("")
@@ -102,7 +102,7 @@ func probeVolume() error {
 		for _, f := range dirs {
 			name := scsiPath + f.Name() + "/scan"
 			data := []byte("- - -")
-			ioutil.WriteFile(name, data, 0666) //nolint:errcheck
+			ioutil.WriteFile(name, data, 0666) //nolint:errcheck, gosec
 		}
 	}
 

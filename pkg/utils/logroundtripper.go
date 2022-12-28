@@ -28,7 +28,6 @@ import (
 	"sync/atomic"
 
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
-	"github.com/unknwon/com"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
@@ -168,7 +167,7 @@ func RedactHeaders(headers http.Header) (processedHeaders []string) {
 
 	for name, header := range headers {
 		for _, v := range header {
-			if com.IsSliceContainsStr(redactheaders, name) {
+			if isSliceContainsStr(redactheaders, name) {
 				processedHeaders = append(processedHeaders, fmt.Sprintf("%v: %v", name, "***"))
 			} else {
 				processedHeaders = append(processedHeaders, fmt.Sprintf("%v: %v", name, v))
@@ -178,17 +177,25 @@ func RedactHeaders(headers http.Header) (processedHeaders []string) {
 	return
 }
 
+func isSliceContainsStr(sl []string, str string) bool {
+	str = strings.ToLower(str)
+	for _, s := range sl {
+		if strings.ToLower(s) == str {
+			return true
+		}
+	}
+	return false
+}
+
 // FormatHeaders processes a headers object plus a deliminator, returning a string
-func FormatHeaders(headers http.Header, seperator string) string {
+func FormatHeaders(headers http.Header, separator string) string {
 	redactedHeaders := RedactHeaders(headers)
 	sort.Strings(redactedHeaders)
 
-	return strings.Join(redactedHeaders, seperator)
+	return strings.Join(redactedHeaders, separator)
 }
 
-func LogGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{},
-	error) {
-
+func LogGRPC(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	callID := atomic.AddUint64(&serverGRPCEndpointCallCounter, 1)
 
 	klog.V(5).Infof("[ID:%d] GRPC call: %s", callID, info.FullMethod)

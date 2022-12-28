@@ -20,19 +20,20 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
-	"k8s.io/component-base/logs"
 	"net"
 	"net/http"
 	"os"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
 var (

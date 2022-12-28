@@ -18,11 +18,36 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+function usage() {
+  echo "This script run E2E tests by ginkgo."
+  echo "      Usage: hack/post-run-e2e.sh <MODULE_NAME>"
+  echo "    Example: hack/post-run-e2e.sh SFS"
+  echo
+}
+
+e2e_label=${1:-""}
+if [[ -z "${e2e_label}" ]]; then
+  usage
+  exit 1
+fi
+
 echo "Run post E2E"
 # delete sfs objects
-kubectl delete serviceaccount csi-sfs-controller-sa csi-sfs-node-sa -n kube-system
-kubectl delete clusterrole sfs-external-provisioner-role sfs-external-attacher-role csi-sfs-secret-role
-kubectl delete clusterrolebinding sfs-csi-provisioner-binding sfs-csi-attacher-binding csi-sfs-secret-binding
-kubectl delete csidriver sfs.csi.huaweicloud.com
-kubectl delete deployment csi-sfs-controller -n kube-system
-kubectl delete daemonset csi-sfs-node -n kube-system
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+
+kubectl delete secret -n kube-system cloud-config --ignore-not-found=true
+
+if [[ $e2e_label =~ "SFS_TURBO" ]]; then
+  echo "run pre-run-sfsturbo-e2e"
+  ${REPO_ROOT}/hack/post-run-sfsturbo-e2e.sh
+fi
+
+if [[ $e2e_label =~ "EVS" ]]; then
+  echo "pre-run-evs-e2e"
+  ${REPO_ROOT}/hack/post-run-evs-e2e.sh
+fi
+
+if [[ $e2e_label =~ "OBS" ]]; then
+  echo "pre-run-obs-e2e"
+  ${REPO_ROOT}/hack/post-run-obs-e2e.sh
+fi

@@ -18,12 +18,14 @@ package services
 
 import (
 	"fmt"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"net/http"
+
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"net/http"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
 type Bucket struct {

@@ -18,14 +18,15 @@ package obs
 
 import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	log "k8s.io/klog/v2"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
 )
 
 type controllerServer struct {
@@ -94,6 +95,10 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 		return nil, err
 	}
 	if err := services.DeleteBucket(credentials, volName); err != nil {
+		if status.Code(err) == codes.NotFound {
+			log.Infof("Volume %s does not exist, skip deleting", volName)
+			return &csi.DeleteVolumeResponse{}, nil
+		}
 		return nil, status.Errorf(codes.Internal, "Error deleting volume: %s", err)
 	}
 	log.Infof("Successfully deleted volume %s", volName)

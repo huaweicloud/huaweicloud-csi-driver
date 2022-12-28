@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"golang.org/x/sys/unix"
-
 	"k8s.io/klog/v2"
 )
 
@@ -108,7 +107,7 @@ func RescanBlockDeviceGeometry(devicePath string, deviceMountPath string, newSiz
 
 	klog.Infof("Resolved block device path from %q to %q", devicePath, blockDeviceRescanPath)
 	klog.Infof("Rescanning %q block device geometry", devicePath)
-	err = ioutil.WriteFile(blockDeviceRescanPath, []byte{'1'}, 0666)
+	err = ioutil.WriteFile(blockDeviceRescanPath, []byte{'1'}, 0666) //nolint: gosec
 	if err != nil {
 		klog.Errorf("Error rescanning new block device geometry: %v", err)
 		// no need to run checkBlockDeviceSize second time here, return the saved error

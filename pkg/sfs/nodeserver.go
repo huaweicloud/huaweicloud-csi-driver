@@ -20,18 +20,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
-	log "k8s.io/klog/v2"
-	utilpath "k8s.io/utils/path"
-
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
-
 	"github.com/chnsz/golangsdk"
 	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog"
+	log "k8s.io/klog/v2"
+	utilpath "k8s.io/utils/path"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 )
 
 type nodeServer struct {
@@ -47,6 +46,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
+//nolint: gocyclo
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(2).Infof("NodePublishVolume called with request %v", *req)
 	if req.GetVolumeCapability() == nil {
@@ -188,7 +188,6 @@ func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolu
 			},
 		},
 	}, nil
-
 }
 
 func nodeGetStatsValidation(volumeID, volumePath string) error {

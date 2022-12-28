@@ -1,0 +1,66 @@
+run:
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  timeout: 5m
+  # default is true. Enables skipping of directories:
+  #   vendor$, third_party$, testdata$, examples$, Godeps$, builtin$
+  skip-dirs-use-default: true
+
+  # One of 'readonly' and 'vendor'.
+  #  - readonly: the go command is disallowed from the implicit automatic updating of go.mod described above.
+  #              Instead, it fails when any changes to go.mod are needed. This setting is most useful to check
+  #              that go.mod does not need updates, such as in a continuous integration and testing system.
+  #  - vendor: the go command assumes that the vendor directory holds the correct copies of dependencies and ignores
+  #            the dependency descriptions in go.mod.
+  modules-download-mode: readonly
+
+linters-settings:
+  gocyclo:
+    # Minimal code complexity to report.
+    # Default: 30 (but we recommend 10-20)
+    min-complexity: 15
+  nestif:
+    # Minimal complexity of if statements to report.
+    # Default: 5
+    min-complexity: 5
+  gosec:
+    # To select a subset of rules to run.
+    # Available rules: https://github.com/securego/gosec#available-rules
+    # Default: [] - means include all rules
+    severity: medium
+    confidence: medium
+  goimports:
+    local-prefixes: github.com/huaweicloud/huaweicloud-csi-driver
+  gci:
+    sections:
+      - Standard
+      - Default
+      - Prefix(github.com/huaweicloud/huaweicloud-csi-driver)
+  misspell:
+    locale: US
+
+linters:
+  disable-all: true
+  # https://golangci-lint.run/usage/linters/#enabled-by-default
+  enable:
+    # linters maintained by golang.org
+    - gofmt
+    - goimports
+    - govet
+    # linters default enabled by golangci-lint .
+    - errcheck
+    - gosimple
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    # other linters supported by golangci-lint.
+    - gci
+    - gocyclo
+    - gosec
+    - misspell
+    - whitespace
+    - revive
+issues:
+  include:
+
+  exclude-rules:

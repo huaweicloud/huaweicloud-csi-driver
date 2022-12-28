@@ -53,12 +53,3 @@ func BytesToGB(size interface{}) int64 {
 func init() {
 	rand.Seed(time.Now().UTC().UnixNano())
 }
-
-func RandomString(len int) string {
-	bytes := make([]byte, len)
-	for i := 0; i < len; i++ {
-		b := rand.Intn(26) + 97
-		bytes[i] = byte(b)
-	}
-	return string(bytes)
-}

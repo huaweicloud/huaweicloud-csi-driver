@@ -22,7 +22,6 @@ import (
 	"os"
 
 	"github.com/golang/glog"
-
 	"gopkg.in/gcfg.v1"
 )
 

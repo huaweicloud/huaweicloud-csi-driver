@@ -82,11 +82,11 @@ test: work
 	go test --race --v ./pkg/...
 	go test --race --v ./cmd/...
 
-lint:
-	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run ./...
+verify:
+	hack/verify.sh
 
-fmtcheck:
-	hack/check-format.sh
+lint:
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0 run --config ./ ./...
 
 fmt:
 	hack/update-gofmt.sh

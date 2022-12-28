@@ -18,22 +18,24 @@ package obs
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"path"
+	"path/filepath"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/google/uuid"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	log "k8s.io/klog/v2"
 	utilpath "k8s.io/utils/path"
-	"net/http"
-	"os"
-	"path"
-	"path/filepath"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs/services"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 )
 
 type nodeServer struct {

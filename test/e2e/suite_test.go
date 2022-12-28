@@ -65,7 +65,7 @@ func init() {
 	// usage ginkgo -- --poll-interval=5s --pollTimeout=5m
 	// eg. ginkgo -v --race --trace --fail-fast -p --randomize-all ./test/e2e/ -- --poll-interval=5s --pollTimeout=5m
 	flag.DurationVar(&pollInterval, "poll-interval", 5*time.Second, "poll-interval defines the interval time for a poll operation")
-	flag.DurationVar(&pollTimeout, "poll-timeout", 300*time.Second, "poll-timeout defines the time which the poll operation times out")
+	flag.DurationVar(&pollTimeout, "poll-timeout", 10*time.Minute, "poll-timeout defines the time which the poll operation times out")
 }
 
 func TestE2E(t *testing.T) {

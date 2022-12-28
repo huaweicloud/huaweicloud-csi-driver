@@ -14,14 +14,13 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/test/e2e/helper"
 )
 
-var _ = ginkgo.Describe("SFS Turbo CSI STANDARD testing", func() {
+var _ = ginkgo.Describe("SFS Turbo CSI STANDARD testing", ginkgo.Label("SFS_TURBO"), func() {
 	sfsTurboTest("STANDARD")
 })
 
-//
-//var _ = ginkgo.Describe("SFS Turbo CSI PERFORMANCE testing", func() {
-//	sfsTurboTest("PERFORMANCE")
-//})
+var _ = ginkgo.Describe("SFS Turbo CSI PERFORMANCE testing", ginkgo.Label("SFS_TURBO"), func() {
+	sfsTurboTest("PERFORMANCE")
+})
 
 func sfsTurboTest(shareType string) {
 	var sc *storageV1.StorageClass

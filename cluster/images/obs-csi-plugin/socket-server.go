@@ -3,15 +3,17 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs"
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/golang/glog"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
 
 const (

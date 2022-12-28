@@ -28,7 +28,7 @@ func DoRequest(url string) (int, error) {
 	}
 
 	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
 	}
 	httpClient := &http.Client{Transport: transport}
 	resp, err := httpClient.Do(res)

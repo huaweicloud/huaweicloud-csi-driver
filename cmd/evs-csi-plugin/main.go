@@ -21,11 +21,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
 	"k8s.io/component-base/logs"
 	"k8s.io/klog/v2"
 
@@ -33,6 +30,7 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/evs"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
 var (
@@ -49,7 +47,6 @@ func init() {
 
 //nolint:errcheck
 func main() {
-
 	flag.CommandLine.Parse([]string{})
 
 	cmd := &cobra.Command{

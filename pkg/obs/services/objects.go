@@ -17,11 +17,13 @@ limitations under the License.
 package services
 
 import (
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
+	"net/http"
+
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"net/http"
+
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
 func ListObjects(c *config.CloudCredentials, bucketName string, maxKeys int) (*obs.ListObjectsOutput, error) {
