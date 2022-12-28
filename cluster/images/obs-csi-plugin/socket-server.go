@@ -142,8 +142,13 @@ func checkFileExists(filename string) bool {
 
 func mountHandler(parameters map[string]string) error {
 	defer deleteCredential(parameters[credential])
-	mntCmd := fmt.Sprintf("obsfs %s %s -o url=obs.%s.%s -o passwd_file=%s %s",
-		parameters[bucketName], parameters[targetPath],
+	obsName := "obs"
+	if parameters[cloud] == "prod-cloud-ocb.orange-business.com" {
+		obsName = "oss"
+	}
+
+	mntCmd := fmt.Sprintf("obsfs %s %s -o url=%s.%s.%s -o passwd_file=%s %s",
+		parameters[bucketName], parameters[targetPath], obsName,
 		parameters[region], parameters[cloud], parameters[credential], defaultOpts)
 
 	if _, err := run(mntCmd); err != nil {
