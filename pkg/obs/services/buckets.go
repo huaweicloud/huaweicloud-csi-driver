@@ -282,7 +282,12 @@ func getObsClient(c *config.CloudCredentials) (*obs.ObsClient, error) {
 
 	userAgentConfigure := obs.WithUserAgent(config.UserAgent)
 
-	endpoint := fmt.Sprintf("obs.%s.%s", c.Global.Region, c.Global.Cloud)
+	obsName := "obs"
+	if c.Global.Cloud == "prod-cloud-ocb.orange-business.com" {
+		obsName = "oss"
+	}
+	endpoint := fmt.Sprintf("%s.%s.%s", obsName, c.Global.Region, c.Global.Cloud)
+
 	client, err := obs.New(c.Global.AccessKey, c.Global.SecretKey, endpoint, httpClientConfigure, userAgentConfigure)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Error initializing OBS client: %v", err)
