@@ -9,28 +9,18 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - name: install Go
+      - name: Install Go
         uses: actions/setup-go@v3
         with:
           go-version: 1.18.x
-      - uses: actions/checkout@v3
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
-          only-new-issues: false
-  fmtcheck:
-    name: check format
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout code
+      - name: Checkout code
         uses: actions/checkout@v3
-      - name: install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.18.x
-      - name: make fmtcheck
-        run: make fmtcheck
+      - name: Check vendors
+        run: hack/verify-vendor.sh
+      - name: Check gofmt
+        run: hack/verify-gofmt.sh
+      - name: Check static code
+        run: hack/verify-staticcheck.sh
   build:
     name: compile
     runs-on: ubuntu-latest
@@ -58,36 +48,3 @@ jobs:
           go-version: 1.18.x
       - name: make test
         run: make test
-  e2e:
-    if: ${{ github.repository == 'huaweicloud/huaweicloud-csi-driver' }}
-    name: e2e test
-    needs: build
-    runs-on: self-hosted
-    strategy:
-      max-parallel: 1
-      matrix:
-        k8s: [ v1.20.16, v1.21.14, v1.22.15, v1.23.13, v1.24.7, v1.25.3 ]
-    steps:
-      - name: checkout code
-        uses: actions/checkout@v3
-        with:
-          # Number of commits to fetch. 0 indicates all history for all branches and tags.
-          # We need to guess version via git tags.
-          fetch-depth: 0
-      - name: install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.18.x
-      - name: setup e2e test environment
-        run: |
-          export CLUSTER_VERSION=kindest/node:${{ matrix.k8s }}
-      - name: run e2e
-        run: |
-          export ARTIFACTS_PATH=${{ github.workspace }}/e2e-logs/${{ matrix.k8s }}
-          sh hack/run-e2e-test.sh
-      - name: upload logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: e2e_log_${{ matrix.k8s }}
-          path: ${{ github.workspace }}/e2e-logs/${{ matrix.k8s }}/
