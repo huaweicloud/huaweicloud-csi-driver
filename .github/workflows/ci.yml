@@ -4,13 +4,6 @@ on:
   # Run workflow on fork repository will help contributors find and resolve issues before sending a PR.
   push:
   pull_request:
-  workflow_call:
-    # Map the workflow outputs to job outputs
-    outputs:
-      skip_e2e:
-        value: ${{ jobs.before_run_e2e.outputs.skip_e2e }}
-      labels:
-        value: ${{ jobs.before_run_e2e.outputs.labels }}
 jobs:
   golangci:
     name: lint
@@ -55,57 +48,3 @@ jobs:
           go-version: 1.18.x
       - name: make test
         run: make test
-  before_run_e2e:
-    name: brefoe run e2e
-    runs-on: ubuntu-latest
-    # Map the job outputs to step outputs
-    outputs:
-      skip_e2e: ${{ steps.check_module.outputs.skip_e2e }}
-      labels: ${{ steps.check_module.outputs.labels }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Check module
-        id: check_module
-        shell: bash
-        run:
-          ./hack/check-module.sh ${{ github.event.pull_request.head.sha}}
-  e2e:
-    if: ${{ github.repository == 'huaweicloud/huaweicloud-csi-driver' && needs.before_run_e2e.outputs.skip_e2e == 'false' }}
-    name: e2e test
-    needs: [build, before_run_e2e]
-    runs-on: self-hosted
-    strategy:
-      max-parallel: 3
-      matrix:
-        k8s: [ 1.20.15, 1.21.13, 1.22.15, 1.23.13, 1.24.7, 1.25.3  ]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          # Number of commits to fetch. 0 indicates all history for all branches and tags.
-          # We need to guess version via git tags.
-          fetch-depth: 0
-      - name: Install Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.18.x
-      - name: Install k8s cluster
-        run: |
-          export CLUSTER_VERSION=${{ matrix.k8s }}
-          ./hack/remove-cluster.sh
-          ./hack/create-cluster.sh ${{ matrix.k8s }}
-      - name: Run e2e
-        run: |
-          export ARTIFACTS_PATH=${{ github.workspace }}/e2e-logs/${{ matrix.k8s }}
-          ./hack/run-e2e-test.sh "${{ needs.before_run_e2e.outputs.labels }}"
-      - name: Remove k8s cluster
-        run: ./hack/remove-cluster.sh
-      - name: Upload logs
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: e2e_log_${{ matrix.k8s }}
-          path: ${{ github.workspace }}/e2e-logs/${{ matrix.k8s }}/
