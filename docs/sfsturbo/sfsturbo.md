@@ -28,22 +28,20 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ### Steps
 
+- Create IAM policy
+
+See [IAM Policies for SFS Turbo CSI](../user-policy.md#iam-policies-for-sfs-turbo-csi) for IAM policies.
+
 - Create the config file
 
-The driver initialization depends on a [cloud config file](../../deploy/sfsturbo-csi-plugin/cloud-config).
-Make sure it's in `/etc/sfsturbo/cloud-config` on your master.
+Create the `cloud-config` file according to [cloud-config](../../deploy/sfsturbo-csi-plugin/cloud-config) in master node or control-plane,
+see [Description of cloud config](../cloud-config.md) for configurations description.
 
-Click to view the detailed description of the file: [cloud-config](../cloud-config.md).
+Use the following command create `cloud-config` secret:
 
-- Create secret resource
-
-```
+```shell
 kubectl create secret -n kube-system generic cloud-config --from-file=/etc/sfsturbo/cloud-config
 ```
-
-This should create a secret name `cloud-config` in `kube-system` namespace.
-
-Once the secret is created, Controller Plugin and Node Plugin can be deployed using respective manifests.
 
 - Create RBAC resources
 

@@ -28,22 +28,20 @@ https://kubernetes-csi.github.io/docs/sidecar-containers.html.
 
 ### Steps
 
+- Create IAM policy
+
+See [IAM Policies for OBS CSI](../user-policy.md#iam-policies-for-obs-csi) for IAM policies.
+
 - Create the config file
 
-Create the `cloud-config` file according to [cloud config file](../../deploy/obs-csi-plugin/cloud-config) 
-in the master node.
+Create the `cloud-config` file according to [cloud-config](../../deploy/obs-csi-plugin/cloud-config) in master node or control-plane,
+see [Description of cloud config](../cloud-config.md) for configurations description.
 
-See [cloud-config](../cloud-config.md) for configurations description.
+Use the following command create `cloud-config` secret:
 
-- Create secret resource
-
-```
+```shell
 kubectl create secret -n kube-system generic cloud-config --from-file=/etc/obs/cloud-config
 ```
-
-This will create `cloud-config` secret in `kube-system` namespace.
-
-Once the secret is created, Controller Plugin and Node Plugin can be deployed using respective manifests.
 
 - Create RBAC resources
 
