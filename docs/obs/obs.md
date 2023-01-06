@@ -33,7 +33,7 @@ https://kubernetes-csi.github.io/docs/sidecar-containers.html.
 Create the `cloud-config` file according to [cloud-config](../../deploy/obs-csi-plugin/cloud-config) in master node or control-plane,
 see [Description of cloud config](../cloud-config.md) for configurations description.
 
-See [IAM Policies for OBS CSI](../user-policy.md#iam-policies-for-obs-csi) for IAM policies.
+See [IAM Policies for OBS CSI](../iam-policies.md#iam-policies-for-obs-csi) for IAM policies.
 
 Use the following command create `cloud-config` secret:
 
