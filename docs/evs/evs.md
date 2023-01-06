@@ -40,14 +40,12 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ### Steps
 
-- Create IAM policy
-
-See [IAM Policies for EVS CSI](../user-policy.md#iam-policies-for-evs-csi) for IAM policies.
-
 - Create the config file
 
 Create the `cloud-config` file according to [cloud-config](../../deploy/evs-csi-plugin/cloud-config) in master node or control-plane,
 see [Description of cloud config](../cloud-config.md) for configurations description.
+
+See [IAM Policies for EVS CSI](../user-policy.md#iam-policies-for-evs-csi) for IAM policies.
 
 Use the following command create `cloud-config` secret:
 
