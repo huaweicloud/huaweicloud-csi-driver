@@ -1,4 +1,4 @@
-# Configuring IAM Policies for Huawei Cloud CSI Driver
+# IAM Policies for Huawei Cloud CSI Driver
 
 - The IAM policies required by Huawei Cloud CSI Drivers.
 
@@ -91,7 +91,6 @@
     ]
 }
 ```
-
 
 ## IAM Policies for OBS CSI
 
