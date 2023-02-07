@@ -38,6 +38,7 @@ func CreateSnapshotCompleted(credentials *config.CloudCredentials, name string, 
 	opts := &snapshots.CreateOpts{
 		VolumeID: volumeID,
 		Name:     name,
+		Force:    true,
 	}
 	log.V(4).Infof("[DEBUG] createSnapshot opts: %v", *opts)
 	snap, err := CreateSnapshot(credentials, opts)
