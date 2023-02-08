@@ -20,12 +20,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
+          ref: "refs/pull/${{ github.event.number }}/merge"
           fetch-depth: 0
       - name: Check module
         id: check_module
         shell: bash
         run:
-          ./hack/check-module.sh "origin/${{ github.base_ref }}"
+          ./hack/check-module.sh "origin/${{ github.base_ref }}" "origin/${{ github.head_ref }}"
   e2e:
     if: ${{ github.repository == 'huaweicloud/huaweicloud-csi-driver' && needs.before_run_e2e.outputs.skip_e2e == 'false' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
     name: e2e test
