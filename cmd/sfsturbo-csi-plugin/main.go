@@ -19,16 +19,17 @@ package main
 import (
 	"flag"
 	"fmt"
-	"k8s.io/component-base/logs"
 	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"k8s.io/component-base/logs"
+	"k8s.io/klog/v2"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfsturbo"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/metadatas"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -67,7 +68,7 @@ func main() {
 				klog.V(3).Infof("Failed to load cloud config: %v", err)
 			}
 
-			// Make this configurable when ther are more options.
+			// Make this configurable when there are more options.
 			defaultShareProto := "NFS"
 			klog.V(3).Infof("run sfs turbo csi driver")
 			d := sfsturbo.NewDriver(endpoint, defaultShareProto, cloud)

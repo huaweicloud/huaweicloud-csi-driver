@@ -21,14 +21,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/sfs/config"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils/mounts"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/version"
 )
 
@@ -69,7 +68,7 @@ func main() {
 				klog.V(3).Infof("Failed to load cloud config: %v", err)
 			}
 
-			// Make this configurable when ther are more options.
+			// Make this configurable when there are more options.
 			defaultShareProto := "NFS"
 			d := sfs.NewDriver(nodeID, endpoint, defaultShareProto, *cloud)
 			mount := mounts.GetMountProvider()

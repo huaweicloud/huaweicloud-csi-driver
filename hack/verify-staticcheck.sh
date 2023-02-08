@@ -18,8 +18,17 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+GO111MODULE=on go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.49.0
+GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
+export PATH=$PATH:$GOPATH/bin
+
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-bash "$REPO_ROOT/hack/verify-gofmt.sh"
-bash "$REPO_ROOT/hack/verify-vendor.sh"
-bash "$REPO_ROOT/hack/verify-staticcheck.sh"
+if golangci-lint run --config ${REPO_ROOT}/.golangci.yml ${REPO_ROOT}/...; then
+  echo 'Congratulations!  All Go source files have passed staticcheck.'
+else
+  echo # print one empty line, separate from warning messages.
+  echo 'Please review the above warnings.'
+  echo 'If the above warnings do not make sense, feel free to file an issue.'
+  exit 1
+fi

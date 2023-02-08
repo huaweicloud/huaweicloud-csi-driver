@@ -17,23 +17,10 @@
 set -o errexit
 set -o pipefail
 
-#export REGISTRY_SERVER=swr.ap-southeast-1.myhuaweicloud.com
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-echo -e "\n>> Deploy OBS CSI Plugin"
-TEMP_PATH=$(mktemp -d)
-echo ${TEMP_PATH}
-
-cp -rf ${REPO_ROOT}/hack/deploy/obs/ ${TEMP_PATH}
-## deploy plugin
-image_url=${REGISTRY_SERVER}\\/k8s-csi\\/obs-csi-plugin:${VERSION}
-sed -i'' -e "s/{{image_url}}/'${image_url}'/g" "${TEMP_PATH}"/obs/csi-obs-controller.yaml
-sed -i'' -e "s/{{image_url}}/'${image_url}'/g" "${TEMP_PATH}"/obs/csi-obs-node.yaml
-
-kubectl delete -f ${TEMP_PATH}/obs/csi-obs-controller.yaml
-kubectl delete -f ${TEMP_PATH}/obs/csi-obs-driver.yaml
-kubectl delete -f ${TEMP_PATH}/obs/csi-obs-node.yaml
-kubectl delete -f ${TEMP_PATH}/obs/rbac-csi-obs-controller.yaml
-kubectl delete -f ${TEMP_PATH}/obs/rbac-csi-obs-node.yaml
-kubectl delete secret -n kube-system cloud-config --ignore-not-found=true
-
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-obs-controller.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-obs-driver.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/csi-obs-node.yaml
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/rbac-csi-obs-controller.yaml --ignore-not-found=true
+kubectl delete -f ${REPO_ROOT}/deploy/sfsturbo-csi-plugin/kubernetes/rbac-csi-obs-node.yaml --ignore-not-found=true

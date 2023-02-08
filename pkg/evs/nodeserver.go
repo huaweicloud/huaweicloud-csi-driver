@@ -119,9 +119,9 @@ func getDevicePath(cc *config.CloudCredentials, volumeID string, mount mounts.IM
 		dpMsg = fmt.Sprintf("WWN: %s", volume.WWN)
 	}
 
-	devicePath := getDevicePathById(mount, volumeID)
+	devicePath := getDevicePathByID(mount, volumeID)
 	if devicePath == "" {
-		devicePath = getDevicePathById(mount, volume.WWN)
+		devicePath = getDevicePathByID(mount, volume.WWN)
 	}
 
 	if len(strings.TrimSpace(devicePath)) == 0 {
@@ -130,7 +130,7 @@ func getDevicePath(cc *config.CloudCredentials, volumeID string, mount mounts.IM
 	return devicePath, nil
 }
 
-func getDevicePathById(mount mounts.IMount, id string) string {
+func getDevicePathByID(mount mounts.IMount, id string) string {
 	devicePath, _ := mount.GetDevicePath(id)
 	if devicePath == "" {
 		// try to get from metadata service
@@ -159,8 +159,7 @@ func nodeStageValidation(cc *config.CloudCredentials, volumeID, target string, v
 	return vol, nil
 }
 
-func (ns *nodeServer) NodeUnstageVolume(_ context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.
-	NodeUnstageVolumeResponse, error) {
+func (ns *nodeServer) NodeUnstageVolume(_ context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
 	log.Infof("NodeUnstageVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	volumeID := req.GetVolumeId()
@@ -194,8 +193,7 @@ func unstagetValidation(cc *config.CloudCredentials, volumeID, target string) er
 	return nil
 }
 
-func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishVolumeRequest) (
-	*csi.NodePublishVolumeResponse, error) {
+func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	log.Infof("NodePublishVolume: called with args %v", protosanitizer.StripSecrets(*req))
 
 	cc := ns.Driver.cloudCredentials
@@ -251,8 +249,7 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func nodePublishValidation(cc *config.CloudCredentials, volumeID, sourcePath, targetPath string,
-	vc *csi.VolumeCapability) error {
+func nodePublishValidation(cc *config.CloudCredentials, volumeID, sourcePath, targetPath string, vc *csi.VolumeCapability) error {
 	if len(volumeID) == 0 {
 		return status.Error(codes.InvalidArgument, "Validation failed, volumeID cannot be empty")
 	}
@@ -495,8 +492,8 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	size := 10 // default size is 1GB
 	var err error
 
-	volumeId := req.GetVolumeId()
-	volumeName := fmt.Sprintf("ephemeral-%s", volumeId)
+	volumeID := req.GetVolumeId()
+	volumeName := fmt.Sprintf("ephemeral-%s", volumeID)
 	volumeCapability := req.GetVolumeCapability()
 	volAvailability, err := ns.Metadata.GetAvailabilityZone()
 	if err != nil {
@@ -518,7 +515,7 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	metadata[CreateForVolumeIDKey] = "true"
 	metadata[DssIDKey] = req.VolumeContext[DssIDKey]
 
-	volumeID, err := services.CreateVolumeCompleted(cc, &cloudvolumes.CreateOpts{
+	volumeID, err = services.CreateVolumeCompleted(cc, &cloudvolumes.CreateOpts{
 		Volume: cloudvolumes.VolumeOpts{
 			Name:             volumeName,
 			Size:             size,
@@ -577,7 +574,6 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	}
 
 	return &csi.NodePublishVolumeResponse{}, nil
-
 }
 
 func nodePublishVolumeForBlock(req *csi.NodePublishVolumeRequest, ns *nodeServer, mountOptions []string) (

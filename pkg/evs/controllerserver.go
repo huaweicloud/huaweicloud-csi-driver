@@ -422,24 +422,24 @@ func (cs *ControllerServer) CreateSnapshot(_ context.Context, req *csi.CreateSna
 
 	credentials := cs.Driver.cloudCredentials
 	name := req.GetName()
-	volumeId := req.GetSourceVolumeId()
-	if err := createSnapshotValidation(name, volumeId); err != nil {
+	volumeID := req.GetSourceVolumeId()
+	if err := createSnapshotValidation(name, volumeID); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to check create snapshot param, %v", err)
 	}
 
-	response, err := checkDuplicateSnapshotName(credentials, name, volumeId)
+	response, err := checkDuplicateSnapshotName(credentials, name, volumeID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to check duplicate snapshot name: %v", err)
 	}
 	if response != nil {
-		log.Infof("Snapshot with name: %s | volumeId: %s already exist. detail: %v", name, volumeId, response)
+		log.Infof("Snapshot with name: %s | volumeID: %s already exist. detail: %v", name, volumeID, response)
 		return response, nil
 	}
 
-	if _, err := services.GetVolume(credentials, volumeId); err != nil {
+	if _, err := services.GetVolume(credentials, volumeID); err != nil {
 		return nil, err
 	}
-	snapshot, err := services.CreateSnapshotCompleted(credentials, name, volumeId)
+	snapshot, err := services.CreateSnapshotCompleted(credentials, name, volumeID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create snapshot to completed: %v", err)
 	}
@@ -459,9 +459,9 @@ func buildSnapshotResponse(snap *snapshots.Snapshot) *csi.CreateSnapshotResponse
 	}
 }
 
-func createSnapshotValidation(name string, volumeId string) error {
-	if volumeId == "" {
-		return status.Error(codes.InvalidArgument, "CreateSnapshot volumeId cannot be empty")
+func createSnapshotValidation(name string, volumeID string) error {
+	if volumeID == "" {
+		return status.Error(codes.InvalidArgument, "CreateSnapshot volumeID cannot be empty")
 	}
 	if name == "" {
 		return status.Error(codes.InvalidArgument, "CreateSnapshot name cannot be empty")
@@ -469,7 +469,7 @@ func createSnapshotValidation(name string, volumeId string) error {
 	return nil
 }
 
-func checkDuplicateSnapshotName(credentials *config.CloudCredentials, name string, volumeId string) (
+func checkDuplicateSnapshotName(credentials *config.CloudCredentials, name string, volumeID string) (
 	*csi.CreateSnapshotResponse, error) {
 	listOpts := snapshots.ListOpts{
 		Name: name,
@@ -481,7 +481,7 @@ func checkDuplicateSnapshotName(credentials *config.CloudCredentials, name strin
 	listSnapshots := pageList.Snapshots
 	if len(listSnapshots) == 1 {
 		snap := &listSnapshots[0]
-		if snap.VolumeID != volumeId {
+		if snap.VolumeID != volumeID {
 			return nil, status.Error(codes.AlreadyExists, "CreateSnapshot same name with different volumeId")
 		}
 		return buildSnapshotResponse(snap), nil
@@ -538,7 +538,7 @@ func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapsh
 
 	var responses []*csi.ListSnapshotsResponse_Entry
 	for _, element := range pageList.Snapshots {
-		responses = append(responses, generateListSnapshotsResponseEntry(&element))
+		responses = append(responses, generateListSnapshotsResponseEntry(element))
 	}
 	response := &csi.ListSnapshotsResponse{Entries: responses}
 	currentOffset := opts.Offset + len(responses)
@@ -549,7 +549,7 @@ func (cs *ControllerServer) ListSnapshots(_ context.Context, req *csi.ListSnapsh
 	return response, nil
 }
 
-func generateListSnapshotsResponseEntry(snapshot *snapshots.Snapshot) *csi.ListSnapshotsResponse_Entry {
+func generateListSnapshotsResponseEntry(snapshot snapshots.Snapshot) *csi.ListSnapshotsResponse_Entry {
 	snapshotEntry := csi.Snapshot{
 		SizeBytes:      int64(snapshot.Size * common.GbByteSize),
 		SnapshotId:     snapshot.ID,
@@ -654,7 +654,7 @@ func (cs *ControllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         sizeBytes,
-		NodeExpansionRequired: true,
+		NodeExpansionRequired: false,
 	}, nil
 }
 

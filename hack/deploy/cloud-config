@@ -3,6 +3,9 @@ region={{region}}
 access-key={{ak}}
 secret-key={{sk}}
 
+cloud={{cloud}}
+auth-url={{auth_url}}
+
 [Vpc]
 id={{vpc_id}}
 subnet-id={{subnet_id}}

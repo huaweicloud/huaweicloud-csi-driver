@@ -3,11 +3,12 @@ package obs
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io/ioutil"
 	log "k8s.io/klog/v2"
-	"net/http"
 )
 
 const (
