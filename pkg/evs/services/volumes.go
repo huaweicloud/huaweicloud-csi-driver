@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/chnsz/golangsdk"
+	cinder "github.com/chnsz/golangsdk/openstack/blockstorage/v2/volumes"
 	"github.com/chnsz/golangsdk/openstack/evs/v1/jobs"
 	"github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes"
 	"google.golang.org/grpc/codes"
@@ -33,6 +34,50 @@ func CreateVolumeCompleted(c *config.CloudCredentials, otps *cloudvolumes.Create
 
 	log.V(4).Infof("[DEBUG] The volume creation is submitted successfully and the job is running.")
 	return waitForJobFinished(c, "creation", job.JobID)
+}
+
+func CreateCinderCompleted(c *config.CloudCredentials, opts *cloudvolumes.CreateOpts) (string, error) {
+	client, err := getEvsV2Client(c)
+	if err != nil {
+		return "", err
+	}
+
+	createOpts := cinder.CreateOpts{
+		Name:             opts.Volume.Name,
+		Size:             opts.Volume.Size,
+		VolumeType:       opts.Volume.VolumeType,
+		AvailabilityZone: opts.Volume.AvailabilityZone,
+		SnapshotID:       opts.Volume.SnapshotID,
+		Metadata:         opts.Volume.Metadata,
+	}
+
+	cinderVol, err := cinder.Create(client, createOpts).Extract()
+	if err != nil {
+		return "", fmt.Errorf("error creating EVS volume, error: %s, createOpts: %#v", err, opts)
+	}
+
+	return cinderVol.ID, waitForCinderFinished(c, cinderVol.ID)
+}
+
+func waitForCinderFinished(c *config.CloudCredentials, cinderID string) error {
+	return common.WaitForCompleted(func() (bool, error) {
+		vol, err := GetVolume(c, cinderID)
+		if err != nil {
+			return false, status.Error(codes.Internal,
+				fmt.Sprintf("Error querying cinder detail %s : %s", cinderID, err))
+		}
+
+		if vol.Status == "available" || vol.Status == "in-use" {
+			return true, nil
+		}
+
+		if vol.Status == "error" {
+			return false, status.Error(codes.Internal,
+				fmt.Sprintf("Error waiting for the cinder to be created, id: %s, statue: error", cinderID))
+		}
+
+		return false, nil
+	})
 }
 
 func GetVolume(c *config.CloudCredentials, id string) (*cloudvolumes.Volume, error) {

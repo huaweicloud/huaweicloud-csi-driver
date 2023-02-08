@@ -54,9 +54,8 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 			log.Infof("Get AZ By GetAccessibilityRequirements availability zone: %s", volumeAz)
 		}
 	}
-	volumeType := parameters["type"]
+
 	dssID := parameters["dssId"]
-	scsi := parameters["scsi"]
 
 	// Check if there are any volumes with the same name
 	if vol, err := services.CheckVolumeExists(credentials, volName, sizeGB); err != nil {
@@ -70,6 +69,44 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	if err != nil {
 		return nil, err
 	}
+
+	volumeType := parameters["type"]
+	metadata := cs.parseMetadata(req)
+	createOpts := &cloudvolumes.CreateOpts{
+		Volume: cloudvolumes.VolumeOpts{
+			Name:             volName,
+			Size:             sizeGB,
+			VolumeType:       volumeType,
+			AvailabilityZone: volumeAz,
+			SnapshotID:       snapshotID,
+			Metadata:         metadata,
+		},
+	}
+
+	volumeID := ""
+	if sizeGB < 10 {
+		volumeID, err = services.CreateCinderCompleted(credentials, createOpts)
+	} else {
+		volumeID, err = services.CreateVolumeCompleted(credentials, createOpts)
+	}
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	volume, err := services.GetVolume(credentials, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Successfully created volume %s in Availability Zone: %s of size %d GiB",
+		volume.ID, volume.AvailabilityZone, volume.Size)
+
+	return buildCreateVolumeResponse(volume, dssID), nil
+}
+
+func (cs *ControllerServer) parseMetadata(req *csi.CreateVolumeRequest) map[string]string {
+	parameters := req.GetParameters()
+	dssID := parameters["dssId"]
+	scsi := parameters["scsi"]
 
 	// build the metadata of create option
 	metadata := make(map[string]string)
@@ -86,29 +123,7 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 			metadata[key] = v
 		}
 	}
-
-	volumeID, err := services.CreateVolumeCompleted(credentials, &cloudvolumes.CreateOpts{
-		Volume: cloudvolumes.VolumeOpts{
-			Name:             volName,
-			Size:             sizeGB,
-			VolumeType:       volumeType,
-			AvailabilityZone: volumeAz,
-			SnapshotID:       snapshotID,
-			Metadata:         metadata,
-		},
-	})
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	volume, err := services.GetVolume(credentials, volumeID)
-	if err != nil {
-		return nil, err
-	}
-	log.Infof("Successfully created volume %s in Availability Zone: %s of size %d GiB",
-		volume.ID, volume.AvailabilityZone, volume.Size)
-
-	return buildCreateVolumeResponse(volume, dssID), nil
+	return metadata
 }
 
 func createVolumeValidation(volumeName string, capabilities []*csi.VolumeCapability) error {
