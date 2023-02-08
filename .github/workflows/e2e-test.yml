@@ -20,7 +20,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: "refs/pull/${{ github.event.number }}/merge"
           fetch-depth: 0
       - name: Check module
         id: check_module
