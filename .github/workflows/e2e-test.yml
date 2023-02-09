@@ -26,7 +26,7 @@ jobs:
         id: check_module
         shell: bash
         run:
-          ./hack/check-module.sh "origin/${{ github.base_ref }}" "origin/${{ github.head_ref }}"
+          ./hack/check-module.sh "origin/${{ github.base_ref }}"
   e2e:
     if: ${{ github.repository == 'huaweicloud/huaweicloud-csi-driver' && needs.before_run_e2e.outputs.skip_e2e == 'false' && contains(github.event.pull_request.labels.*.name, 'ok-to-test') }}
     name: e2e test
@@ -51,6 +51,7 @@ jobs:
           ./hack/remove-cluster.sh
           ./hack/create-cluster.sh ${{ matrix.k8s }}
       - name: Run e2e
+        shell: bash {0}
         run: |
           export ARTIFACTS_PATH=${{ github.workspace }}/e2e-logs/${{ matrix.k8s }}
           ./hack/run-e2e-test.sh "${{ needs.before_run_e2e.outputs.labels }}"
