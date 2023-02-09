@@ -218,9 +218,9 @@ const (
 	VolumeAttachError
 )
 
-func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.ControllerPublishVolumeRequest) (
-	*csi.ControllerPublishVolumeResponse, error) {
+func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.ControllerPublishVolumeRequest) (*csi.ControllerPublishVolumeResponse, error) {
 	log.Infof("ControllerPublishVolume: called with args %+v", protosanitizer.StripSecrets(*req))
+
 	credentials := cs.Driver.cloudCredentials
 	instanceID := req.GetNodeId()
 	volumeID := req.GetVolumeId()
