@@ -29,7 +29,7 @@ func CreateVolumeCompleted(c *config.CloudCredentials, otps *cloudvolumes.Create
 
 	job, err := cloudvolumes.Create(client, *otps).Extract()
 	if err != nil {
-		return "", fmt.Errorf("Error creating EVS volume, error: %s, createOpts: %#v", err, otps)
+		return "", fmt.Errorf("error creating EVS volume, error: %s, createOpts: %#v", err, otps)
 	}
 
 	log.V(4).Infof("[DEBUG] The volume creation is submitted successfully and the job is running.")
@@ -137,7 +137,7 @@ func ExpandVolume(c *config.CloudCredentials, id string, newSize int) error {
 	job, err := cloudvolumes.ExtendSize(client, id, opt).Extract()
 	if err != nil {
 		return status.Error(codes.Internal,
-			fmt.Sprintf("Error expanding volume, volume: %s, newSize: %v", id, newSize))
+			fmt.Sprintf("Error expanding, volume: %s, newSize: %v, error: %s", id, newSize, err))
 	}
 	log.V(4).Infof("[DEBUG] The volume expanding is submitted successfully and the job is running.")
 
