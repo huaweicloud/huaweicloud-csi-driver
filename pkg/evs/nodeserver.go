@@ -523,6 +523,9 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 			AvailabilityZone: volAvailability,
 			Metadata:         metadata,
 		},
+		Scheduler: &cloudvolumes.SchedulerOpts{
+			StorageID: req.VolumeContext[DssIDKey],
+		},
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create ephemeral volume %v", err)
