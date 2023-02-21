@@ -1,0 +1,43 @@
+name: Release Image
+on:
+  release:
+    types:
+      - published
+jobs:
+  release-image:
+    name: Release Image
+    if: ${{ github.repository == 'huaweicloud/huaweicloud-csi-driver' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.x
+      - name: Build and release image
+        env:
+          REGISTRY_USERNAME: ${{secrets.SWR_REGISTRY_REGISTRY_USERNAME}}
+          REGISTRY_PASSWORD: ${{secrets.SWR_REGISTRY_PASSWORD}}
+        run: |
+          module=""
+          if echo "${{ github.ref_name }}" | grep -q "evs-"; then
+            module="evs-csi-plugin"
+          elif echo "${{ github.ref_name }}" | grep -q "sfs-"; then
+            module="sfs-csi-plugin"
+          elif echo "${{ github.ref_name }}" | grep -q "sfsturbo-"; then
+            module="sfsturbo-csi-plugin"
+          elif echo "${{ github.ref_name }}" | grep -q "obs-"; then
+            module="obs-csi-plugin"
+          else
+            echo "not any tags matched" 
+            exit 1
+          fi
+          version=$(echo "${{ github.ref_name }}" | sed 's/evs-/v/'| sed 's/sfs-/v/'| sed 's/sfsturbo-/v/'| sed 's/obs-/v/')
+          echo ${module} - ${version}
+          
+          export VERSION=${version}
+          make "image-${module}"
+          make "push-image-${module}"
