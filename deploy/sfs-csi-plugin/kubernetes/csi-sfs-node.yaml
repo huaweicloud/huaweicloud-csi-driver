@@ -51,7 +51,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: sfs
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/sfs-csi-plugin:v0.1.0
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/sfs-csi-plugin:v0.1.1
           args:
             - "--v=5"
             - "--logtostderr"
