@@ -47,7 +47,7 @@ spec:
         - name: evs-csi-plugin
           securityContext:
             privileged: true
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.1.3
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.1.4
           args:
             - /bin/evs-csi-plugin
             - "--v=5"

@@ -12,7 +12,7 @@ https://kubernetes-csi.github.io/docs/sidecar-containers.html.
 
 | OBS CSI Driver Version | CSI version | Kubernetes Version Tested | Features        |
 |------------------------|-------------|---------------------------|-----------------|
-| v0.1.0                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | buckets resizer |
+| v0.1.1                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | buckets resizer |
 
 ## Supported Parameters
 
