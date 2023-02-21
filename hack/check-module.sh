@@ -1,5 +1,14 @@
 #!/bin/bash
 
+vendor_changed=$(git diff ce821bcf5253 5e7aaafe --name-only "vendor/" | grep ".go" )
+if [[ -n "$vendor_changed" ]]; then
+  echo "Vendor files has changed, run all UT"
+  echo "labels=EVS || SFS || SFS_TURBO || OBS" >> $GITHUB_OUTPUT
+  echo "skip_e2e=false" >> $GITHUB_OUTPUT
+  more $GITHUB_OUTPUT
+  exit 0
+fi
+
 files_changed=$(git diff $1 $2 --name-only "cmd/" "pkg/" "test/" | grep ".go" )
 
 echo "File(s) Changed:"
