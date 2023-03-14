@@ -4,6 +4,11 @@
 
 ## IAM Policies for EVS CSI
 
+When creating a custom policy, it is not possible to include both permissions for global-level cloud services
+and project-level cloud services in the same policy, so we need to create two policies.
+
+### IAM policy
+
 ```
 {
     "Version":"1.1",
@@ -25,7 +30,17 @@
                 "iam:identityProviders:getOpenIDConnectConfig",
                 "iam:groups:getGroup"
             ]
-        },
+        }
+    ]
+}
+```
+
+### ECS and EVS policy
+
+```
+{
+    "Version":"1.1",
+    "Statement":[
         {
             "Effect":"Allow",
             "Action":[
@@ -54,6 +69,11 @@
 
 ## IAM Policies for SFS Turbo CSI
 
+When creating a custom policy, it is not possible to include both permissions for global-level cloud services
+and project-level cloud services in the same policy, so we need to create two policies.
+
+### IAM policy
+
 ```
 {
     "Version":"1.1",
@@ -75,7 +95,17 @@
                 "iam:identityProviders:getOpenIDConnectConfig",
                 "iam:groups:getGroup"
             ]
-        },
+        }
+    ]
+}
+```
+
+### SFSTurbo and VPC policy
+
+```
+{
+    "Version":"1.1",
+    "Statement":[
         {
             "Effect":"Allow",
             "Action":[
