@@ -78,8 +78,7 @@ spec:
 
 - Create the config file
 
-Create the `cloud-config` file according to [cloud-config](../../deploy/evs-csi-plugin/cloud-config) in master node or
-control-plane,
+Create the `cloud-config` file according to [cloud-config](../../deploy/evs-csi-plugin/cloud-config) in master node or control-plane,
 see [Description of cloud config](../cloud-config.md) for configurations description.
 
 See [IAM Policies for EVS CSI](../iam-policies.md#iam-policies-for-evs-csi) for IAM policies.
