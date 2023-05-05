@@ -29,6 +29,9 @@ For sidecar version compatibility, please refer compatibility matrix for each si
     SCSI reservation commands are supported.
   - `"false"`: the disk device type will be VBD, which supports only simple SCSI read/write commands.
 
+* `kmsId` Optional. The KMS ID for disk encryption. If this parameter is specified, the disk will be encrypted.
+  It is located under `parameters`.
+
 * `capacity` Optional. The EVS disk size. The value ranges from 10 GB to 32,768 GB. Defaults to 10 GB.
   It is located under `volumeAttributes`.
 
@@ -83,7 +86,7 @@ csi-evs-provisioner-54c44b746f-22p46   6/6     Running   0              88s
 
 The following are examples of specific functions:
 
-**Dynamic Provisioning:** [evs normal](evs-normal.md)
+**Dynamic Provisioning:** [dynamic-provisioning](dynamic-provisioning.md)
 
 **Volume Expansion:** [evs resize](evs-resize.md)
 
