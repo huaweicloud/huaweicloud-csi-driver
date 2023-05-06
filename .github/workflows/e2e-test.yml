@@ -35,7 +35,7 @@ jobs:
     strategy:
       max-parallel: 3
       matrix:
-        k8s: [ 1.20.15, 1.21.13, 1.22.15, 1.23.13, 1.24.7, 1.25.3 ]
+        k8s: [ 1.20.15, 1.21.13, 1.22.15, 1.23.13, 1.24.7, 1.25.9, 1.26.2, 1.27.1 ]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
