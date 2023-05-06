@@ -16,4 +16,6 @@ const (
 	CreateForVolumeIDKey = "create_for_volume_id"
 	// HwPassthroughKey in volume metadata
 	HwPassthroughKey = "hw:passthrough"
+	CmkIDKey         = "__system__cmkid"
+	EncryptedKey     = "__system__encrypted"
 )

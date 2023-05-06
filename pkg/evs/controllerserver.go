@@ -119,6 +119,11 @@ func (cs *ControllerServer) parseMetadata(req *csi.CreateVolumeRequest, snapshot
 		metadata[HwPassthroughKey] = scsi
 	}
 
+	if kmsID := parameters["kmsId"]; snapshotID == "" && kmsID != "" {
+		metadata[CmkIDKey] = kmsID
+		metadata[EncryptedKey] = "1"
+	}
+
 	for _, key := range []string{PvcNameTag, PvcNsTag, PvNameKey} {
 		if v, ok := parameters[key]; ok {
 			metadata[key] = v

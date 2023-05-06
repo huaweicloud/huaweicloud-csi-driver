@@ -5,7 +5,7 @@ the lifecycle of Huawei Cloud EVS Volumes.
 
 ## Compatibility
 
-For sidecar version compatibility, please refer compatibility matrix for each sidecar here 
+For sidecar version compatibility, please refer compatibility matrix for each sidecar here
 -https://kubernetes-csi.github.io/docs/sidecar-containers.html.
 
 ## Support version
@@ -13,6 +13,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 | EVS CSI Driver Version | CSI version | Kubernetes Version Tested | Features                |
 |------------------------|-------------|---------------------------|-------------------------|
 | v0.1.4                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
+| v0.1.5(unpublished)    | v1.5.0      | v1.20 ~ 1.25              | encryption              |
 
 ## Supported Parameters
 
@@ -29,14 +30,48 @@ For sidecar version compatibility, please refer compatibility matrix for each si
     SCSI reservation commands are supported.
   - `"false"`: the disk device type will be VBD, which supports only simple SCSI read/write commands.
 
-* `capacity` Optional. The EVS disk size. The value ranges from 10 GB to 32,768 GB. Defaults to 10 GB.
+* `kmsId` Optional. The KMS ID for disk encryption. If this parameter is specified, the disk will be encrypted.
+  It is located under `parameters`.
+
+* `storage` Optional. The EVS disk size. The value ranges from 10 GB to 32,768 GB. Defaults to 10 GB.
   It is located under `volumeAttributes`.
+
+### Example 
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: evs-encryption
+provisioner: evs.csi.huaweicloud.com
+allowVolumeExpansion: true
+parameters:
+  type: SSD
+  availability: ap-southeast-1a
+  dssId: 591779b9-1863-48dc-b258-3a18b07212e5
+  kmsId: 8f4e245e-1a46-4b14-a188-d8fe88211856
+reclaimPolicy: Delete
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: evs-encryption-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: evs-encryption
+```
 
 ## Deploy
 
 ### Prerequisites
 
-- docker, kubeadm, kubelet and kubectl has been installed.
+- Kubernetes cluster
+- [CSI Snapshotter](https://github.com/kubernetes-csi/external-snapshotter), if you don't use the volume snapshot feature,
+  just ignore it.
 
 ### Steps
 
@@ -83,7 +118,7 @@ csi-evs-provisioner-54c44b746f-22p46   6/6     Running   0              88s
 
 The following are examples of specific functions:
 
-**Dynamic Provisioning:** [evs normal](evs-normal.md)
+**Dynamic Provisioning:** [dynamic-provisioning](dynamic-provisioning.md)
 
 **Volume Expansion:** [evs resize](evs-resize.md)
 
