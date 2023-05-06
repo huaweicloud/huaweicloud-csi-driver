@@ -24,7 +24,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ### Prerequisites
 
-- docker, kubeadm, kubelet and kubectl has been installed.
+- Kubernetes cluster
 
 ### Steps
 

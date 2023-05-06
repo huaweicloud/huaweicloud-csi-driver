@@ -71,7 +71,7 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}
 
 	volumeType := parameters["type"]
-	metadata := cs.parseMetadata(req)
+	metadata := cs.parseMetadata(req, snapshotID)
 	createOpts := &cloudvolumes.CreateOpts{
 		Volume: cloudvolumes.VolumeOpts{
 			Name:             volName,
@@ -80,6 +80,9 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 			AvailabilityZone: volumeAz,
 			SnapshotID:       snapshotID,
 			Metadata:         metadata,
+		},
+		Scheduler: &cloudvolumes.SchedulerOpts{
+			StorageID: dssID,
 		},
 	}
 
@@ -103,19 +106,22 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	return buildCreateVolumeResponse(volume, dssID), nil
 }
 
-func (cs *ControllerServer) parseMetadata(req *csi.CreateVolumeRequest) map[string]string {
+func (cs *ControllerServer) parseMetadata(req *csi.CreateVolumeRequest, snapshotID string) map[string]string {
 	parameters := req.GetParameters()
-	dssID := parameters["dssId"]
 	scsi := parameters["scsi"]
 
 	// build the metadata of create option
 	metadata := make(map[string]string)
 	metadata[CsiClusterNodeIDKey] = cs.Driver.nodeID
 	metadata[CreateForVolumeIDKey] = "true"
-	metadata[DssIDKey] = dssID
 
-	if scsi != "" && (scsi == "true" || scsi == "false") {
+	if snapshotID == "" && scsi != "" && (scsi == "true" || scsi == "false") {
 		metadata[HwPassthroughKey] = scsi
+	}
+
+	if kmsID := parameters["kmsId"]; snapshotID == "" && kmsID != "" {
+		metadata[CmkIDKey] = kmsID
+		metadata[EncryptedKey] = "1"
 	}
 
 	for _, key := range []string{PvcNameTag, PvcNsTag, PvNameKey} {
