@@ -1,4 +1,4 @@
-FROM centos:7.6.1810
+FROM centos:7.9.2009
 LABEL maintainers="Huawei Cloud Authors"
 LABEL description="Huawei Cloud EVS CSI Plugin"
 

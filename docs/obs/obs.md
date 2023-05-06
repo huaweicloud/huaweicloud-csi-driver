@@ -24,7 +24,7 @@ https://kubernetes-csi.github.io/docs/sidecar-containers.html.
 
 ### Prerequisites
 
-- docker, kubeadm, kubelet and kubectl has been installed.
+- Kubernetes cluster
 
 ### Steps
 
