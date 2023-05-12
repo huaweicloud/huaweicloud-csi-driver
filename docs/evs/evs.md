@@ -33,6 +33,8 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 * `kmsId` Optional. The KMS ID for disk encryption. If this parameter is specified, the disk will be encrypted.
   It is located under `parameters`.
 
+> When a project first uses disk encryption, you need to create an agency that grants KMS access to EVS for every project in the region.
+
 * `storage` Optional. The EVS disk size. The value ranges from 10 GB to 32,768 GB. Defaults to 10 GB.
   It is located under `volumeAttributes`.
 
