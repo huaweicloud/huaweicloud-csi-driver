@@ -130,3 +130,5 @@ The following are examples of specific functions:
 **Ephemeral Volume:** [evs ephemeral](evs-ephemeral.md)
 
 **Topology:** [evs topology](evs-topology.md)
+
+**Encryption:** [Encrypted EVS](evs-encrypted.md)
