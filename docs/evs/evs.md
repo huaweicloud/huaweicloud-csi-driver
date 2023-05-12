@@ -13,7 +13,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 | EVS CSI Driver Version | CSI version | Kubernetes Version Tested | Features                |
 |------------------------|-------------|---------------------------|-------------------------|
 | v0.1.4                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
-| v0.1.5(unpublished)    | v1.5.0      | v1.20 ~ 1.25              | encryption              |
+| v0.1.5                 | v1.5.0      | v1.20 ~ 1.25              | encryption              |
 
 ## Supported Parameters
 
@@ -36,7 +36,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 * `storage` Optional. The EVS disk size. The value ranges from 10 GB to 32,768 GB. Defaults to 10 GB.
   It is located under `volumeAttributes`.
 
-### Example 
+### Example
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -70,14 +70,16 @@ spec:
 ### Prerequisites
 
 - Kubernetes cluster
-- [CSI Snapshotter](https://github.com/kubernetes-csi/external-snapshotter), if you don't use the volume snapshot feature,
+- [CSI Snapshotter](https://github.com/kubernetes-csi/external-snapshotter), if you don't use the volume snapshot
+  feature,
   just ignore it.
 
 ### Steps
 
 - Create the config file
 
-Create the `cloud-config` file according to [cloud-config](../../deploy/evs-csi-plugin/cloud-config) in master node or control-plane,
+Create the `cloud-config` file according to [cloud-config](../../deploy/evs-csi-plugin/cloud-config) in master node or
+control-plane,
 see [Description of cloud config](../cloud-config.md) for configurations description.
 
 See [IAM Policies for EVS CSI](../iam-policies.md#iam-policies-for-evs-csi) for IAM policies.
