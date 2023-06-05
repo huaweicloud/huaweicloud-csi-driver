@@ -16,6 +16,40 @@ subnet-id=
 security-group-id=
 ```
 
+### Examples for HuaweiCloud
+
+```
+[Global]
+access-key=******
+secret-key=******
+project-id=******
+region=ap-southeast-1
+cloud=myhuaweicloud.com
+auth-url=https://iam.myhuaweicloud.com:443/v3
+
+[Vpc]
+id=1jk3u4ic4******02361dde2
+subnet-id=1183fe******bfdfc10d
+security-group-id=1c308fe5******be519e76f02
+```
+
+### Examples for Flexible Engine
+
+```
+[Global]
+access-key=******
+secret-key=******
+project-id=******
+region=eu-west-0
+cloud=prod-cloud-ocb.orange-business.com
+auth-url=https://iam.eu-west-0.prod-cloud-ocb.orange-business.com/v3
+
+[Vpc]
+id=be0b13e4-a12******b3b8a9f46c4c
+subnet-id=db0cfe86******07c67a3cbe7b
+security-group-id=26a62fd******0b876fcb
+```
+
 ## Introduction
 
 * Fields listed in the file are used to construct API request parameters, and complete identity authentication
