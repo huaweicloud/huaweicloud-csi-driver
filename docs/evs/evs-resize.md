@@ -48,7 +48,7 @@ pvc-54ed5cc9-928f-4dd2-98ab-d4da9c2ec5f6   10Gi       RWX            Delete     
 ### Step 5: Resize volume storage
 
 ```
-kubectl create -f  https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/examples/evs-csi-plugin/kubernetes/resize/pvc2.yaml
+kubectl apply -f  https://raw.githubusercontent.com/huaweicloud/huaweicloud-csi-driver/master/examples/evs-csi-plugin/kubernetes/resize/pvc2.yaml
 ```
 
 ### Step 6: Check filesystem size after resized on the running POD
