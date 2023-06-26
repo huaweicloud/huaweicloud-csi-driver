@@ -314,8 +314,7 @@ func volumeAttachmentStatus(volume *cloudvolumes.Volume, instanceID string) Volu
 	return VolumeAttachError
 }
 
-func publishValidation(cc *config.CloudCredentials, volumeID, instanceID string,
-	capability *csi.VolumeCapability) error {
+func publishValidation(cc *config.CloudCredentials, volumeID, instanceID string, capability *csi.VolumeCapability) error {
 	if len(volumeID) == 0 {
 		return status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
