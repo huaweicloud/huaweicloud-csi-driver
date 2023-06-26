@@ -9,8 +9,10 @@ github.com/PuerkitoBio/urlesc
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/openstack
 github.com/chnsz/golangsdk/openstack/blockstorage/v2/volumes
+github.com/chnsz/golangsdk/openstack/compute/v2/flavors
+github.com/chnsz/golangsdk/openstack/compute/v2/images
+github.com/chnsz/golangsdk/openstack/compute/v2/servers
 github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices
-github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers
 github.com/chnsz/golangsdk/openstack/ecs/v1/jobs
 github.com/chnsz/golangsdk/openstack/evs/v1/jobs
 github.com/chnsz/golangsdk/openstack/evs/v2/cloudvolumes
@@ -154,7 +156,7 @@ github.com/spf13/pflag
 # github.com/stretchr/testify v1.8.0
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
-# golang.org/x/net v0.7.0
+# golang.org/x/net v0.8.0
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -174,16 +176,16 @@ golang.org/x/oauth2/internal
 # golang.org/x/sync v0.1.0
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.5.0
+# golang.org/x/sys v0.6.0
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/term v0.5.0
+# golang.org/x/term v0.6.0
 ## explicit; go 1.17
 golang.org/x/term
-# golang.org/x/text v0.7.0
+# golang.org/x/text v0.8.0
 ## explicit; go 1.17
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
