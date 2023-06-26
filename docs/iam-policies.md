@@ -39,28 +39,39 @@ and project-level cloud services in the same policy, so we need to create two po
 
 ```
 {
-    "Version":"1.1",
-    "Statement":[
+    "Version": "1.1",
+    "Statement": [
         {
-            "Effect":"Allow",
-            "Action":[
+            "Effect": "Allow",
+            "Action": [
                 "EVS:*:*"
             ]
         },
         {
-            "Effect":"Allow",
-            "Action":[
+            "Effect": "Allow",
+            "Action": [
                 "ecs:serverVolumeAttachments:create",
-                "ecs:cloudServers:showServer",
+                "ecs:diskConfigs:use",
                 "ecs:cloudServers:attach",
                 "ecs:cloudServers:detachVolume",
-                "ecs:cloudServers:attachSharedVolume",
-                "ecs:cloudServers:listServerVolumeAttachments",
+                "ecs:serverKeypairs:get",
                 "ecs:serverVolumeAttachments:delete",
                 "ecs:serverVolumeAttachments:get",
                 "ecs:serverVolumes:use",
                 "ecs:serverVolumeAttachments:list",
-                "ecs:servers:get"
+                "ecs:servers:get",
+                "ecs:securityGroups:use"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "vpc:networks:get",
+                "vpc:ports:get",
+                "vpc:securityGroupRules:get",
+                "vpc:subnets:get",
+                "vpc:routers:get",
+                "vpc:securityGroups:get"
             ]
         }
     ]

@@ -13,7 +13,12 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 | EVS CSI Driver Version | CSI version | Kubernetes Version Tested | Features                |
 |------------------------|-------------|---------------------------|-------------------------|
 | v0.1.4                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
-| v0.1.7                 | v1.5.0      | v1.20 ~ 1.25              | encryption              |
+| v0.1.8                 | v1.5.0      | v1.20 ~ 1.25              | encryption              |
+
+> **NOTE:**
+> In `v0.1.8` version, the IAM policy of EVS CSI has changed, please update your policy/role if you use EVS IAM policy.
+> 
+> See [IAM Policies for EVS CSI](../iam-policies.md#iam-policies-for-evs-csi) for details.
 
 ## Supported Parameters
 
