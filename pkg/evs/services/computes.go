@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/chnsz/golangsdk"
+	serversv2 "github.com/chnsz/golangsdk/openstack/compute/v2/servers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/block_devices"
-	"github.com/chnsz/golangsdk/openstack/ecs/v1/cloudservers"
 	"github.com/chnsz/golangsdk/openstack/ecs/v1/jobs"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,13 +16,13 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
-func GetServer(c *config.CloudCredentials, serverID string) (*cloudservers.CloudServer, error) {
-	client, err := getEcsV1Client(c)
+func GetServer(c *config.CloudCredentials, serverID string) (*serversv2.Server, error) {
+	client, err := getEcsV21Client(c)
 	if err != nil {
 		return nil, err
 	}
 
-	cs, err := cloudservers.Get(client, serverID).Extract()
+	cs, err := serversv2.Get(client, serverID).Extract()
 	if err != nil {
 		if common.IsNotFound(err) {
 			return nil, status.Errorf(codes.NotFound, "Error, ECS instance %s does not exist", serverID)
@@ -154,6 +154,14 @@ func getEcsV1Client(c *config.CloudCredentials) (*golangsdk.ServiceClient, error
 	client, err := c.EcsV1Client()
 	if err != nil {
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed create ECS V1 client: %s", err))
+	}
+	return client, nil
+}
+
+func getEcsV21Client(c *config.CloudCredentials) (*golangsdk.ServiceClient, error) {
+	client, err := c.EcsV21Client()
+	if err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("Failed create ECS V2.1 client: %s", err))
 	}
 	return client, nil
 }
