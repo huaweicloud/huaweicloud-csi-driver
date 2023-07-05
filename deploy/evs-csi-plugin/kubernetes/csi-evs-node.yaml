@@ -46,7 +46,13 @@ spec:
               mountPath: /csi
         - name: evs-csi-plugin
           securityContext:
+            capabilities:
+              add:
+                - SYS_ADMIN
+              drop:
+                - all
             privileged: true
+            readOnlyRootFilesystem: true
           image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.1.8
           args:
             - /bin/evs-csi-plugin
@@ -77,10 +83,19 @@ spec:
               mountPath: /csi
             - name: kubelet-dir
               mountPath: /var/lib/kubelet
-              mountPropagation: "Bidirectional"
+              mountPropagation: Bidirectional
+            - name: pass-pods-mount-dir
+              mountPath: /mnt/paas/kubernetes/kubelet
+              mountPropagation: Bidirectional
             - name: pods-probe-dir
               mountPath: /dev
-              mountPropagation: "HostToContainer"
+              mountPropagation: HostToContainer
+            - name: host-sys
+              mountPath: /sys
+              readOnly: true
+            - name: host-run-udev
+              mountPath: /run/udev
+              readOnly: true
             - name: evs-config
               mountPath: /etc/evs/
       volumes:
@@ -96,10 +111,22 @@ spec:
           hostPath:
             path: /var/lib/kubelet
             type: Directory
+        - name: pass-pods-mount-dir
+          hostPath:
+            path: /mnt/paas/kubernetes/kubelet
+            type: DirectoryOrCreate
         - name: pods-probe-dir
           hostPath:
             path: /dev
             type: Directory
+        - hostPath:
+            path: /sys
+            type: Directory
+          name: host-sys
+        - hostPath:
+            path: /run/udev
+            type: Directory
+          name: host-run-udev
         - name: evs-config
           secret:
             secretName: cloud-config
