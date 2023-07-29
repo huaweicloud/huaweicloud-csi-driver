@@ -1,11 +1,11 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
-	"fmt"
+	"encoding/base64"
 	"io"
 
 	"google.golang.org/grpc/codes"
@@ -14,39 +14,46 @@ import (
 
 func EncryptAESCBC(key, original string) (string, error) {
 	originalBytes := []byte(original)
-	if len(originalBytes)%aes.BlockSize != 0 {
-		return "", status.Errorf(codes.InvalidArgument, "Length of original Invalid, %v", len(originalBytes))
-	}
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to init cipher, err: %v", err)
+		return "", status.Errorf(codes.Internal, "failed to init cipher: %v", err)
 	}
-	cipherBytes := make([]byte, aes.BlockSize+len(originalBytes))
-	iv := cipherBytes[:aes.BlockSize]
+
+	padding := aes.BlockSize - len(originalBytes)%aes.BlockSize
+	paddingText := append(originalBytes, bytes.Repeat([]byte{byte(padding)}, padding)...)
+
+	ciphertext := make([]byte, aes.BlockSize+len(paddingText))
+	iv := ciphertext[:aes.BlockSize]
+
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return "", err
 	}
+
 	mode := cipher.NewCBCEncrypter(block, iv)
-	mode.CryptBlocks(cipherBytes[aes.BlockSize:], originalBytes)
-	return fmt.Sprintf("%x", cipherBytes), nil
+	mode.CryptBlocks(ciphertext[aes.BlockSize:], paddingText)
+
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
 func DecryptAESCBC(key, ciphertext string) (string, error) {
-	cipherBytes, _ := hex.DecodeString(ciphertext)
+	cipherBytes, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", status.Errorf(codes.Internal, "failed to decode string: %v", err)
+	}
+
 	block, err := aes.NewCipher([]byte(key))
 	if err != nil {
-		return "", status.Errorf(codes.Internal, "Failed to init cipher, err: %v", err)
+		return "", status.Errorf(codes.Internal, "failed to init cipher: %v", err)
 	}
-	if len(cipherBytes) < aes.BlockSize {
-		return "", status.Errorf(codes.InvalidArgument, "Length of ciphertext too short, %v", len(cipherBytes))
-	}
+
 	iv := cipherBytes[:aes.BlockSize]
 	cipherBytes = cipherBytes[aes.BlockSize:]
-	if len(cipherBytes)%aes.BlockSize != 0 {
-		return "", status.Errorf(codes.InvalidArgument, "Length of ciphertext Invalid, %v", len(cipherBytes))
-	}
 
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(cipherBytes, cipherBytes)
-	return string(cipherBytes[:]), nil
+
+	padding := int(cipherBytes[len(cipherBytes)-1])
+	decryptedText := cipherBytes[:len(cipherBytes)-padding]
+
+	return string(decryptedText), nil
 }

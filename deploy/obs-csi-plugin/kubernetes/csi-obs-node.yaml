@@ -51,13 +51,17 @@ spec:
               mountPath: /csi
             - name: registration-dir
               mountPath: /registration
-        - name: obs
+        - name: obs-csi-plugin
           image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/obs-csi-plugin:v0.1.1
           args:
             - "--v=5"
             - "--logtostderr"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--cloud-config=$(CLOUD_CONFIG)"
+          lifecycle:
+            preStop:
+              exec:
+                command: [ "/bin/sh", "-c", "/obs-csi/stop-server.sh" ]
           ports:
             - containerPort: 28889
               name: healthz
@@ -76,18 +80,33 @@ spec:
             - name: CLOUD_CONFIG
               value: /etc/obs/cloud-config
           securityContext:
-            privileged: true
             capabilities:
-              add: [ "SYS_ADMIN" ]
-            allowPrivilegeEscalation: true
+              add:
+                - SYS_ADMIN
+              drop:
+                - all
+            privileged: true
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: csi-tool
-              mountPath: /dev/csi-tool
+              mountPath: /var/lib/csi
             - mountPath: /csi
               name: socket-dir
             - mountPath: /var/lib/kubelet/
               mountPropagation: Bidirectional
-              name: mountpoint-dir
+              name: kubelet-dir
+            - name: pass-pods-mount-dir
+              mountPath: /mnt/paas/kubernetes/kubelet
+              mountPropagation: Bidirectional
+            - name: pods-probe-dir
+              mountPath: /dev
+              mountPropagation: HostToContainer
+            - name: host-sys
+              mountPath: /sys
+              readOnly: true
+            - name: host-run-udev
+              mountPath: /run/udev
+              readOnly: true
             - mountPath: /etc/obs/
               name: obs-config
       volumes:
@@ -98,15 +117,31 @@ spec:
         - hostPath:
             path: /var/lib/kubelet/
             type: DirectoryOrCreate
-          name: mountpoint-dir
+          name: kubelet-dir
+        - name: pass-pods-mount-dir
+          hostPath:
+            path: /mnt/paas/kubernetes/kubelet
+            type: DirectoryOrCreate
         - hostPath:
             path: /var/lib/kubelet/plugins_registry/
             type: DirectoryOrCreate
           name: registration-dir
+        - hostPath:
+            path: /sys
+            type: Directory
+          name: host-sys
+        - hostPath:
+            path: /run/udev
+            type: Directory
+          name: host-run-udev
+        - name: pods-probe-dir
+          hostPath:
+            path: /dev
+            type: Directory
         - secret:
             secretName: cloud-config
           name: obs-config
         - name: csi-tool
           hostPath:
-            path: /dev/csi-tool
+            path: /var/lib/csi
             type: DirectoryOrCreate

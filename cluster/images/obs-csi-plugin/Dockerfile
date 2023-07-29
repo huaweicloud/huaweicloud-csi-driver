@@ -3,16 +3,24 @@ FROM centos:7.6.1810
 LABEL maintainers="HuaweiCloud Authors"
 LABEL description="HuaweiCloud CSI Plugin"
 
-ARG centosName=obsfs_CentOS7.6_amd64.tar.gz
-ARG ubuntuName=obsfs_Ubuntu16.04_amd64.tar.gz
-RUN curl https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsfs/current/${centosName} -o /root/${centosName}
-RUN curl https://obs-community.obs.cn-north-1.myhuaweicloud.com/obsfs/current/${ubuntuName} -o /root/${ubuntuName}
+WORKDIR /obs-csi
 
-COPY entrypoint.sh /entrypoint.sh
+COPY obsfs_CentOS7.6_amd64.tar.gz ./
+COPY obsfs_Ubuntu16.04_amd64.tar.gz ./
+COPY entrypoint.sh entrypoint.sh
 COPY nsenter /nsenter
-COPY socket-server /bin/socket-server
-COPY socket-server.service /bin/socket-server.service
-COPY obs-csi-plugin /bin/obs-csi-plugin
-RUN chmod +x /bin/obs-csi-plugin && chmod +x /entrypoint.sh && chmod +x /bin/socket-server && chmod +x /nsenter && chmod +x /bin/socket-server.service
+COPY csi-connector-server ./
+COPY csi-connector.service ./
+COPY obs-csi-plugin obs-csi-plugin
+COPY install_obsfs.sh ./
+COPY stop-server.sh ./
+COPY huaweicloud-obs-obsfs.tar.gz ./
 
-ENTRYPOINT ["/entrypoint.sh"]
+RUN chmod +x obs-csi-plugin
+RUN chmod +x entrypoint.sh
+RUN chmod +x csi-connector-server
+RUN chmod +x csi-connector.service
+RUN chmod +x stop-server.sh
+RUN chmod +x /nsenter
+
+ENTRYPOINT ["./entrypoint.sh"]
