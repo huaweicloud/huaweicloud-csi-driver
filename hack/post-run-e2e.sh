@@ -35,8 +35,6 @@ echo "Run post E2E"
 # delete sfs objects
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-kubectl delete secret -n kube-system cloud-config --ignore-not-found=true
-
 if [[ $e2e_label =~ "SFS_TURBO" ]]; then
   echo "run pre-run-sfsturbo-e2e"
   ${REPO_ROOT}/hack/post-run-sfsturbo-e2e.sh

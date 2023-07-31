@@ -33,9 +33,6 @@ fi
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-kubectl delete secret -n kube-system cloud-config --ignore-not-found=true
-kubectl create secret -n kube-system generic cloud-config --from-file=/actions-runner/cloud-config
-
 if [[ $e2e_label =~ "SFS_TURBO" ]]; then
   echo "run pre-run-sfsturbo-e2e"
   ${REPO_ROOT}/hack/pre-run-sfsturbo-e2e.sh
