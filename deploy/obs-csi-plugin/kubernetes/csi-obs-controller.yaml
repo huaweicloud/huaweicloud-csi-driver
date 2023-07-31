@@ -56,7 +56,7 @@ spec:
             capabilities:
               add: [ "SYS_ADMIN" ]
             allowPrivilegeEscalation: true
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/obs-csi-plugin:v0.1.1
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/obs-csi-plugin:v0.1.2
           args:
             - "--v=5"
             - "--logtostderr"
