@@ -41,8 +41,6 @@ var (
 	cloudConfig string
 )
 
-const socketPath = "/dev/csi-tool/connector.sock"
-
 //nolint:errcheck
 func main() {
 	flag.CommandLine.Parse([]string{})
@@ -81,7 +79,7 @@ func main() {
 			mountClient := http.Client{
 				Transport: &http.Transport{
 					DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-						return net.Dial("unix", socketPath)
+						return net.Dial("unix", obs.SocketPath)
 					},
 				},
 			}
