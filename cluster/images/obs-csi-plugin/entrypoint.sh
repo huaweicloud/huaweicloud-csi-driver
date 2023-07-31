@@ -1,53 +1,26 @@
 #!/bin/sh
 
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
-checkLinuxOS() {
-  osId=$($HOST_CMD cat /etc/redhat-release | grep -i -c centos)
-  if [ "$osId" != 0 ]; then
-    return 1
-  fi
+mkdir -p /var/lib/csi/
 
-  osId=$($HOST_CMD cat /etc/issue | grep -i -c ubuntu)
-  if [ "$osId" != 0 ]; then
-      return 2
-  fi
-  return 0
-}
-checkLinuxOS
-osCode=$?
-echo "OS Code $osCode"
+cp -f /obs-csi/huaweicloud-obs-obsfs.tar.gz /var/lib/csi/huaweicloud-obs-obsfs.tar.gz
+cp -f /obs-csi/obsfs_CentOS7.6_amd64.tar.gz /var/lib/csi/obsfs_CentOS7.6_amd64.tar.gz
+cp -f /obs-csi/obsfs_Ubuntu16.04_amd64.tar.gz /var/lib/csi/obsfs_Ubuntu16.04_amd64.tar.gz
+cp -f /obs-csi/install_obsfs.sh /var/lib/csi/install_obsfs.sh
 
-if [ "$osCode" = 1 ]; then
-    echo "operation system is centos..."
-    fileName=obsfs_CentOS7.6_amd64
-    $HOST_CMD yum install -y openssl-devel fuse fuse-devel
-elif [ "$osCode" = 2 ]; then
-    echo "operation system is ubuntu..."
-    fileName=obsfs_Ubuntu16.04_amd64
-    $HOST_CMD apt-get install -y libfuse-dev libcurl4-openssl-dev
-else
-    echo "operation system not support..."
-    exit
-fi
+echo "Starting install obs csi-connector-server...."
+$HOST_CMD systemctl stop csi-connector.service
+rm -rf /var/lib/csi/connector.sock
+cp -f /obs-csi/csi-connector-server /var/lib/csi/csi-connector-server
+cp -f /obs-csi/csi-connector.service /var/lib/csi/csi-connector.service
+chmod 755 /var/lib/csi/csi-connector-server
 
-echo "Starting install obsfs...."
-mkdir -p /dev/csi-tool/
-tar -zxvf /root/$fileName.tar.gz -C /dev/csi-tool/
-$HOST_CMD cp -r /dev/csi-tool/$fileName/. ./
-$HOST_CMD bash install_obsfs.sh
-
-echo "Starting install obs socket-server...."
-rm -rf /dev/csi-tool/socket-server
-rm -rf /dev/csi-tool/connector.sock
-cp /bin/socket-server /dev/csi-tool/socket-server
-chmod 755 /dev/csi-tool/socket-server
-
-echo "Starting install obs socket service...."
-cp /bin/socket-server.service /dev/csi-tool/socket-server.service
-$HOST_CMD cp /dev/csi-tool/socket-server.service /lib/systemd/system/socket-server.service
+echo "Run csi-connector-server...."
+$HOST_CMD cp -f /var/lib/csi/csi-connector.service /etc/systemd/system/csi-connector.service
 $HOST_CMD systemctl daemon-reload
-$HOST_CMD systemctl enable socket-server.service
-$HOST_CMD systemctl restart socket-server.service
+$HOST_CMD systemctl enable csi-connector.service
+$HOST_CMD systemctl restart csi-connector.service
+$HOST_CMD systemctl status csi-connector.service
 
 echo "Starting run obs csi plugin...."
-/bin/obs-csi-plugin $@
+/obs-csi/obs-csi-plugin $@

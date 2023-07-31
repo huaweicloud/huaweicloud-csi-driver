@@ -1,10 +1,10 @@
 [Unit]
-Description=service for socker-server
+Description=HuaweiCloud CSI Host Connector Service
 After=network.target remote-fs.target nss-lookup.target
 
 [Service]
 Type=forking
-ExecStart=/bin/sh -c "/dev/csi-tool/socket-server >/dev/csi-tool/log.out 2>&1 &"
+ExecStart=/bin/sh -c "/var/lib/csi/csi-connector-server > /var/lib/csi/connector.log 2>&1 &"
 ExecReload=/bin/kill -s HUP $MAINPID
 ExecStop=/bin/kill -s QUIT $MAINPID
 Restart=always

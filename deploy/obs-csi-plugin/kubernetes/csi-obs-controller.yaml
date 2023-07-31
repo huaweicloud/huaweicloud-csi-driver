@@ -50,7 +50,7 @@ spec:
           volumeMounts:
             - mountPath: /csi
               name: socket-dir
-        - name: obs-csi-plugin
+        - name: obs-csi-provisioner
           securityContext:
             privileged: true
             capabilities:
@@ -85,7 +85,7 @@ spec:
             - mountPath: /etc/obs/
               name: obs-config
             - name: csi-tool
-              mountPath: /dev/csi-tool
+              mountPath: /var/lib/csi
         - name: csi-resizer
           image: k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
           args:
@@ -114,10 +114,10 @@ spec:
       volumes:
         - name: csi-tool
           hostPath:
-            path: /dev/csi-tool
+            path: /var/lib/csi
             type: DirectoryOrCreate
         - name: socket-dir
-          emptyDir: { }
+          emptyDir: {}
         - name: obs-config
           secret:
             secretName: cloud-config

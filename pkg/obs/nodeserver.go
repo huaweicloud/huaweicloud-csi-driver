@@ -46,7 +46,8 @@ type nodeServer struct {
 }
 
 const (
-	credentialDir = "/dev/csi-tool"
+	credentialDir = "/var/lib/csi"
+	SocketPath    = "/var/lib/csi/connector.sock"
 	perm          = 0600
 )
 

@@ -14,6 +14,15 @@ https://kubernetes-csi.github.io/docs/sidecar-containers.html.
 |------------------------|-------------|---------------------------|-----------------|
 | v0.1.1                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | buckets resizer |
 
+> NOTE:
+>
+> OBS CSI will automatically install the obsfs tool on each node,
+> and the following OS have been verified: CentOS 7, Ubuntu 16, HUAWEI CLOUD EulerOS 2 and EulerOS 2.
+>
+> If your Linux distribution is not Ubuntu 16 or CentOS 7, or a similar version,
+> you need to configure the environment and execute the script,
+> refer to [Generating obsfs by Compilation](https://support.huaweicloud.com/intl/en-us/fstg-obs/obs_12_0005.html).
+
 ## Supported Parameters
 
 * `acl` Optional. Specifies the ACL policy for a bucket. The predefined common policies are as follows:
