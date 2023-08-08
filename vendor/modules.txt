@@ -4,7 +4,7 @@ github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 ## explicit
 github.com/PuerkitoBio/urlesc
-# github.com/chnsz/golangsdk v0.0.0-20221025063414-ec58687a8de7
+# github.com/chnsz/golangsdk v0.0.0-20230808032048-e9d83e61c98d
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/openstack

@@ -31,9 +31,9 @@ const (
 	DefaultSteps     = 30
 )
 
-func CreateShareCompleted(c *config.CloudCredentials, createOpts *shares.CreateOpts) (
+func CreateShareCompleted(c *config.CloudCredentials, createOpts *shares.Share) (
 	*shares.TurboResponse, error) {
-	turboResponse, err := CreateShare(c, createOpts)
+	turboResponse, err := CreateShare(c, &shares.CreateOpts{Share: *createOpts})
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func WaitForShareAvailable(c *config.CloudCredentials, shareID string) error {
 }
 
 func CreateShare(c *config.CloudCredentials, createOpts *shares.CreateOpts) (*shares.TurboResponse, error) {
-	createOpts.Description = shareDescription
+	createOpts.Share.Description = shareDescription
 	client, err := getSFSTurboV1Client(c)
 	if err != nil {
 		return nil, err
