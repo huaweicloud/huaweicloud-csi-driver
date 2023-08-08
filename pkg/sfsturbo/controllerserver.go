@@ -93,7 +93,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		shareType = defaultShareType
 	}
 
-	createOpts := shares.CreateOpts{
+	createShareOpts := shares.Share{
 		Name:             name,
 		ShareProto:       defaultShareProto,
 		ShareType:        shareType,
@@ -103,9 +103,9 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		SubnetID:         cs.Driver.cloud.Vpc.SubnetID,
 		SecurityGroupID:  cs.Driver.cloud.Vpc.SecurityGroupID,
 	}
-	log.Infof("CreateVolume creating param: %v", protosanitizer.StripSecrets(createOpts))
+	log.Infof("CreateVolume creating param: %v", protosanitizer.StripSecrets(createShareOpts))
 	// Check if there are any volumes with the same name
-	share, err := checkVolumeExists(cloud, createOpts)
+	share, err := checkVolumeExists(cloud, createShareOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		}
 		return buildCreateVolumeResponse(share.ID, int(size), req, accessibleTopology), nil
 	}
-	turboResponse, err := services.CreateShareCompleted(cloud, &createOpts)
+	turboResponse, err := services.CreateShareCompleted(cloud, &createShareOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func buildCreateVolumeResponse(shareID string, sizeInGiB int, req *csi.CreateVol
 	}
 }
 
-func checkVolumeExists(cloud *config.CloudCredentials, createOpts shares.CreateOpts) (
+func checkVolumeExists(cloud *config.CloudCredentials, share shares.Share) (
 	*shares.Turbo, error) {
 	turbos, err := services.ListTotalShares(cloud)
 	if err != nil {
@@ -146,13 +146,13 @@ func checkVolumeExists(cloud *config.CloudCredentials, createOpts shares.CreateO
 	}
 	log.Infof("CreateVolume checkVolumeExists list total shares: %v", protosanitizer.StripSecrets(turbos))
 	for _, v := range turbos {
-		if v.Name == createOpts.Name {
+		if v.Name == share.Name {
 			size, err := strconv.ParseFloat(v.Size, 64)
 			if err != nil {
 				return nil, status.Errorf(codes.Internal,
 					"Failed to convert string size to number size, %v", v.Size)
 			}
-			turboOpts := shares.CreateOpts{
+			turboOpts := shares.Share{
 				Name:             v.Name,
 				ShareProto:       v.ShareProto,
 				ShareType:        v.ShareType,
@@ -162,11 +162,11 @@ func checkVolumeExists(cloud *config.CloudCredentials, createOpts shares.CreateO
 				SubnetID:         v.SubnetID,
 				SecurityGroupID:  v.SecurityGroupID,
 			}
-			if reflect.DeepEqual(turboOpts, createOpts) {
+			if reflect.DeepEqual(turboOpts, share) {
 				return &v, nil
 			}
 			return nil, status.Errorf(codes.InvalidArgument,
-				"SFS-Turbo name: %s already exists with different attributes", createOpts.Name)
+				"SFS-Turbo name: %s already exists with different attributes", share.Name)
 		}
 	}
 	return nil, nil

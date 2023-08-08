@@ -3,7 +3,7 @@ module github.com/huaweicloud/huaweicloud-csi-driver
 go 1.18
 
 require (
-	github.com/chnsz/golangsdk v0.0.0-20221025063414-ec58687a8de7
+	github.com/chnsz/golangsdk v0.0.0-20230808032048-e9d83e61c98d
 	github.com/container-storage-interface/spec v1.5.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/uuid v1.1.2
