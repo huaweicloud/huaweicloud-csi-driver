@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/google/uuid"
@@ -100,12 +101,23 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	}
 	defer deleteCredentialFile(credentialFile)
 
+	mountFlags := []string{"big_writes", "max_write=131072", "use_ino"}
+	if mnt := req.GetVolumeCapability().GetMount(); mnt != nil {
+		for _, v := range mnt.GetMountFlags() {
+			if v == "passwd_file" || v == "use_ino" {
+				continue
+			}
+			mountFlags = append(mountFlags, v)
+		}
+	}
+
 	parameters := map[string]string{
 		"bucketName": volume.BucketName,
 		"targetPath": targetPath,
 		"region":     ns.Driver.cloud.Global.Region,
 		"cloud":      ns.Driver.cloud.Global.Cloud,
 		"credential": credentialFile,
+		"mountFlags": "-o " + strings.Join(mountFlags, " -o "),
 	}
 	ciphertext := utils.Sha256(parameters)
 	token, err := utils.EncryptAESCBC(Secret, ciphertext)

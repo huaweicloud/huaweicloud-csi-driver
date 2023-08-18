@@ -20,6 +20,7 @@ import (
 const (
 	credentialDir = "/var/lib/csi"
 	bucketName    = "bucketName"
+	mountFlags    = "mountFlags"
 	targetPath    = "targetPath"
 	region        = "region"
 	cloud         = "cloud"
@@ -153,13 +154,17 @@ func mountHandler(parameters map[string]string) error {
 		obsName = "oss"
 	}
 
+	mountOpts := parameters[mountFlags]
+	if mountOpts == "" {
+		mountOpts = defaultOpts
+	}
 	options := []string{
 		"obsfs",
 		parameters[bucketName],
 		parameters[targetPath],
 		fmt.Sprintf("-o url=%s.%s.%s", obsName, parameters[region], parameters[cloud]),
 		fmt.Sprintf("-o passwd_file=%s", credentialFile),
-		defaultOpts,
+		mountOpts,
 	}
 
 	cmd := exec.Command("sh", "-c")
