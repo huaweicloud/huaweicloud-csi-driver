@@ -126,7 +126,7 @@ func (lrt *LogRoundTripper) formatJSON(raw []byte) string {
 
 	err := json.Unmarshal(raw, &data)
 	if err != nil {
-		klog.V(6).Infof("Unable to parse JSON: %s", err)
+		klog.V(6).Infof("Unable to parse JSON: %s, data: %s", err, string(raw))
 		return string(raw)
 	}
 
