@@ -14,10 +14,11 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 |------------------------|-------------|---------------------------|-------------------------|
 | v0.1.4                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
 | v0.1.8                 | v1.5.0      | v1.20 ~ 1.25              | encryption              |
+| v0.1.9                 | v1.5.0      | v1.20 ~ 1.25              | GPSSD2 and ESSD2 type   |
 
 > **NOTE:**
 > In `v0.1.8` version, the IAM policy of EVS CSI has changed, please update your policy/role if you use EVS IAM policy.
-> 
+>
 > See [IAM Policies for EVS CSI](../iam-policies.md#iam-policies-for-evs-csi) for details.
 
 ## Supported Parameters
@@ -31,14 +32,15 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 * `scsi` Optional. The device type of the EVS disks to be created. Defaults to `"false"`.
   It is located under `parameters`.
-  - `"true"`:  the disk device type will be SCSI, which allows ECS OSs to directly access underlying storage media.
-    SCSI reservation commands are supported.
-  - `"false"`: the disk device type will be VBD, which supports only simple SCSI read/write commands.
+    - `"true"`:  the disk device type will be SCSI, which allows ECS OSs to directly access underlying storage media.
+      SCSI reservation commands are supported.
+    - `"false"`: the disk device type will be VBD, which supports only simple SCSI read/write commands.
 
 * `kmsId` Optional. The KMS ID for disk encryption. If this parameter is specified, the disk will be encrypted.
   It is located under `parameters`.
 
-> When a project first uses disk encryption, you need to create an agency that grants KMS access to EVS for every project in the region.
+> When a project first uses disk encryption, you need to create an agency that grants KMS access to EVS for every
+> project in the region.
 
 * `iops` Optional. I/O operations per second, which is required when volume type is GPSSD2 or ESSD2.
   It is located under `parameters`.
@@ -91,7 +93,8 @@ spec:
 
 - Create the config file
 
-Create the `cloud-config` file according to [cloud-config](../../deploy/evs-csi-plugin/cloud-config) in master node or control-plane,
+Create the `cloud-config` file according to [cloud-config](../../deploy/evs-csi-plugin/cloud-config) in master node or
+control-plane,
 see [Description of cloud config](../cloud-config.md) for configurations description.
 
 See [IAM Policies for EVS CSI](../iam-policies.md#iam-policies-for-evs-csi) for IAM policies.
