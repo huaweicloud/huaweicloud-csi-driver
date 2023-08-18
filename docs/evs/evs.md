@@ -40,6 +40,12 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 > When a project first uses disk encryption, you need to create an agency that grants KMS access to EVS for every project in the region.
 
+* `iops` Optional. I/O operations per second, which is required when volume type is GPSSD2 or ESSD2.
+  It is located under `parameters`.
+
+* `throughput` Optional. Throughput in MiB/s, which is required when volume type is GPSSD2 or ESSD2.
+  It is located under `parameters`.
+
 * `storage` Optional. The EVS disk size. The value ranges from 10 GB to 32,768 GB. Defaults to 10 GB.
   It is located under `volumeAttributes`.
 
@@ -139,3 +145,5 @@ The following are examples of specific functions:
 **Topology:** [evs topology](evs-topology.md)
 
 **Encryption:** [Encrypted EVS](evs-encrypted.md)
+
+**GPSSD2 Volume:** [GPSSD2 Volume](evs-gpssd2.md))

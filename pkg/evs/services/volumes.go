@@ -49,6 +49,8 @@ func CreateCinderCompleted(c *config.CloudCredentials, opts *cloudvolumes.Create
 		AvailabilityZone: opts.Volume.AvailabilityZone,
 		SnapshotID:       opts.Volume.SnapshotID,
 		Metadata:         opts.Volume.Metadata,
+		IOPS:             opts.Volume.IOPS,
+		Throughput:       opts.Volume.Throughput,
 	}
 
 	cinderVol, err := cinder.Create(client, createOpts).Extract()

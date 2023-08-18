@@ -70,7 +70,16 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		return nil, err
 	}
 
+	iops := 0
+	throughput := 0
 	volumeType := parameters["type"]
+	if volumeType == "GPSSD2" || volumeType == "ESSD2" {
+		iops, throughput, err = getIoAndThrough(parameters)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	metadata := cs.parseMetadata(req, snapshotID)
 	createOpts := &cloudvolumes.CreateOpts{
 		Volume: cloudvolumes.VolumeOpts{
@@ -80,6 +89,8 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 			AvailabilityZone: volumeAz,
 			SnapshotID:       snapshotID,
 			Metadata:         metadata,
+			IOPS:             iops,
+			Throughput:       throughput,
 		},
 		Scheduler: &cloudvolumes.SchedulerOpts{
 			StorageID: dssID,
@@ -104,6 +115,28 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		volume.ID, volume.AvailabilityZone, volume.Size)
 
 	return buildCreateVolumeResponse(volume, dssID), nil
+}
+
+func getIoAndThrough(parameters map[string]string) (int, int, error) {
+	var err error
+	iops := 0
+	throughput := 0
+
+	iopsStr := parameters["iops"]
+	if len(iopsStr) > 0 {
+		iops, err = strconv.Atoi(iopsStr)
+		if err != nil {
+			return 0, 0, status.Errorf(codes.InvalidArgument, "iops error, expected a number, but got %s, error: %s", iopsStr, err)
+		}
+	}
+	throughputStr := parameters["throughput"]
+	if len(throughputStr) > 0 {
+		throughput, err = strconv.Atoi(throughputStr)
+		if err != nil {
+			return 0, 0, status.Errorf(codes.InvalidArgument, "throughput error, expected a number, but got %s, error: %s", throughputStr, err)
+		}
+	}
+	return iops, throughput, nil
 }
 
 func (cs *ControllerServer) parseMetadata(req *csi.CreateVolumeRequest, snapshotID string) map[string]string {
