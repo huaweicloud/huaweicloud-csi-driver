@@ -52,7 +52,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: obs-csi-plugin
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/obs-csi-plugin:v0.1.2
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/obs-csi-plugin:v0.1.3
           args:
             - "--v=5"
             - "--logtostderr"
