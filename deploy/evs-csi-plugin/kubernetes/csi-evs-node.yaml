@@ -15,6 +15,7 @@ spec:
       tolerations:
         - operator: Exists
       serviceAccount: csi-evs-node-sa
+      hostNetwork: true
       containers:
         - name: evs-driver-registrar
           image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0
