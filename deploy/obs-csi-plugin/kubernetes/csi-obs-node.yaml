@@ -20,6 +20,7 @@ spec:
       tolerations:
         - operator: "Exists"
       hostPID: true
+      hostNetwork: true
       containers:
         - name: liveness-probe
           volumeMounts:
