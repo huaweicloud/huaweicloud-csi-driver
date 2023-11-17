@@ -14,7 +14,6 @@ spec:
         app: csi-sfsturbo-node
     spec:
       serviceAccountName: csi-sfsturbo-node-sa
-      hostNetwork: true
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-node-critical

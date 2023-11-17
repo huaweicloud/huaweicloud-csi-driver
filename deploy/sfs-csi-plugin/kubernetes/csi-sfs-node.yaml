@@ -19,7 +19,6 @@ spec:
       priorityClassName: system-node-critical
       tolerations:
         - operator: "Exists"
-      hostNetwork: true
       containers:
         - name: liveness-probe
           volumeMounts:
