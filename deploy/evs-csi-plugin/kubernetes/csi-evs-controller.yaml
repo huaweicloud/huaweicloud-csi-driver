@@ -21,7 +21,6 @@ spec:
           operator: "Equal"
           value: "true"
           effect: "NoSchedule"
-      hostNetwork: true
       containers:
         - name: csi-attacher
           image: k8s.gcr.io/sig-storage/csi-attacher:v3.3.0
