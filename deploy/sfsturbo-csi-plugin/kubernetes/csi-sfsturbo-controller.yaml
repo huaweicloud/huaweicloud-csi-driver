@@ -14,7 +14,6 @@ spec:
         app: csi-sfsturbo-controller
     spec:
       serviceAccountName: csi-sfsturbo-controller-sa
-      hostNetwork: true
       nodeSelector:
         kubernetes.io/os: linux
       priorityClassName: system-cluster-critical
