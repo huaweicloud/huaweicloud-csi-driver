@@ -53,7 +53,7 @@ spec:
                 - all
             privileged: true
             readOnlyRootFilesystem: true
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.1.9
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/evs-csi-plugin:v0.1.10
           args:
             - /bin/evs-csi-plugin
             - "--v=5"

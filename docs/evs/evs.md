@@ -15,6 +15,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 | v0.1.4                 | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | volume resizer snapshot |
 | v0.1.8                 | v1.5.0      | v1.20 ~ 1.25              | encryption              |
 | v0.1.9                 | v1.5.0      | v1.20 ~ 1.25              | GPSSD2 and ESSD2 type   |
+| v0.1.10                | v1.5.0      | v1.20 ~ 1.25              |                         |
 
 > **NOTE:**
 > In `v0.1.8` version, the IAM policy of EVS CSI has changed, please update your policy/role if you use EVS IAM policy.
