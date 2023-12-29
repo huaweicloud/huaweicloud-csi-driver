@@ -52,7 +52,7 @@ spec:
             - mountPath: /csi
               name: socket-dir
         - name: sfsturbo-csi-plugin
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/sfsturbo-csi-plugin:v0.1.1
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/sfsturbo-csi-plugin:v0.1.2
           args:
             - "--v=5"
             - "--logtostderr"
