@@ -80,12 +80,20 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		}
 	}
 
+	// Check if the volume can be shared
+	multiattach, err := strconv.ParseBool(parameters["multiattach"])
+	if err != nil {
+		log.Errorf("failed to transform string to boolean: %s", err)
+		return nil, err
+	}
+
 	metadata := cs.parseMetadata(req, snapshotID)
 	createOpts := &cloudvolumes.CreateOpts{
 		Volume: cloudvolumes.VolumeOpts{
 			Name:             volName,
 			Size:             sizeGB,
 			VolumeType:       volumeType,
+			Multiattach:      multiattach,
 			AvailabilityZone: volumeAz,
 			SnapshotID:       snapshotID,
 			Metadata:         metadata,
@@ -254,6 +262,7 @@ const (
 	VolumeAttachingOtherServer
 	VolumeAttachedCurrentServer
 	VolumeAttachedOtherServer
+	VolumeAttachedManyServer
 	VolumeAttachError
 )
 
@@ -291,6 +300,11 @@ func (cs *ControllerServer) ControllerPublishVolume(_ context.Context, req *csi.
 		return buildPublishVolumeResponse(volume, instanceID), nil
 	case VolumeAttachedOtherServer:
 		return nil, status.Errorf(codes.Internal, "Error, volume: %s is in used by another server", volumeID)
+	case VolumeAttachedManyServer:
+		if err := services.AttachVolumeCompleted(credentials, instanceID, volumeID); err != nil {
+			return nil, status.Errorf(codes.Internal, "Failed to publish volume %s to ECS %s with error %v",
+				volumeID, instanceID, err)
+		}
 	default:
 		return nil, status.Errorf(codes.Internal, "Error, status: %s was found in volume: %s, ",
 			volume.Status, volume.ID)
@@ -320,6 +334,7 @@ func buildPublishVolumeResponse(volume *cloudvolumes.Volume, instanceID string) 
 }
 
 func volumeAttachmentStatus(volume *cloudvolumes.Volume, instanceID string) VolumeAttachmentStatus {
+	shareType := volume.Multiattach
 	attachment := false // use to decide whether volume has attached on current instance
 	for _, v := range volume.Attachments {
 		if v.ServerID == instanceID {
@@ -341,8 +356,11 @@ func volumeAttachmentStatus(volume *cloudvolumes.Volume, instanceID string) Volu
 	if services.EvsInUseStatus == volumeStatus && attachment {
 		return VolumeAttachedCurrentServer
 	}
-	if services.EvsInUseStatus == volumeStatus && !attachment {
+	if services.EvsInUseStatus == volumeStatus && !attachment && !shareType {
 		return VolumeAttachedOtherServer
+	}
+	if services.EvsInUseStatus == volumeStatus && !attachment && shareType {
+		return VolumeAttachedManyServer
 	}
 	return VolumeAttachError
 }
