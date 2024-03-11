@@ -55,19 +55,13 @@ func (ids *identityServer) Probe(_ context.Context, req *csi.ProbeRequest) (*csi
 func (ids *identityServer) GetPluginCapabilities(_ context.Context, req *csi.GetPluginCapabilitiesRequest) (
 	*csi.GetPluginCapabilitiesResponse, error) {
 	klog.V(5).Infof("GetPluginCapabilities called with req %+v", req)
-	return &csi.GetPluginCapabilitiesResponse{
+
+	response := &csi.GetPluginCapabilitiesResponse{
 		Capabilities: []*csi.PluginCapability{
 			{
 				Type: &csi.PluginCapability_Service_{
 					Service: &csi.PluginCapability_Service{
 						Type: csi.PluginCapability_Service_CONTROLLER_SERVICE,
-					},
-				},
-			},
-			{
-				Type: &csi.PluginCapability_Service_{
-					Service: &csi.PluginCapability_Service{
-						Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
 					},
 				},
 			},
@@ -79,5 +73,22 @@ func (ids *identityServer) GetPluginCapabilities(_ context.Context, req *csi.Get
 				},
 			},
 		},
-	}, nil
+	}
+
+	volumeAccessibilityConstraint := &csi.PluginCapability{
+		Type: &csi.PluginCapability_Service_{
+			Service: &csi.PluginCapability_Service{
+				Type: csi.PluginCapability_Service_VOLUME_ACCESSIBILITY_CONSTRAINTS,
+			},
+		},
+	}
+
+	idc := ids.Driver.cloud.Global.Idc
+	if idc {
+		return response, nil
+	}
+
+	response.Capabilities = append(response.Capabilities, volumeAccessibilityConstraint)
+
+	return response, nil
 }
