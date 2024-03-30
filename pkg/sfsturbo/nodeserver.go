@@ -17,6 +17,10 @@ limitations under the License.
 package sfsturbo
 
 import (
+	"fmt"
+	"net"
+	"strings"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
 	"golang.org/x/net/context"
@@ -145,6 +149,21 @@ func (ns *nodeServer) NodeUnpublishVolume(_ context.Context, req *csi.NodeUnpubl
 
 func (ns *nodeServer) NodeGetInfo(_ context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	log.Infof("NodeGetInfo: called with args %v", protosanitizer.StripSecrets(*req))
+
+	idc := ns.Driver.cloud.Global.Idc
+	if idc {
+		log.Infof("IDC is %v, volume will be mounted directly \n", idc)
+		macAddress, err := getMACAddress()
+		if err != nil {
+			log.Errorf("failed to get mac address: %v", err)
+			return &csi.NodeGetInfoResponse{}, nil
+		}
+
+		return &csi.NodeGetInfoResponse{
+			NodeId: macAddress,
+		}, nil
+	}
+
 	nodeID, err := ns.Metadata.GetInstanceID()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Unable to retrieve instance id of node %s", err)
@@ -227,4 +246,20 @@ func nodeGetStatsValidation(volumeID, volumePath string) error {
 func (ns *nodeServer) NodeExpandVolume(_ context.Context, _ *csi.NodeExpandVolumeRequest) (
 	*csi.NodeExpandVolumeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "")
+}
+
+// getMACAddress will use MAC address as node id if idc is true
+func getMACAddress() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+
+	for _, v := range interfaces {
+		if v.Flags&net.FlagLoopback == 0 && len(v.HardwareAddr.String()) > 0 {
+			return strings.ReplaceAll(v.HardwareAddr.String(), ":", "_"), nil
+		}
+	}
+
+	return "", fmt.Errorf("MAC address not found")
 }

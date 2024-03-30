@@ -23,6 +23,7 @@ type CloudCredentials struct {
 		AccessKey string `gcfg:"access-key"`
 		SecretKey string `gcfg:"secret-key"`
 		ProjectID string `gcfg:"project-id"`
+		Idc       bool   `gcfg:"idc"`
 	}
 
 	Vpc struct {

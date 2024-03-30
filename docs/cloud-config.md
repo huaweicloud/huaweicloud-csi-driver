@@ -9,6 +9,7 @@ secret-key=
 project-id=
 cloud=
 auth-url=
+idc=
 
 [Vpc]
 id=
@@ -67,6 +68,8 @@ security-group-id=26a62fd******0b876fcb
 * `cloud` Optional. The endpoint of the cloud provider. Defaults to 'myhuaweicloud.com'.
 
 * `auth-url` Optional. The Identity authentication URL. Defaults to 'https://iam.{cloud}:443/v3/'.
+
+* `idc` Optional. This supports creating SFS Turbo to IDC server room if the field is `true`. Defaults to `false`.
 
 ### Vpc
 
