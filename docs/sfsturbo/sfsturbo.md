@@ -13,7 +13,7 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 | SFS Turbo CSI Driver Version | CSI version | Kubernetes Version Tested | Features |
 |------------------------------|-------------|---------------------------|----------|
 | v0.1.1                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | shares   |
-| v0.1.2                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23   |          |
+| v0.1.3                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23   |          |
 
 ## Supported Parameters
 
