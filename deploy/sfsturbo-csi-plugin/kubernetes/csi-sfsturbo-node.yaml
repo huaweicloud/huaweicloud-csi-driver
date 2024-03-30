@@ -31,7 +31,7 @@ spec:
             - --health-port=28889
             - --v=5
         - name: node-driver-registrar
-          image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
+          image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.6.3
           args:
             - --csi-address=$(ADDRESS)
             - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
@@ -51,7 +51,7 @@ spec:
             - name: registration-dir
               mountPath: /registration
         - name: sfsturbo
-          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/sfsturbo-csi-plugin:v0.1.2
+          image: swr.cn-north-4.myhuaweicloud.com/k8s-csi/sfsturbo-csi-plugin:v0.1.3
           args:
             - "--v=5"
             - "--logtostderr"
