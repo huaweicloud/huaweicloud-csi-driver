@@ -156,7 +156,7 @@ func (ns *nodeServer) NodeGetInfo(_ context.Context, req *csi.NodeGetInfoRequest
 		macAddress, err := getMACAddress()
 		if err != nil {
 			log.Errorf("failed to get mac address: %v", err)
-			return &csi.NodeGetInfoResponse{}, nil
+			return &csi.NodeGetInfoResponse{}, fmt.Errorf("failed to gen nodeID: %v", err)
 		}
 
 		return &csi.NodeGetInfoResponse{
