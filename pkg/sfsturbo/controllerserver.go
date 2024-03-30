@@ -78,6 +78,11 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	// Required, incase vol AZ is different from node AZ
 	volumeAz := parameters[Availability]
 	if len(volumeAz) == 0 {
+		idc := cs.Driver.cloud.Global.Idc
+		if idc {
+			return nil, status.Errorf(codes.InvalidArgument, "availability cannot be empty when IDC is true")
+		}
+
 		if volumeAz = common.GetAZFromTopology(req.GetAccessibilityRequirements(), topologyKey); volumeAz == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "Validation failed, volumeAz cannot be empty")
 		}
