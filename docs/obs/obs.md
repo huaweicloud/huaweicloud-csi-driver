@@ -29,6 +29,20 @@ https://kubernetes-csi.github.io/docs/sidecar-containers.html.
 `private`, `public-read`, `public-read-write`, `public-read-delivered`, `public-read-write-delivered` and
 `bucket-owner-full-control`. Defaults to `private`. It is located under `parameters`.
 
+* `sseAlgorithm` Optional. Specifies the default encryption configuration for the bucket requires the use of a
+  server-side encryption algorithm. Valid values are as follows: 
+  - `kms`. Indicates that the server encryption is **SSE-KMS** mode.
+  - `obs`. Indicates that the server encryption is **SSE-OBS** mode.
+
+  default does not use encryption.
+
+* `kmsKeyId` Optional. Specifies the KMS key id used in **SSE-KMS** encryption mode, if is not provided, the default key
+  of KMS will be used.
+
+* `projectId` Optional. Specifies the project ID to which the KMS key belongs under **SSE-KMS** encryption mode.
+  - If **projectId** is provided, the **kmsKeyId** must belong to the **projectId**.
+  - If **kmsKeyId** is not provided, the **projectId** cannot be provided.
+
 ## Deploy
 
 ### Prerequisites
@@ -83,4 +97,7 @@ The following are examples of specific functions:
 
 **Dynamic Provisioning:** [obs dynamic](obs-dynamic.md)
 
+**Dynamic Provisioning With Encryption:** [obs encryption](obs-encryption.md)
+
 **Use Existing Bucket:** [obs existing](obs-existing.md)
+

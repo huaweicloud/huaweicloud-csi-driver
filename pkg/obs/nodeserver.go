@@ -47,9 +47,12 @@ type nodeServer struct {
 }
 
 const (
-	credentialDir = "/var/lib/csi"
-	SocketPath    = "/var/lib/csi/connector.sock"
-	perm          = 0600
+	credentialDir      = "/var/lib/csi"
+	credentialFileName = ".passwd-s3fs"
+	SocketPath         = "/var/lib/csi/connector.sock"
+	perm               = 0600
+
+	MountFlagHasNoValue = "no_value"
 )
 
 func (ns *nodeServer) NodeStageVolume(_ context.Context, req *csi.NodeStageVolumeRequest) (
@@ -75,7 +78,7 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	}
 
 	credentials := ns.Driver.cloud
-	volume, err := services.GetParallelFSBucket(credentials, volumeID)
+	volume, err := services.GetObsBucket(credentials, volumeID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +96,7 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 		return nil, status.Errorf(codes.Internal, "Failed to make dir: %s, error: %v", targetPath, err)
 	}
 
-	credentialFile := fmt.Sprintf("%s/%s", credentialDir, uuid.New().String())
+	credentialFile := filepath.Join(credentialDir, uuid.New().String(), credentialFileName)
 	accessKey := ns.Driver.cloud.Global.AccessKey
 	secretKey := ns.Driver.cloud.Global.SecretKey
 	if err := createCredentialFile(accessKey, secretKey, credentialFile); err != nil {
@@ -101,15 +104,26 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	}
 	defer deleteCredentialFile(credentialFile)
 
-	mountFlags := []string{"big_writes", "max_write=131072", "use_ino"}
+	defaultMountFlags := map[string]string{
+		"big_writes": MountFlagHasNoValue,
+		"nonempty":   MountFlagHasNoValue,
+		"max_write":  "131072",
+	}
+
+	customMountFlags := make(map[string]string)
 	if mnt := req.GetVolumeCapability().GetMount(); mnt != nil {
-		for _, v := range mnt.GetMountFlags() {
-			if v == "passwd_file" || v == "use_ino" {
+		for _, flag := range mnt.GetMountFlags() {
+			k, v, err := ValidateMountFlag(flag)
+			if err != nil {
+				return nil, err
+			}
+			if k == "passwd_file" || k == "use_ino" {
 				continue
 			}
-			mountFlags = append(mountFlags, v)
+			customMountFlags[k] = v
 		}
 	}
+	mountFlags := MergeMapToArray(defaultMountFlags, customMountFlags)
 
 	parameters := map[string]string{
 		"bucketName": volume.BucketName,
@@ -238,7 +252,7 @@ func (ns *nodeServer) NodeGetVolumeStats(_ context.Context, req *csi.NodeGetVolu
 	log.Infof("NodeGetVolumeStats: stats info :%s", protosanitizer.StripSecrets(*stats))
 	capacity, usedBytes := stats.TotalBytes, stats.UsedBytes
 
-	bucket, err := services.GetParallelFSBucket(ns.Driver.cloud, volumeID)
+	bucket, err := services.GetObsBucket(ns.Driver.cloud, volumeID)
 	if err != nil {
 		return nil, err
 	}
@@ -283,4 +297,54 @@ func nodeGetStatsValidation(volumeID, volumePath string) error {
 		return status.Errorf(codes.Unknown, "Error, the volume path %s not found", volumePath)
 	}
 	return nil
+}
+
+func ValidateMountFlag(flag string) (string, string, error) {
+	if flag == "" || flag == "=" {
+		return "", "", status.Errorf(codes.InvalidArgument, "the mount flag can not be empty or '=', flag is '%v'", flag)
+	}
+	splitFlag := strings.Split(flag, "=")
+	// has two or more '='. eg: [xxx=yyy=zzz]
+	if len(splitFlag) == 0 || len(splitFlag) > 2 {
+		return "", "", status.Errorf(codes.InvalidArgument, "the mount flag is invalid, flag is '%v'", flag)
+	}
+
+	k, v := "", MountFlagHasNoValue
+	// mount flag is single parameter and has no value
+	if len(splitFlag) == 1 {
+		k = strings.TrimSpace(splitFlag[0])
+	}
+
+	// eg: [xxx=] [=yyy]
+	if len(splitFlag) == 2 {
+		k = strings.TrimSpace(splitFlag[0])
+		v = strings.TrimSpace(splitFlag[1])
+		if k == "" || v == "" {
+			return "", "", status.Errorf(codes.InvalidArgument, "the mount flag is invalid, '%v' has no key or value", flag)
+		}
+	}
+	return k, v, nil
+}
+
+func MergeMapToArray(defaultMap, customMap map[string]string) []string {
+	mergedMap := make(map[string]string)
+
+	// use customMap to cover defaultMap
+	for k, v := range defaultMap {
+		mergedMap[k] = v
+	}
+	for k, v := range customMap {
+		mergedMap[k] = v
+	}
+
+	mountFlag := make([]string, 0)
+	for k, v := range mergedMap {
+		if v == MountFlagHasNoValue {
+			mountFlag = append(mountFlag, k)
+			continue
+		}
+		mountFlag = append(mountFlag, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	return mountFlag
 }
