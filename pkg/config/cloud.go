@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -20,6 +21,7 @@ type CloudCredentials struct {
 		Cloud     string `gcfg:"cloud"`
 		AuthURL   string `gcfg:"auth-url"`
 		Region    string `gcfg:"region"`
+		Insecure  bool   `gcfg:"insecure"`
 		AccessKey string `gcfg:"access-key"`
 		SecretKey string `gcfg:"secret-key"`
 		ProjectID string `gcfg:"project-id"`
@@ -135,7 +137,14 @@ func (c *CloudCredentials) newCloudClient() error {
 		return err
 	}
 
-	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: c.Global.Insecure,
+		},
+	}
+
 	client.HTTPClient = http.Client{
 		Transport: &utils.LogRoundTripper{
 			Rt: transport,
