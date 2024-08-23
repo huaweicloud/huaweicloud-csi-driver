@@ -1,0 +1,12 @@
+# when removing SC or PVC, the bucket resources will be cleared and deleted together.
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: obs-encryption-kms
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: obs-encryption-kms

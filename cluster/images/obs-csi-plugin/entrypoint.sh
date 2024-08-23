@@ -3,10 +3,7 @@
 HOST_CMD="/nsenter --mount=/proc/1/ns/mnt"
 mkdir -p /var/lib/csi/
 
-cp -f /obs-csi/huaweicloud-obs-obsfs.tar.gz /var/lib/csi/huaweicloud-obs-obsfs.tar.gz
-cp -f /obs-csi/obsfs_CentOS7.6_amd64.tar.gz /var/lib/csi/obsfs_CentOS7.6_amd64.tar.gz
-cp -f /obs-csi/obsfs_Ubuntu16.04_amd64.tar.gz /var/lib/csi/obsfs_Ubuntu16.04_amd64.tar.gz
-cp -f /obs-csi/install_obsfs.sh /var/lib/csi/install_obsfs.sh
+cp -f /obs-csi/install_s3fs.sh /var/lib/csi/install_s3fs.sh
 
 echo "Starting install obs csi-connector-server...."
 $HOST_CMD systemctl stop csi-connector.service

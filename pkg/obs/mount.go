@@ -26,7 +26,6 @@ func sendCommand(cmd CommandRPC, mountClient http.Client) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Start sending command: %s", string(marshal))
 	response, err := mountClient.Post("http://unix", "application/json", bytes.NewReader(marshal))
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to post command, err: %v", err)
@@ -34,6 +33,7 @@ func sendCommand(cmd CommandRPC, mountClient http.Client) error {
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
 		respBody, err := ioutil.ReadAll(response.Body)
+		log.Infof("start to mount bucket, cmd: %v", string(respBody))
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to read responseBody, err: %v", err)
 		}
