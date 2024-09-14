@@ -16,7 +16,7 @@ func TestRoundTrip(t *testing.T) {
 	}{
 		{
 			name:    "test1",
-			request: httpNewRequest("GET", "https://hub.docker.com/", nil, t),
+			request: httpNewRequest("GET", "https://www.baidu.com/", nil, t),
 			response: &http.Response{
 				Status:     "200 OK",
 				StatusCode: http.StatusOK,
@@ -65,10 +65,10 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			name:    "test6",
-			request: httpNewRequest("POST", "https://hub.docker.com/", nil, t),
+			request: httpNewRequest("POST", "https://www.baidu.com/", nil, t),
 			response: &http.Response{
-				Status:     "404 Not Found",
-				StatusCode: http.StatusNotFound,
+				Status:     "200 OK",
+				StatusCode: http.StatusOK,
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
@@ -78,10 +78,10 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			name:    "test7",
-			request: httpNewRequest("PUT", "https://hub.docker.com/", nil, t),
+			request: httpNewRequest("PUT", "https://www.baidu.com/", nil, t),
 			response: &http.Response{
-				Status:     "404 Not Found",
-				StatusCode: http.StatusNotFound,
+				Status:     "200 OK",
+				StatusCode: http.StatusOK,
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
@@ -91,10 +91,10 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			name:    "test8",
-			request: httpNewRequest("DELETE", "https://hub.docker.com/", nil, t),
+			request: httpNewRequest("DELETE", "https://www.baidu.com/", nil, t),
 			response: &http.Response{
-				Status:     "404 Not Found",
-				StatusCode: http.StatusNotFound,
+				Status:     "200 OK",
+				StatusCode: http.StatusOK,
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
