@@ -46,7 +46,7 @@ func (ns *nodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstag
 	return nil, status.Error(codes.Unimplemented, "")
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.V(2).Infof("NodePublishVolume called with request %v", *req)
 	if req.GetVolumeCapability() == nil {
