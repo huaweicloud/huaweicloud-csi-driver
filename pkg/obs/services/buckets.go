@@ -19,6 +19,7 @@ package services
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 	"golang.org/x/sync/errgroup"
@@ -36,13 +37,13 @@ type Bucket struct {
 	Capacity            int64
 }
 
-func GetParallelFSBucket(c *config.CloudCredentials, bucketName string) (*Bucket, error) {
+func GetObsBucket(c *config.CloudCredentials, bucketName string) (*Bucket, error) {
 	metadata, err := GetBucketMetadata(c, bucketName)
 	if err != nil {
 		return nil, err
 	}
-	if isParallelFile := IsParallelFSBucket(metadata.FSStatus); !isParallelFile {
-		return nil, status.Errorf(codes.Unavailable, "Error, the OBS instance %s is not a parallel file system", bucketName)
+	if ok := isObsBucket(metadata.FSStatus); !ok {
+		return nil, status.Errorf(codes.Unavailable, "Error, the OBS instance %s is not a obs bucket", bucketName)
 	}
 	capacity, err := GetBucketCapacity(c, bucketName)
 	if err != nil {
@@ -82,8 +83,8 @@ func CheckBucketExist(c *config.CloudCredentials, bucketName string) (bool, erro
 	return true, nil
 }
 
-func IsParallelFSBucket(FSStatus obs.FSStatusType) bool {
-	return FSStatus == obs.FSStatusEnabled
+func isObsBucket(FSStatus obs.FSStatusType) bool {
+	return FSStatus == obs.FSStatusDisabled
 }
 
 func CreateBucket(c *config.CloudCredentials, bucketName string, acl obs.AclType) error {
@@ -92,10 +93,9 @@ func CreateBucket(c *config.CloudCredentials, bucketName string, acl obs.AclType
 		return err
 	}
 	input := &obs.CreateBucketInput{
-		Bucket:            bucketName,
-		ACL:               acl,
-		IsFSFileInterface: true,
-		BucketLocation:    obs.BucketLocation{Location: c.Global.Region},
+		Bucket:         bucketName,
+		ACL:            acl,
+		BucketLocation: obs.BucketLocation{Location: c.Global.Region},
 	}
 	if _, err = client.CreateBucket(input); err == nil {
 		return nil
@@ -215,7 +215,7 @@ func ListBuckets(c *config.CloudCredentials, opts ListOpts) ([]*Bucket, error) {
 	}
 	input := &obs.ListBucketsInput{
 		QueryLocation: false,
-		BucketType:    obs.POSIX,
+		BucketType:    obs.OBJECT,
 	}
 	output, err := client.ListBuckets(input)
 	if err != nil {
@@ -235,8 +235,8 @@ func ListBuckets(c *config.CloudCredentials, opts ListOpts) ([]*Bucket, error) {
 	for k, j := 0, i+1; j <= i+opts.Limit && j < len(output.Buckets); k, j = k+1, j+1 {
 		func(bucketName string, idx int) {
 			group.Go(func() error {
-				fsBucket, err := GetParallelFSBucket(c, bucketName)
-				bucketList[idx] = fsBucket
+				obsBucket, err := GetObsBucket(c, bucketName)
+				bucketList[idx] = obsBucket
 				return err
 			})
 		}(output.Buckets[j].Name, k)
@@ -298,6 +298,52 @@ func getObsClient(c *config.CloudCredentials) (*obs.ObsClient, error) {
 		return nil, status.Errorf(codes.Internal, "Error initializing OBS client log: %v", err)
 	}
 	return client, nil
+}
+
+func SetBucketEncryption(c *config.CloudCredentials, bucketName string, parameters map[string]string) error {
+	client, err := getObsClient(c)
+	if err != nil {
+		return err
+	}
+
+	var sseAlgorithm, kmsKeyID, projectID string
+	if v, ok := parameters["sseAlgorithm"]; ok {
+		sseAlgorithm = v
+	}
+	if strings.TrimSpace(sseAlgorithm) == "" {
+		return status.Errorf(codes.InvalidArgument, "sseAlgorithm is provided but it is empty")
+	}
+	if v, ok := parameters["kmsKeyId"]; ok {
+		kmsKeyID = v
+	}
+	if v, ok := parameters["projectId"]; ok {
+		projectID = v
+	}
+
+	if sseAlgorithm == obs.DEFAULT_SSE_KMS_ENCRYPTION_OBS && c.Global.Cloud == "prod-cloud-ocb.orange-business.com" {
+		sseAlgorithm = obs.DEFAULT_SSE_KMS_ENCRYPTION
+	}
+	input := &obs.SetBucketEncryptionInput{
+		Bucket: bucketName,
+		BucketEncryptionConfiguration: obs.BucketEncryptionConfiguration{
+			SSEAlgorithm: sseAlgorithm,
+		},
+	}
+	if sseAlgorithm == obs.DEFAULT_SSE_KMS_ENCRYPTION_OBS || sseAlgorithm == obs.DEFAULT_SSE_KMS_ENCRYPTION {
+		input.BucketEncryptionConfiguration.SSEAlgorithm = sseAlgorithm
+		input.BucketEncryptionConfiguration.KMSMasterKeyID = kmsKeyID
+		input.BucketEncryptionConfiguration.ProjectID = projectID
+	}
+
+	_, err = client.SetBucketEncryption(input)
+	if err == nil {
+		return nil
+	}
+	if obsError, ok := err.(obs.ObsError); ok && obsError.StatusCode == http.StatusBadRequest {
+		return status.Errorf(codes.InvalidArgument, "Error, the algorithm of encryption is invalid: %v", sseAlgorithm)
+	}
+
+	return status.Errorf(codes.Internal, "Error setting OBS instance %s encryption: %v", bucketName, err)
 }
 
 func initLog() error {
