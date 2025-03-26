@@ -43,7 +43,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		return nil, err
 	}
 
-	if volume, err := services.GetParallelFSBucket(credentials, volName); err != nil && status.Code(err) != codes.NotFound {
+	if volume, err := services.GetObsBucket(credentials, volName); err != nil && status.Code(err) != codes.NotFound {
 		return nil, err
 	} else if volume != nil {
 		log.Infof("Volume %s existence, skip creating", volName)
@@ -61,7 +61,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		}
 	}
 
-	volume, err := services.GetParallelFSBucket(credentials, volName)
+	volume, err := services.GetObsBucket(credentials, volName)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 	}
 
 	credentials := cs.Driver.cloud
-	volume, err := services.GetParallelFSBucket(credentials, volName)
+	volume, err := services.GetObsBucket(credentials, volName)
 	if err != nil {
 		if common.IsNotFound(err) {
 			log.Infof("Volume %s does not exist, skip deleting", volName)
@@ -115,7 +115,7 @@ func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.Cont
 		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
 
-	bucket, err := services.GetParallelFSBucket(cs.Driver.cloud, volumeID)
+	bucket, err := services.GetObsBucket(cs.Driver.cloud, volumeID)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *c
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
-	if _, err := services.GetParallelFSBucket(cs.Driver.cloud, volumeID); err != nil {
+	if _, err := services.GetObsBucket(cs.Driver.cloud, volumeID); err != nil {
 		return nil, err
 	}
 
@@ -263,7 +263,7 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 			"Validation failed, after round-up volume size %v exceeds the max size %v", sizeBytes, maxSizeBytes)
 	}
 
-	volume, err := services.GetParallelFSBucket(cc, volumeID)
+	volume, err := services.GetObsBucket(cc, volumeID)
 	if err != nil {
 		return nil, err
 	}

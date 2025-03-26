@@ -25,7 +25,7 @@ const (
 	region        = "region"
 	cloud         = "cloud"
 	credential    = "credential"
-	defaultOpts   = "-o big_writes -o max_write=131072 -o use_ino"
+	defaultOpts   = "-o nonempty -o big_writes -o max_write=131072"
 )
 
 type ResponseBody struct {
@@ -119,7 +119,7 @@ func main() {
 	//nolint:errcheck
 	flag.CommandLine.Parse([]string{})
 
-	initObsfsUtil()
+	initS3fsUtil()
 	if checkFileExists(obs.SocketPath) {
 		if err := os.Remove(obs.SocketPath); err != nil {
 			log.Fatalf("Failed to remove path: %s, err: %v", obs.SocketPath, err)
@@ -153,26 +153,27 @@ func mountHandler(parameters map[string]string) error {
 	if parameters[cloud] == "prod-cloud-ocb.orange-business.com" {
 		obsName = "oss"
 	}
-
 	mountOpts := parameters[mountFlags]
 	if mountOpts == "" {
 		mountOpts = defaultOpts
 	}
+
 	options := []string{
-		"obsfs",
 		parameters[bucketName],
 		parameters[targetPath],
-		fmt.Sprintf("-o url=%s.%s.%s", obsName, parameters[region], parameters[cloud]),
-		fmt.Sprintf("-o passwd_file=%s", credentialFile),
-		mountOpts,
+		"-o",
+		fmt.Sprintf("url=https://%s.%s.%s", obsName, parameters[region], parameters[cloud]),
+		"-o",
+		fmt.Sprintf("passwd_file=%s", credentialFile),
 	}
+	mntOptsArr := strings.Split(mountOpts, " ")
+	options = append(options, mntOptsArr...)
 
-	cmd := exec.Command("sh", "-c")
-	cmd.Args = append(cmd.Args, strings.Join(options, " "))
+	cmd := exec.Command("s3fs", options...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Errorf("failed to mount CMD: obsfs %s, output: %s, error: %v", strings.Join(options, " "), string(out), err)
-		return fmt.Errorf("failed to mount CMD: obsfs %s, output: %s, error: %v", strings.Join(options, " "), string(out), err)
+		log.Errorf("failed to mount bucket to node, CMD: s3fs %s, output: %s, error: %v", strings.Join(options, " "), string(out), err)
+		return fmt.Errorf("failed to mount bucket to node, CMD: s3fs %s, output: %s, error: %v", strings.Join(options, " "), string(out), err)
 	}
 	log.Infof("success to mount CMD: %s", strings.Join(options, " "))
 	return nil
@@ -186,11 +187,11 @@ func deleteCredential(credential string) {
 	}
 }
 
-func initObsfsUtil() {
-	cmd := fmt.Sprintf("sh %s/install_obsfs.sh >> %s/connector.log 2>&1 &", credentialDir, credentialDir)
+func initS3fsUtil() {
+	cmd := fmt.Sprintf("sh %s/install_s3fs.sh > %s/connector.log 2>&1 &", credentialDir, credentialDir)
 	out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
-	log.Infof("install obsfs %s", string(out))
+	log.Infof("install s3fs %s", string(out))
 	if err != nil {
-		log.Errorf("error install obsfs: %s", err)
+		log.Errorf("error install s3fs: %s", err)
 	}
 }

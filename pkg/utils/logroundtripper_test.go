@@ -67,8 +67,8 @@ func TestRoundTrip(t *testing.T) {
 			name:    "test6",
 			request: httpNewRequest("POST", "https://hub.docker.com/", nil, t),
 			response: &http.Response{
-				Status:     "404 Not Found",
-				StatusCode: http.StatusNotFound,
+				Status:     "405 Method Not Allowed",
+				StatusCode: http.StatusMethodNotAllowed,
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
@@ -80,8 +80,8 @@ func TestRoundTrip(t *testing.T) {
 			name:    "test7",
 			request: httpNewRequest("PUT", "https://hub.docker.com/", nil, t),
 			response: &http.Response{
-				Status:     "404 Not Found",
-				StatusCode: http.StatusNotFound,
+				Status:     "405 Method Not Allowed",
+				StatusCode: http.StatusMethodNotAllowed,
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
@@ -93,8 +93,8 @@ func TestRoundTrip(t *testing.T) {
 			name:    "test8",
 			request: httpNewRequest("DELETE", "https://hub.docker.com/", nil, t),
 			response: &http.Response{
-				Status:     "404 Not Found",
-				StatusCode: http.StatusNotFound,
+				Status:     "405 Method Not Allowed",
+				StatusCode: http.StatusMethodNotAllowed,
 				Proto:      "HTTP/1.1",
 				ProtoMajor: 1,
 				ProtoMinor: 1,
