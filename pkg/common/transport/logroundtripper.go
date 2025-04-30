@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utils
+package transport
 
 import (
 	"bytes"
@@ -36,6 +36,12 @@ import (
 var (
 	serverGRPCEndpointCallCounter uint64
 )
+
+func NewLogRoundTripper() WrapperFunc {
+	return func(rt http.RoundTripper) http.RoundTripper {
+		return &LogRoundTripper{Rt: rt}
+	}
+}
 
 // LogRoundTripper satisfies the http.RoundTripper interface and is used to
 // customize the default http client RoundTripper to allow for logging.

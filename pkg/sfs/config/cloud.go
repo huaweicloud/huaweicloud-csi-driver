@@ -23,7 +23,7 @@ import (
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common/transport"
 )
 
 const (
@@ -134,10 +134,10 @@ func (c *CloudCredentials) Validate() error {
 		return err
 	}
 
-	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
+	newTransport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	client.HTTPClient = http.Client{
-		Transport: &utils.LogRoundTripper{
-			Rt: transport,
+		Transport: &transport.LogRoundTripper{
+			Rt: newTransport,
 		},
 	}
 

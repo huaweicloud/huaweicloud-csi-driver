@@ -156,6 +156,25 @@ github.com/spf13/pflag
 # github.com/stretchr/testify v1.8.0
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
+# github.com/tjfoc/gmsm v1.4.2-0.20220114090716-36b992c51540
+## explicit; go 1.14
+github.com/tjfoc/gmsm/gmtls
+github.com/tjfoc/gmsm/sm2
+github.com/tjfoc/gmsm/sm3
+github.com/tjfoc/gmsm/sm4
+github.com/tjfoc/gmsm/x509
+# golang.org/x/crypto v0.14.0
+## explicit; go 1.17
+golang.org/x/crypto/chacha20
+golang.org/x/crypto/chacha20poly1305
+golang.org/x/crypto/cryptobyte
+golang.org/x/crypto/cryptobyte/asn1
+golang.org/x/crypto/curve25519
+golang.org/x/crypto/curve25519/internal/field
+golang.org/x/crypto/internal/alias
+golang.org/x/crypto/internal/poly1305
+golang.org/x/crypto/ripemd160
+golang.org/x/crypto/sha3
 # golang.org/x/net v0.17.0
 ## explicit; go 1.17
 golang.org/x/net/context
@@ -177,6 +196,7 @@ golang.org/x/oauth2/internal
 golang.org/x/sync/errgroup
 # golang.org/x/sys v0.14.0
 ## explicit; go 1.18
+golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows

@@ -7,8 +7,9 @@ import (
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack"
+	"github.com/tjfoc/gmsm/gmtls"
 
-	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common/transport"
 )
 
 const (
@@ -26,6 +27,7 @@ type CloudCredentials struct {
 		SecretKey string `gcfg:"secret-key"`
 		ProjectID string `gcfg:"project-id"`
 		Idc       bool   `gcfg:"idc"`
+		GMSupport bool   `gcfg:"gm-support"`
 	}
 
 	Vpc struct {
@@ -82,8 +84,8 @@ func newServiceClient(cc *CloudCredentials, catalogName, region string) (*golang
 	if !ok {
 		return nil, fmt.Errorf("service type %s is invalid or not supportted", catalogName)
 	}
-
 	client := cc.CloudClient
+
 	// update ProjectID and region in ProviderClient
 	clone := new(golangsdk.ProviderClient)
 	*clone = *client
@@ -137,7 +139,7 @@ func (c *CloudCredentials) newCloudClient() error {
 		return err
 	}
 
-	transport := &http.Transport{
+	defaultTransport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			MinVersion:         tls.VersionTLS12,
@@ -145,19 +147,28 @@ func (c *CloudCredentials) newCloudClient() error {
 		},
 	}
 
-	client.HTTPClient = http.Client{
-		Transport: &utils.LogRoundTripper{
-			Rt: transport,
-		},
+	wrappers := []transport.WrapperFunc{
+		transport.NewLogRoundTripper(),
+	}
+	if c.Global.GMSupport {
+		gmCfg := &gmtls.Config{
+			GMSupport:          &gmtls.GMSupport{WorkMode: gmtls.ModeAutoSwitch},
+			InsecureSkipVerify: c.Global.Insecure,
+		}
+		wrappers = append(wrappers, transport.NewGMRoundTripper(gmCfg))
 	}
 
-	err = openstack.Authenticate(client, ao)
-	if err != nil {
+	client.HTTPClient = http.Client{
+		Transport: transport.Wrappers(wrappers...)(defaultTransport),
+	}
+
+	if err := openstack.Authenticate(client, ao); err != nil {
 		return err
 	}
 
 	c.CloudClient = client
 	c.CloudClient.UserAgent.Prepend(UserAgent)
+
 	return nil
 }
 
