@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/klog"
 
+	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/common/transport"
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
 
@@ -86,7 +87,7 @@ func (s *nonBlockingGRPCServer) serve(endpoint string, ids csi.IdentityServer, c
 	}
 
 	opts := []grpc.ServerOption{
-		grpc.UnaryInterceptor(utils.LogGRPC),
+		grpc.UnaryInterceptor(transport.LogGRPC),
 	}
 	server := grpc.NewServer(opts...)
 	s.server = server
