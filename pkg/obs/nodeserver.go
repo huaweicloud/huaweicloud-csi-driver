@@ -18,6 +18,7 @@ package obs
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -202,6 +203,19 @@ func (ns *nodeServer) NodeUnpublishVolume(_ context.Context, req *csi.NodeUnpubl
 func (ns *nodeServer) NodeGetInfo(_ context.Context, req *csi.NodeGetInfoRequest) (*csi.NodeGetInfoResponse, error) {
 	log.Infof("NodeGetInfo called with request %v", protosanitizer.StripSecrets(*req))
 
+	idc := ns.Driver.cloud.Global.Idc
+	if idc {
+		log.Info("IDC is %v. volume will be mounted directly \n", idc)
+		macAddress, err := getMACAddress()
+		if err != nil {
+			log.Errorf("failed to get mac address: %v", err)
+			return &csi.NodeGetInfoResponse{}, fmt.Errorf("failed to gen nodeID: %v", err)
+		}
+		return &csi.NodeGetInfoResponse{
+			NodeId: macAddress,
+		}, nil
+	}
+
 	nodeID, err := ns.Metadata.GetInstanceID()
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Unable to retrieve instance id of node %s", err)
@@ -283,4 +297,19 @@ func nodeGetStatsValidation(volumeID, volumePath string) error {
 		return status.Errorf(codes.Unknown, "Error, the volume path %s not found", volumePath)
 	}
 	return nil
+}
+
+func getMACAddress() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+
+	for _, v := range interfaces {
+		if v.Flags&net.FlagLoopback == 0 && len(v.HardwareAddr.String()) > 0 {
+			return strings.ReplaceAll(v.HardwareAddr.String(), ":", "_"), nil
+		}
+	}
+
+	return "", fmt.Errorf("MAC address not found")
 }
