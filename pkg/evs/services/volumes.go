@@ -46,6 +46,7 @@ func CreateCinderCompleted(c *config.CloudCredentials, opts *cloudvolumes.Create
 		Name:             opts.Volume.Name,
 		Size:             opts.Volume.Size,
 		VolumeType:       opts.Volume.VolumeType,
+		Multiattach:      opts.Volume.Multiattach,
 		AvailabilityZone: opts.Volume.AvailabilityZone,
 		SnapshotID:       opts.Volume.SnapshotID,
 		Metadata:         opts.Volume.Metadata,

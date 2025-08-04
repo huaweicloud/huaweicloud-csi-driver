@@ -32,6 +32,8 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 * `dssId` Optional. ID of the dedicated distributed storage used when creating a dedicated file system.
   It is located under `parameters`.
 
+* `multiattach` Optional. Whether it is a shared disk. default to `"false"`. It is located under `parameters`.
+
 * `scsi` Optional. The device type of the EVS disks to be created. Defaults to `"false"`.
   It is located under `parameters`.
     - `"true"`:  the disk device type will be SCSI, which allows ECS OSs to directly access underlying storage media.
