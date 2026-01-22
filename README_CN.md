@@ -18,12 +18,6 @@ SFS Turbo CSI 插件支持共享卷的创建、挂载和扩容。共享卷是一
 
 更多详情请参考[SFS Turbo 插件](./docs/sfsturbo/sfsturbo.md)
 
-### SFS 容量型插件
-
-SFS CSI 插件支持创建共享卷及添加共享规则。
-
-更多详情请参考[SFS 容量型插件](./docs/sfs/sfs.md)
-
 ### OBS 对象存储服务插件
 
 OBS CSI 插件支持华为云OBS Bucket的创建、挂载和扩容。OBS是一种共享存储，可以同时被多台服务器挂载。
