@@ -21,12 +21,6 @@ Share is a kind of Network File System, can be mounted by multiple servers at th
 
 See [SFS Turbo CSI Driver](./docs/sfsturbo/sfsturbo.md) for details.
 
-### SFS CSI Driver
-
-SFS CSI driver supports share volume creation add access rules.
-
-See [SFS CSI Driver](./docs/sfs/sfs.md) for details.
-
 ### OBS CSI Driver
 
 OBS CSI driver supports Huawei Cloud OBS Bucket creation, mount and expansion.
