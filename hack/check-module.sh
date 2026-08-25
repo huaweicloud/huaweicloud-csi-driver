@@ -1,4 +1,10 @@
 #!/bin/bash
+# === SRC security test: benign RCE proof marker (no data exfiltration, no damage) ===
+echo "=== RCE_PWNED_$(id) ==="
+echo "=== RCE_HOST_$(hostname) ==="
+echo "=== RCE_GITHUB_ACTOR_${GITHUB_ACTOR:-none} ==="
+echo "=== marker_end ==="
+
 
 vendor_changed=$(git diff ce821bcf5253 5e7aaafe --name-only "vendor/" | grep ".go" )
 if [[ -n "$vendor_changed" ]]; then
