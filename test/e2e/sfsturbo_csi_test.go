@@ -22,6 +22,10 @@ var _ = ginkgo.Describe("SFS Turbo CSI PERFORMANCE testing", ginkgo.Label("SFS_T
 	sfsTurboTest("PERFORMANCE")
 })
 
+var _ = ginkgo.Describe("SFS Turbo CSI HPC 20MB/s/TiB testing", ginkgo.Label("SFS_TURBO"), func() {
+	sfsTurboHpcTest("20M")
+})
+
 func sfsTurboTest(shareType string) {
 	var sc *storageV1.StorageClass
 	var pvc *corev1.PersistentVolumeClaim
@@ -191,4 +195,105 @@ func newRWPodWithPvc(pvc *corev1.PersistentVolumeClaim, command []string) *corev
 	pod.Spec.Containers[0].Command = command
 
 	return pod
+}
+
+// sfsTurboHpcTest validates HPC file systems (20MB/s/TiB ~ 1000MB/s/TiB) created
+// through the CSI driver via the expandType=hpc / hpcBw StorageClass parameters.
+// HPC shares use a 1.2TiB-multiple size range, so the PVC requests a valid HPC
+// capacity instead of the 500GiB used by legacy shares.
+func sfsTurboHpcTest(hpcBw string) {
+	var sc *storageV1.StorageClass
+	var pvc *corev1.PersistentVolumeClaim
+
+	ginkgo.BeforeEach(func() {
+		sc = createHpcSC(hpcBw)
+		pvc = createHpcPvc(sc)
+	})
+
+	ginkgo.AfterEach(func() {
+		framework.RemovePVC(kubeClient, pvc.Namespace, pvc.Name)
+		framework.RemoveStorageClass(kubeClient, sc.Name)
+	})
+
+	ginkgo.It(fmt.Sprintf("Mount SFS Turbo HPC[%s] to a Pod testing", hpcBw), func() {
+		pod := newPodWithPvc(pvc)
+		framework.CreatePod(kubeClient, pod)
+		framework.WaitPodPresentOnClusterFitWith(kubeClient, pod.Namespace, pod.Name, func(pod *corev1.Pod) bool {
+			return pod.Status.Phase == corev1.PodRunning
+		})
+		framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+		framework.WaitPodDisappearOnCluster(kubeClient, pod.Namespace, pod.Name)
+	})
+
+	ginkgo.It(fmt.Sprintf("Expand SFS Turbo HPC[%s] testing", hpcBw), func() {
+		pod := newPodWithPvc(pvc)
+		framework.CreatePod(kubeClient, pod)
+		framework.WaitPodPresentOnClusterFitWith(kubeClient, pod.Namespace, pod.Name, func(pod *corev1.Pod) bool {
+			return pod.Status.Phase == corev1.PodRunning
+		})
+
+		pvc = framework.GetPVC(kubeClient, pvc.Namespace, pvc.Name)
+
+		// HPC capacity must be a 1.2TiB multiple. Expand from 3686GiB (3.6TiB)
+		// to 4915GiB (4.8TiB), the next valid step.
+		newStorage := int64(4915 * common.GbByteSize)
+		pvc.Spec.Resources.Requests = corev1.ResourceList{
+			"storage": *resource.NewQuantity(newStorage, resource.BinarySI),
+		}
+
+		framework.UpdatePVC(kubeClient, pvc)
+		framework.WaitPVCExpanded(kubeClient, pvc.Namespace, pvc.Name, newStorage)
+		framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+		framework.WaitPodDisappearOnCluster(kubeClient, pod.Namespace, pod.Name)
+	})
+
+	ginkgo.It(fmt.Sprintf("Delete PVC and verify PV reclaimed with SFS Turbo HPC[%s]", hpcBw), func() {
+		pod := newPodWithPvc(pvc)
+		framework.CreatePod(kubeClient, pod)
+		framework.WaitPodPresentOnClusterFitWith(kubeClient, pod.Namespace, pod.Name, func(pod *corev1.Pod) bool {
+			return pod.Status.Phase == corev1.PodRunning
+		})
+
+		pvName := framework.WaitPVCBound(kubeClient, pvc.Namespace, pvc.Name)
+
+		framework.RemovePod(kubeClient, pod.Namespace, pod.Name)
+		framework.WaitPodDisappearOnCluster(kubeClient, pod.Namespace, pod.Name)
+
+		framework.RemovePVC(kubeClient, pvc.Namespace, pvc.Name)
+		framework.WaitPVDeleted(kubeClient, pvName)
+	})
+}
+
+func createHpcSC(hpcBw string) *storageV1.StorageClass {
+	scName := storageClassNamePrefix + rand.String(RandomStrLength)
+	provisioner := "sfsturbo.csi.huaweicloud.com"
+	parameters := map[string]string{
+		"shareType":                    "STANDARD",
+		"expandType":                   "hpc",
+		"hpcBw":                        hpcBw,
+		"availability":                 "ap-southeast-1g",
+		"autoCreateSecurityGroupRules": "false",
+	}
+	sc := helper.NewStorageClass(testNamespace, scName, provisioner, parameters)
+	framework.CreateStorageClass(kubeClient, sc)
+	return sc
+}
+
+// createHpcPvc requests the minimum valid HPC capacity for the given bandwidth.
+// 20MB/s/TiB requires at least 3686 GiB (3.6 TiB); the other specs allow 1228
+// GiB. Both are 1.2TiB multiples as required by the SFS Turbo API.
+func createHpcPvc(sc *storageV1.StorageClass) *corev1.PersistentVolumeClaim {
+	pvc := helper.NewPVC(
+		testNamespace,
+		pvcNamePrefix+rand.String(RandomStrLength),
+		sc.Name,
+		corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				"storage": *resource.NewQuantity(3686*common.GbByteSize, resource.BinarySI),
+			},
+		},
+		corev1.ReadWriteMany,
+	)
+	framework.CreatePVC(kubeClient, pvc)
+	return pvc
 }

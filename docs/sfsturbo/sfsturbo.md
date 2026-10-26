@@ -18,10 +18,25 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 ## Supported Parameters
 
 * `shareType` Required. Should be `STANDARD` or `PERFORMANCE` in SFS Turbo. It is located under `parameters`.
+  For HPC file systems (see `expandType`/`hpcBw` below) this field is not validated by the SFS Turbo API and can be left as `STANDARD`.
 
 * `availability` Optional. Availability Zone(AZ) of the share. It is located under `parameters`.
 
 * `autoCreateSecurityGroupRules` Optional. Whether to automatically create security group rules for the SFS Turbo share. Should be `true` or `false`. If not specified, the field is omitted from the API request and the SFS Turbo API defaults to `true`. It is located under `parameters`.
+
+* `expandType` Optional. The SFS Turbo `metadata.expand_type` value. Set to `hpc` to create an HPC file system (20MB/s/TiB ~ 1000MB/s/TiB). When `hpcBw` is set but `expandType` is omitted, the driver infers `expandType=hpc` automatically. It is located under `parameters`.
+
+* `hpcBw` Optional. The HPC bandwidth spec. Valid values are `20M`, `40M`, `125M`, `250M`, `500M`, `1000M` (corresponding to 20MB/s/TiB ~ 1000MB/s/TiB). Required together with `expandType=hpc`. The value is not validated by the driver and is forwarded to the SFS Turbo API. It is located under `parameters`.
+
+### HPC file systems (20MB/s/TiB ~ 1000MB/s/TiB)
+
+When `expandType=hpc` (or `hpcBw` is set) is specified in the StorageClass, the driver creates an HPC file system and:
+
+- sets `metadata.expand_type=hpc` and `metadata.hpc_bw=<hpcBw>` on the create request.
+- **does not** enforce the legacy 500~32768 GiB capacity range or the 100GiB expand step. The requested capacity is forwarded to the SFS Turbo API, which validates the per-spec size range (e.g. 3686~1048576 GiB for 20MB/s/TiB) and the 1.2TiB-multiple rule.
+
+Make sure the PVC requests a capacity that satisfies the HPC rules of the chosen `hpcBw` (see the [SFS Turbo API documentation](https://support.huaweicloud.com/intl/en-us/api-sfsturbo/CreateShare.html)).
+
 
 ## Deploy
 
@@ -74,5 +89,7 @@ kube-system    pod/csi-sfsturbo-node-mwg6j                    3/3     Running   
 ## Examples
 
 - [Automatically create SFS Turbo resources based on PVC](sfsturbo-dynamic.md)
+- [Create an HPC file system (20MB/s/TiB ~ 1000MB/s/TiB)](sfsturbo-hpc.md)
+- [Expand an HPC file system](sfsturbo-hpc-resize.md)
 - [Extending SFS Turbo resources bound to a PVC](sfsturbo-resize.md)
 - [Use an existing SFS Turbo resource](use-existing-sfsturbo.md)
