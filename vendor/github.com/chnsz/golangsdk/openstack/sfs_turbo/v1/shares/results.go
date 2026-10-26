@@ -68,6 +68,8 @@ type Turbo struct {
 	EnterpriseProjectId string `json:"enterprise_project_id"`
 	// The bandwidth of the HPC file system.
 	HpcBw string `json:"hpc_bw"`
+	// The backup ID
+	BackupId string `json:"backup_id"`
 }
 
 type TurboExpandResponse struct {
@@ -117,6 +119,14 @@ type DeleteResult struct {
 
 // ExpandResult contains the response body and error from a Expand request.
 type ExpandResult struct {
+	golangsdk.ErrResult
+}
+
+type UpdateNameResult struct {
+	golangsdk.ErrResult
+}
+
+type UpdateSecurityGroupIdResult struct {
 	golangsdk.ErrResult
 }
 

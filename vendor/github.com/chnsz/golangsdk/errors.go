@@ -2,7 +2,9 @@ package golangsdk
 
 import (
 	"fmt"
-	"strings"
+	"log"
+	"os"
+	"strconv"
 )
 
 // BaseError is an error type that all other error types embed.
@@ -12,7 +14,7 @@ type BaseError struct {
 }
 
 func (e BaseError) Error() string {
-	e.DefaultErrString = "An error occurred while executing a Gophercloud request."
+	e.DefaultErrString = "An error occurred while executing HTTP request."
 	return e.choseErrString()
 }
 
@@ -35,7 +37,7 @@ func (e ErrMissingInput) Error() string {
 	return e.choseErrString()
 }
 
-// ErrInvalidInput is an error type used for most non-HTTP Gophercloud errors.
+// ErrInvalidInput is an error type used for most non-HTTP errors.
 type ErrInvalidInput struct {
 	ErrMissingInput
 	Value interface{}
@@ -50,17 +52,18 @@ func (e ErrInvalidInput) Error() string {
 // those listed in OkCodes is encountered.
 type ErrUnexpectedResponseCode struct {
 	BaseError
-	URL      string
-	Method   string
-	Expected []int
-	Actual   int
-	Body     []byte
+	URL       string
+	Method    string
+	RequestId string
+	Expected  []int
+	Actual    int
+	Body      []byte
 }
 
 func (e ErrUnexpectedResponseCode) Error() string {
 	e.DefaultErrString = fmt.Sprintf(
-		"Expected HTTP response code %v when accessing [%s %s], but got %d instead\n%s",
-		e.Expected, e.Method, e.URL, e.Actual, e.Body,
+		"Expected HTTP response code %v when accessing [%s %s], but got %d instead.\nrequest_id: %s, error message: %s",
+		e.Expected, e.Method, e.URL, e.Actual, e.RequestId, e.Body,
 	)
 	return e.choseErrString()
 }
@@ -95,6 +98,11 @@ type ErrDefault408 struct {
 	ErrUnexpectedResponseCode
 }
 
+// ErrDefault409 is the default error type returned on a 409 HTTP response code.
+type ErrDefault409 struct {
+	ErrUnexpectedResponseCode
+}
+
 // ErrDefault429 is the default error type returned on a 429 HTTP response code.
 type ErrDefault429 struct {
 	ErrUnexpectedResponseCode
@@ -105,6 +113,11 @@ type ErrDefault500 struct {
 	ErrUnexpectedResponseCode
 }
 
+// ErrDefault502 is the default error type returned on a 502 HTTP response code.
+type ErrDefault502 struct {
+	ErrUnexpectedResponseCode
+}
+
 // ErrDefault503 is the default error type returned on a 503 HTTP response code.
 type ErrDefault503 struct {
 	ErrUnexpectedResponseCode
@@ -112,8 +125,8 @@ type ErrDefault503 struct {
 
 func (e ErrDefault400) Error() string {
 	e.DefaultErrString = fmt.Sprintf(
-		"Bad request with: [%s %s], error message: %s",
-		e.Method, e.URL, e.Body,
+		"Bad request with: [%s %s], request_id: %s, error message: %s",
+		e.Method, e.URL, e.RequestId, e.Body,
 	)
 	return e.choseErrString()
 }
@@ -121,28 +134,32 @@ func (e ErrDefault401) Error() string {
 	return "Authentication failed"
 }
 func (e ErrDefault403) Error() string {
-	var maxLength int = 200
-	var unAuthorized string = "Request not authorized"
-
-	messageBody := string(e.Body)
-	if len(messageBody) > maxLength {
-		if strings.Contains(messageBody, unAuthorized) {
-			messageBody = unAuthorized
+	messageMaxLengthRaw := os.Getenv("HW_MESSAGE_MAX_LENGTH")
+	var maxLength = 0
+	if messageMaxLengthRaw != "" {
+		v, err := strconv.Atoi(messageMaxLengthRaw)
+		if err != nil || v <= 0 {
+			log.Printf("[ERROR] the environment param HW_MESSAGE_MAX_LENGTH(%s) should be an integer and the "+
+				"value should greater then 0", messageMaxLengthRaw)
 		} else {
-			messageBody = messageBody[:maxLength] + "\n..."
+			maxLength = v
 		}
 	}
 
+	messageBody := string(e.Body)
+	if maxLength > 0 && maxLength < len(messageBody) {
+		messageBody = messageBody[:maxLength] + "\n..."
+	}
 	e.DefaultErrString = fmt.Sprintf(
-		"Action forbidden: [%s %s], error message: %s",
-		e.Method, e.URL, messageBody,
+		"Action forbidden: [%s %s], request_id: %s, error message: %s",
+		e.Method, e.URL, e.RequestId, messageBody,
 	)
 	return e.choseErrString()
 }
 func (e ErrDefault404) Error() string {
 	e.DefaultErrString = fmt.Sprintf(
-		"Resource not found: [%s %s], error message: %s",
-		e.Method, e.URL, e.Body,
+		"Resource not found: [%s %s], request_id: %s, error message: %s",
+		e.Method, e.URL, e.RequestId, e.Body,
 	)
 	return e.choseErrString()
 }
@@ -152,20 +169,32 @@ func (e ErrDefault405) Error() string {
 func (e ErrDefault408) Error() string {
 	return "The server timed out waiting for the request"
 }
+func (e ErrDefault409) Error() string {
+	return "The request could not be processed due to conflict in the request"
+}
 func (e ErrDefault429) Error() string {
 	e.DefaultErrString = fmt.Sprintf(
-		"Too many requests: [%s %s], error message: %s",
-		e.Method, e.URL, e.Body,
+		"Too many requests: [%s %s], request_id: %s, error message: %s",
+		e.Method, e.URL, e.RequestId, e.Body,
 	)
 	return e.choseErrString()
 }
 func (e ErrDefault500) Error() string {
 	e.DefaultErrString = fmt.Sprintf(
-		"Internal Server Error: [%s %s], error message: %s",
-		e.Method, e.URL, e.Body,
+		"Internal Server Error: [%s %s], request_id: %s, error message: %s",
+		e.Method, e.URL, e.RequestId, e.Body,
 	)
 	return e.choseErrString()
 }
+
+// HTTP bad gateway.
+func (e ErrDefault502) Error() string {
+	e.DefaultErrString = "Bad Gateway. Unable to receive a valid response from the upstream server while access the " +
+		"website or proxy server. It may be caused by the upstream server being temporarily unavailable, timing out, " +
+		"or returning a malformed response."
+	return e.choseErrString()
+}
+
 func (e ErrDefault503) Error() string {
 	return "The service is currently unable to handle the request due to a temporary" +
 		" overloading or maintenance. This is a temporary condition. Try again later."
@@ -207,6 +236,12 @@ type Err408er interface {
 	Error408(ErrUnexpectedResponseCode) error
 }
 
+// Err409er is the interface resource error types implement to override the error message
+// from a 409 error.
+type Err409er interface {
+	Error409(ErrUnexpectedResponseCode) error
+}
+
 // Err429er is the interface resource error types implement to override the error message
 // from a 429 error.
 type Err429er interface {
@@ -217,6 +252,12 @@ type Err429er interface {
 // from a 500 error.
 type Err500er interface {
 	Error500(ErrUnexpectedResponseCode) error
+}
+
+// Err502er is the interface resource error types implement to override the error message
+// from a 502 error.
+type Err502er interface {
+	Error502(ErrUnexpectedResponseCode) error
 }
 
 // Err503er is the interface resource error types implement to override the error message
