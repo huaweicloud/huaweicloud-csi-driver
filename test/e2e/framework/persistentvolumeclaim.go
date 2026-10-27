@@ -92,19 +92,66 @@ func WaitPVCExpanded(client kubernetes.Interface, namespace, name string, newSiz
 }
 
 // WaitPVCBound waits until the PVC is bound to a PV and returns the PV name.
+//
+// On timeout the failure message includes the PVC phase and the most recent
+// ProvisioningFailed event (if any). This surfaces provisioning failures —
+// e.g. an SFS Turbo quota error like "SFS.TURBO.0113 dir not create quota" —
+// directly in the test output instead of a generic "expected not to be empty".
+// This keeps provisioning regressions from being masked as a 600s Pod-timeout.
 func WaitPVCBound(client kubernetes.Interface, namespace, name string) string {
 	klog.Infof("Waiting for PVC(%s/%s) bound", namespace, name)
 	gomega.Eventually(func() string {
 		pvc, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
+			return fmt.Sprintf("failed to get PVC(%s/%s): %v", namespace, name, err)
+		}
+		if pvc.Spec.VolumeName != "" {
 			return ""
 		}
-		return pvc.Spec.VolumeName
-	}, pollTimeout, pollInterval).ShouldNot(gomega.BeEmpty())
+		// Not bound yet — build a descriptive message that includes the PVC
+		// phase and the latest ProvisioningFailed event so the root cause
+		// (e.g. a quota provisioning error) is visible in the test failure.
+		phase := string(pvc.Status.Phase)
+		if phase == "" {
+			phase = "Unknown"
+		}
+		msg := fmt.Sprintf("PVC(%s/%s) not bound yet, phase=%s", namespace, name, phase)
+		if eventErr := latestProvisioningFailedEvent(client, namespace, name); eventErr != "" {
+			msg += fmt.Sprintf(", provisioning failure: %s", eventErr)
+		}
+		return msg
+	}, pollTimeout, pollInterval).Should(gomega.BeEmpty())
 
 	pvc, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 	return pvc.Spec.VolumeName
+}
+
+// latestProvisioningFailedEvent returns the message of the most recent
+// ProvisioningFailed event for the given PVC, or "" if none is found. It is
+// best-effort: errors fetching events are returned as part of the message.
+func latestProvisioningFailedEvent(client kubernetes.Interface, namespace, pvcName string) string {
+	opts := metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.kind=PersistentVolumeClaim,involvedObject.name=%s", pvcName),
+	}
+	events, err := client.CoreV1().Events(namespace).List(context.TODO(), opts)
+	if err != nil {
+		return fmt.Sprintf("failed to list events: %v", err)
+	}
+	var latest *corev1.Event
+	for i := range events.Items {
+		e := &events.Items[i]
+		if e.Reason != "ProvisioningFailed" {
+			continue
+		}
+		if latest == nil || e.LastTimestamp.After(latest.LastTimestamp.Time) {
+			latest = e
+		}
+	}
+	if latest == nil {
+		return ""
+	}
+	return fmt.Sprintf("reason=%s, message=%s", latest.Reason, latest.Message)
 }
 
 // WaitPVDeleted waits until the PersistentVolume with the given name is removed

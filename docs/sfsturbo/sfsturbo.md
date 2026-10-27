@@ -10,10 +10,12 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 ## Support version
 
-| SFS Turbo CSI Driver Version | CSI version | Kubernetes Version Tested | Features |
-|------------------------------|-------------|---------------------------|----------|
-| v0.1.1                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23   | shares   |
-| v0.1.3                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23   |          |
+| SFS Turbo CSI Driver Version | CSI version | Kubernetes Version Tested |
+|------------------------------|-------------|-------------------------|
+| v0.1.1                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23 | 
+| v0.1.3                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23 |  
+| v0.1.4                       | v1.5.0      | v1.20 v1.21 v1.22 v1.23 |  
+| v0.1.5                       | v1.5.0      | v1.35                   |
 
 ## Supported Parameters
 
@@ -93,3 +95,4 @@ kube-system    pod/csi-sfsturbo-node-mwg6j                    3/3     Running   
 - [Expand an HPC file system](sfsturbo-hpc-resize.md)
 - [Extending SFS Turbo resources bound to a PVC](sfsturbo-resize.md)
 - [Use an existing SFS Turbo resource](use-existing-sfsturbo.md)
+- [Use an existing SFS Turbo instance via sub-directory mode](sfsturbo-subdir.md)

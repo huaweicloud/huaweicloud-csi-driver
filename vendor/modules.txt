@@ -4,7 +4,7 @@ github.com/PuerkitoBio/purell
 # github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
 ## explicit
 github.com/PuerkitoBio/urlesc
-# github.com/chnsz/golangsdk v0.0.0-20261014085549-f5c654dac19c
+# github.com/chnsz/golangsdk v0.0.0-20261027090537-8192f879ef0f
 ## explicit; go 1.14
 github.com/chnsz/golangsdk
 github.com/chnsz/golangsdk/auth
@@ -26,6 +26,7 @@ github.com/chnsz/golangsdk/openstack/identity/v3/domains
 github.com/chnsz/golangsdk/openstack/identity/v3/projects
 github.com/chnsz/golangsdk/openstack/identity/v3/tokens
 github.com/chnsz/golangsdk/openstack/sfs/v2/shares
+github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/fs
 github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares
 github.com/chnsz/golangsdk/openstack/utils
 github.com/chnsz/golangsdk/pagination

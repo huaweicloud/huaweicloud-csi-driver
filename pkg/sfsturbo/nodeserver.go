@@ -64,18 +64,37 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	}
 
 	cloud := ns.Driver.cloud
-	share, err := services.GetShare(cloud, volumeID)
+
+	// Check if this is a sub-directory volume. The VolumeId may be encoded as
+	// "<shareID>#<path>". If so, we extract the shareID to look up the export
+	// location, then mount the sub-directory path instead of the share root.
+	shareID, subDirPath := decodeVolumeID(volumeID)
+
+	share, err := services.GetShare(cloud, shareID)
 	if err != nil {
 		if common.IsNotFound(err) {
-			return nil, status.Errorf(codes.NotFound, "Share %s has already been deleted.", volumeID)
+			return nil, status.Errorf(codes.NotFound, "Share %s has already been deleted.", shareID)
 		}
-		return nil, status.Errorf(codes.Internal, "Failed to query share: %s, error: %v", volumeID, err)
+		return nil, status.Errorf(codes.Internal, "Failed to query share: %s, error: %v", shareID, err)
 	}
 
 	//Get Volume export location
 	exportLocation := share.ExportLocation
 	if len(exportLocation) == 0 {
-		return nil, status.Errorf(codes.Internal, "Not found export location from volume %s", volumeID)
+		return nil, status.Errorf(codes.Internal, "Not found export location from volume %s", shareID)
+	}
+
+	// For sub-directory mode, append the sub-directory path to the export
+	// location. The export location is typically "192.168.0.175:/", so we
+	// build "192.168.0.175:/<path>" by stripping the trailing "/" and
+	// appending the path.
+	mountSource := exportLocation
+	if subDirPath != "" {
+		// Trim trailing slash from export location, then append the path.
+		// exportLocation looks like "192.168.0.175:/" → "192.168.0.175:" + "/a"
+		mountSource = strings.TrimSuffix(exportLocation, "/") + subDirPath
+		log.Infof("NodePublishVolume: sub-directory mode, mount source: %s (export: %s, path: %s)",
+			mountSource, exportLocation, subDirPath)
 	}
 
 	if isMounted(targetPath) {
@@ -95,12 +114,12 @@ func (ns *nodeServer) NodePublishVolume(_ context.Context, req *csi.NodePublishV
 	}
 
 	log.Infof("NodePublishVolume: mounting %s at %s with mountOptions: %v",
-		exportLocation, targetPath, mountOptions)
-	if err := ns.Mount.Mounter().Mount(exportLocation, targetPath, "nfs", mountOptions); err != nil {
+		mountSource, targetPath, mountOptions)
+	if err := ns.Mount.Mounter().Mount(mountSource, targetPath, "nfs", mountOptions); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to mount %s at %s: %v",
-			exportLocation, targetPath, err)
+			mountSource, targetPath, err)
 	}
-	log.Infof("NodePublishVolume: mount %s at %s successfully", exportLocation, targetPath)
+	log.Infof("NodePublishVolume: mount %s at %s successfully", mountSource, targetPath)
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
