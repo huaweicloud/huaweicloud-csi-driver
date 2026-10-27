@@ -202,16 +202,45 @@ func (cs *ControllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 	}
 
 	credentials := cs.Driver.cloudCredentials
-	if err := services.DeleteVolume(credentials, volumeID); err != nil {
+
+	vol, err := services.GetVolume(credentials, volumeID)
+	if err != nil {
 		if common.IsNotFound(err) {
 			log.Infof("Volume %s does not exist, skip deleting", volumeID)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
 		return nil, status.Errorf(codes.Internal, "Error deleting volume: %s", err)
 	}
+
+	err = deleteVolume(credentials, vol)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Error deleting volume: %s", err)
+	}
+
 	log.Infof("Successfully deleted volume %s", volumeID)
 
 	return &csi.DeleteVolumeResponse{}, nil
+}
+
+func deleteVolume(cc *config.CloudCredentials, volume *cloudvolumes.Volume) error {
+	if volume.Metadata.OrderID != "" {
+		err := common.Unsubscribe(cc, []string{volume.ID})
+		if err != nil {
+			return status.Errorf(codes.Internal, "Error deleting volume: %s", err)
+		}
+		return nil
+	}
+
+	err := services.DeleteVolume(cc, volume.ID)
+	if err == nil {
+		return nil
+	}
+
+	if common.IsNotFound(err) {
+		log.Infof("Volume %s does not exist, skip deleting", volume.ID)
+		return nil
+	}
+	return status.Errorf(codes.Internal, "Error deleting volume: %s", err)
 }
 
 func (cs *ControllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
