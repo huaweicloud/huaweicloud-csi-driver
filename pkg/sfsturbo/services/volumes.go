@@ -26,9 +26,9 @@ const (
 
 	shareDescription = "provisioned-by=sfsturbo.csi.huaweicloud.org"
 
-	DefaultInitDelay = 15 * time.Second
+	DefaultInitDelay = 10 * time.Second
 	DefaultFactor    = 1.02
-	DefaultSteps     = 30
+	DefaultSteps     = 60
 )
 
 func CreateShareCompleted(c *config.CloudCredentials, createOpts *shares.Share) (
@@ -155,13 +155,29 @@ func ListPageShares(c *config.CloudCredentials, opts shares.ListOpts) (*shares.P
 }
 
 func ExpandShareCompleted(c *config.CloudCredentials, id string, newSize int) error {
-	if err := ExpandShare(c, id, newSize); err != nil {
+	// Check if the share is already being expanded. The CSI external-resizer
+	// has a client-side gRPC timeout (~3 minutes) shorter than the actual SFS
+	// Turbo expansion time (~8 minutes). When the client times out, it sends a
+	// second ControllerExpandVolume call while the first one is still polling.
+	// Without this check, the second call would issue a duplicate expand API
+	// request on a share that is still expanding (SubStatus=121), resulting in
+	// the SFS.TURBO.0011 "cluster is doing something" error.
+	share, err := GetShare(c, id)
+	if err != nil {
 		return err
+	}
+	if share.SubStatus == shareSubExpanding {
+		log.Infof("Share %s is already being expanded (SubStatus=121), waiting for the in-progress expansion to complete", id)
+	} else {
+		if err := ExpandShare(c, id, newSize); err != nil {
+			return err
+		}
 	}
 	if err := WaitForShareExpanded(c, id); err != nil {
 		return err
 	}
-	share, err := GetShare(c, id)
+	// Verify the final size.
+	share, err = GetShare(c, id)
 	if err != nil {
 		return err
 	}
@@ -169,8 +185,9 @@ func ExpandShareCompleted(c *config.CloudCredentials, id string, newSize int) er
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to convert string size to number size")
 	}
-	if int(shareSize) != newSize {
-		return status.Errorf(codes.Internal, "Failed to expand share size, cause get an unexpected volume size")
+	if int(shareSize) < newSize {
+		return status.Errorf(codes.Internal,
+			"Failed to expand share size, expected at least %d GiB, got %s GiB", newSize, share.Size)
 	}
 	return nil
 }
@@ -196,7 +213,12 @@ func ExpandShare(c *config.CloudCredentials, id string, newSize int) error {
 }
 
 func WaitForShareExpanded(c *config.CloudCredentials, shareID string) error {
-	return common.WaitForCompleted(func() (bool, error) {
+	backoff := wait.Backoff{
+		Duration: DefaultInitDelay,
+		Factor:   DefaultFactor,
+		Steps:    DefaultSteps,
+	}
+	condition := func() (bool, error) {
 		share, err := GetShare(c, shareID)
 		if err != nil {
 			return false, status.Errorf(codes.Internal,
@@ -213,7 +235,8 @@ func WaitForShareExpanded(c *config.CloudCredentials, shareID string) error {
 			return false, status.Errorf(codes.Internal, "Failed to expand share, cause sub status error")
 		}
 		return false, status.Error(codes.Internal, "expand share sub status is not success")
-	})
+	}
+	return wait.ExponentialBackoff(backoff, condition)
 }
 
 func getSFSTurboV1Client(c *config.CloudCredentials) (*golangsdk.ServiceClient, error) {
