@@ -15,6 +15,7 @@ EVS CSI 插件支持卷的创建、挂载和扩容。云硬盘支持ReadWriteOnc
 ### SFS Turbo 插件
 
 SFS Turbo CSI 插件支持共享卷的创建、挂载和扩容。共享卷是一种网络文件系统，可以同时被多台服务器挂载。
+通过 `expandType`/`hpcBw` StorageClass 参数可创建 HPC 文件系统（20MB/s/TiB ~ 1000MB/s/TiB）。
 
 更多详情请参考[SFS Turbo 插件](./docs/sfsturbo/sfsturbo.md)
 

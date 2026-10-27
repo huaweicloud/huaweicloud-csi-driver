@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: sfsturbo-pvc-hpc-resize
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      # HPC capacity must be a 1.2TiB multiple. 3686GiB = 3.6TiB, the minimum
+      # valid size for 20MB/s/TiB.
+      storage: 3686Gi
+  storageClassName: sfsturbo-hpc-sc

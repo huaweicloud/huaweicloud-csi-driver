@@ -44,6 +44,13 @@ const (
 	minSizeInGiB      = 500
 	maxSizeInGiB      = 32768
 	expandStepInGiB   = 100
+
+	// expandTypeHpc is the metadata.expand_type value used to create HPC file
+	// systems (20MB/s/TiB ~ 1000MB/s/TiB). For these specs the SFS Turbo API
+	// does not validate share_type and uses a different size range, so the
+	// driver skips the legacy 500~32768 GiB checks and 100GiB expand step.
+	expandTypeHpc      = "hpc"
+	expandTypeHpcCache = "hpc_cache"
 )
 
 // resourcemode from SC
@@ -51,6 +58,8 @@ const (
 	Availability                 = "availability"
 	ShareType                    = "shareType"
 	AutoCreateSecurityGroupRules = "autoCreateSecurityGroupRules"
+	ExpandType                   = "expandType"
+	HpcBw                        = "hpcBw"
 )
 
 func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolumeRequest) (
@@ -64,19 +73,30 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		return nil, err
 	}
 	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
-	// 500 ~ 32768
-	if sizeInGiB > maxSizeInGiB {
-		return nil, status.Errorf(codes.InvalidArgument,
-			"Validation failed, required size %v GB exceeds the max size %v GB", sizeInGiB, maxSizeInGiB)
-	}
-	if sizeInGiB < minSizeInGiB {
-		sizeInGiB = minSizeInGiB
-	}
 
 	parameters := req.GetParameters()
+	// Resolve the HPC parameters with loose inference: when hpcBw is set
+	// without expandType, expandType is inferred as "hpc". When neither is
+	// set, the request targets a legacy STANDARD/PERFORMANCE share.
+	expandType, hpcBw := resolveExpandParams(parameters)
+	isHpc := expandType == expandTypeHpc || expandType == expandTypeHpcCache
+
+	// HPC shares leave capacity validation to the SFS Turbo API (different
+	// size range and 1.2TiB multiple). Legacy shares keep the original
+	// 500~32768 GiB range and auto-raising below the minimum.
+	if !isHpc {
+		var err error
+		sizeInGiB, err = validateLegacyCreateSize(sizeInGiB)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var accessibleTopology []*csi.Topology
 	// First check if volAvailability is already specified, if not get preferred from Topology
 	// Required, incase vol AZ is different from node AZ
 	volumeAz := parameters[Availability]
+
 	accessibleTopology, err := cs.getAccessibleTopology(req, volumeAz)
 	if err != nil {
 		return nil, err
@@ -92,6 +112,15 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		return nil, err
 	}
 
+	metadata := shares.Metadata{
+		AutoCreateSecurityGroupRules: autoCreateSGRules,
+	}
+	// Set HPC metadata only when an HPC share is requested.
+	if isHpc {
+		metadata.ExpandType = expandTypeHpc
+		metadata.HpcBw = hpcBw
+	}
+
 	createShareOpts := shares.Share{
 		Name:             name,
 		ShareProto:       defaultShareProto,
@@ -101,13 +130,11 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		VpcID:            cs.Driver.cloud.Vpc.ID,
 		SubnetID:         cs.Driver.cloud.Vpc.SubnetID,
 		SecurityGroupID:  cs.Driver.cloud.Vpc.SecurityGroupID,
-		Metadata: shares.Metadata{
-			AutoCreateSecurityGroupRules: autoCreateSGRules,
-		},
+		Metadata:         metadata,
 	}
 	log.Infof("CreateVolume creating param: %v", protosanitizer.StripSecrets(createShareOpts))
 	// Check if there are any volumes with the same name
-	share, err := checkVolumeExists(cloud, createShareOpts)
+	share, err := checkVolumeExists(cloud, createShareOpts, isHpc)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +199,7 @@ func buildCreateVolumeResponse(shareID string, sizeInGiB int, req *csi.CreateVol
 	}
 }
 
-func checkVolumeExists(cloud *config.CloudCredentials, share shares.Share) (
+func checkVolumeExists(cloud *config.CloudCredentials, share shares.Share, isHpc bool) (
 	*shares.Turbo, error) {
 	turbos, err := services.ListTotalShares(cloud)
 	if err != nil {
@@ -186,10 +213,18 @@ func checkVolumeExists(cloud *config.CloudCredentials, share shares.Share) (
 				return nil, status.Errorf(codes.Internal,
 					"Failed to convert string size to number size, %v", v.Size)
 			}
+			// For HPC shares the SFS Turbo API does not validate share_type, so
+			// the value returned from the server may differ from the request.
+			// Use the requested share_type in the comparison to avoid spurious
+			// idempotency failures.
+			shareType := v.ShareType
+			if isHpc {
+				shareType = share.ShareType
+			}
 			turboOpts := shares.Share{
 				Name:             v.Name,
 				ShareProto:       v.ShareProto,
-				ShareType:        v.ShareType,
+				ShareType:        shareType,
 				Size:             int(size),
 				AvailabilityZone: v.AvailabilityZone,
 				VpcID:            v.VpcID,
@@ -216,6 +251,33 @@ func createVolumeValidation(name string, capacityRange *csi.CapacityRange) error
 		return status.Error(codes.InvalidArgument, "Validation failed, capacityRange cannot be empty")
 	}
 	return nil
+}
+
+// resolveExpandParams reads the expandType and hpcBw StorageClass parameters
+// with loose inference: when hpcBw is set without expandType, expandType is
+// inferred as "hpc". When neither is set, both are empty and the request
+// targets a legacy STANDARD/PERFORMANCE share.
+func resolveExpandParams(parameters map[string]string) (expandType, hpcBw string) {
+	expandType = parameters[ExpandType]
+	hpcBw = parameters[HpcBw]
+	if expandType == "" && hpcBw != "" {
+		expandType = expandTypeHpc
+	}
+	return expandType, hpcBw
+}
+
+// validateLegacyCreateSize enforces the original 500~32768 GiB range used by
+// non-HPC shares and auto-raises sizes below the minimum. HPC shares bypass
+// this and rely on the SFS Turbo API for capacity validation.
+func validateLegacyCreateSize(sizeInGiB int) (int, error) {
+	if sizeInGiB > maxSizeInGiB {
+		return 0, status.Errorf(codes.InvalidArgument,
+			"Validation failed, required size %v GB exceeds the max size %v GB", sizeInGiB, maxSizeInGiB)
+	}
+	if sizeInGiB < minSizeInGiB {
+		return minSizeInGiB, nil
+	}
+	return sizeInGiB, nil
 }
 
 func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolumeRequest) (
@@ -401,15 +463,19 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 		return nil, err
 	}
 	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
-	if sizeInGiB > maxSizeInGiB {
-		return nil, status.Errorf(codes.OutOfRange,
-			"Validation failed, expand required size %v exceeds the max size %v", sizeInGiB, maxSizeInGiB)
-	}
 
 	cloud := cs.Driver.cloud
 	volume, err := services.GetShare(cloud, volumeID)
 	if err != nil {
 		return nil, err
+	}
+
+	// HPC shares (created with expand_type=hpc) skip the legacy max-size and
+	// 100GiB minimum-step checks; the SFS Turbo API validates the target size.
+	isHpc := volume.ExpandType == expandTypeHpc
+	if !isHpc && sizeInGiB > maxSizeInGiB {
+		return nil, status.Errorf(codes.OutOfRange,
+			"Validation failed, expand required size %v exceeds the max size %v", sizeInGiB, maxSizeInGiB)
 	}
 
 	// current volume size
@@ -426,7 +492,9 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 		}, nil
 	}
 
-	if sizeInGiB-currentSizeInGiB < expandStepInGiB {
+	// HPC shares leave the expand target to the API; legacy shares enforce the
+	// 100GiB minimum expand step.
+	if !isHpc && sizeInGiB-currentSizeInGiB < expandStepInGiB {
 		// reset sizeInGiB
 		sizeInGiB = currentSizeInGiB + expandStepInGiB
 		if sizeInGiB > maxSizeInGiB {
