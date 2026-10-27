@@ -88,7 +88,7 @@ spec:
           image: k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--timeout=3m"
+            - "--timeout=20m"
             - "--handle-volume-inuse-error=false"
             - "--leader-election=true"
           env:
