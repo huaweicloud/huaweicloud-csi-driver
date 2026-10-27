@@ -1,0 +1,21 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sfsturbo-hpc-sc
+provisioner: sfsturbo.csi.huaweicloud.com
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+parameters:
+  # shareType is required. For HPC file systems the SFS Turbo API does not
+  # validate this field; STANDARD is fine.
+  shareType: STANDARD
+  # expandType=hpc creates an HPC file system (20MB/s/TiB ~ 1000MB/s/TiB).
+  # When hpcBw is set, expandType can be omitted and is inferred as hpc.
+  expandType: hpc
+  # hpcBw is the HPC bandwidth spec. Valid values: 20M, 40M, 125M, 250M, 500M, 1000M.
+  hpcBw: "20M"
+  # autoCreateSecurityGroupRules is optional, should be 'true' or 'false'.
+  # If not specified, the SFS Turbo API defaults to 'true'.
+  autoCreateSecurityGroupRules: "false"
+  # availability is optional; set it to override the AZ derived from topology.
+  # availability: ap-southeast-1g

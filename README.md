@@ -18,6 +18,7 @@ See [EVS CSI Driver](./docs/evs/evs.md) for details.
 
 SFS Turbo CSI driver supports share creation, mount and expansion.
 Share is a kind of Network File System, can be mounted by multiple servers at the same time.
+HPC file systems (20MB/s/TiB ~ 1000MB/s/TiB) are supported via the `expandType`/`hpcBw` StorageClass parameters.
 
 See [SFS Turbo CSI Driver](./docs/sfsturbo/sfsturbo.md) for details.
 

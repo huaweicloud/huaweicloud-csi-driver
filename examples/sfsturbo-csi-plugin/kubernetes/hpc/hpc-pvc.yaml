@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: sfsturbo-pvc-hpc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      # HPC capacity must be a 1.2TiB multiple (e.g. 3.6TiB -> 3686GiB) and
+      # within the per-spec range. 20MB/s/TiB: 3686~1048576 GiB.
+      storage: 3686Gi
+  storageClassName: sfsturbo-hpc-sc
