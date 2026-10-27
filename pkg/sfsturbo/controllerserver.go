@@ -48,8 +48,9 @@ const (
 
 // resourcemode from SC
 const (
-	Availability = "availability"
-	ShareType    = "shareType"
+	Availability                 = "availability"
+	ShareType                    = "shareType"
+	AutoCreateSecurityGroupRules = "autoCreateSecurityGroupRules"
 )
 
 func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolumeRequest) (
@@ -72,30 +73,23 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		sizeInGiB = minSizeInGiB
 	}
 
-	var accessibleTopology []*csi.Topology
 	parameters := req.GetParameters()
 	// First check if volAvailability is already specified, if not get preferred from Topology
 	// Required, incase vol AZ is different from node AZ
 	volumeAz := parameters[Availability]
-	if len(volumeAz) == 0 {
-		idc := cs.Driver.cloud.Global.Idc
-		if idc {
-			return nil, status.Errorf(codes.InvalidArgument, "availability cannot be empty when IDC is true")
-		}
-
-		if volumeAz = common.GetAZFromTopology(req.GetAccessibilityRequirements(), topologyKey); volumeAz == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "Validation failed, volumeAz cannot be empty")
-		}
-		log.Infof("Get AZ By GetAccessibilityRequirements Availability Zone: %s", volumeAz)
-		// Topology need to be returned by response
-		accessibleTopology = []*csi.Topology{
-			{Segments: map[string]string{topologyKey: volumeAz}},
-		}
+	accessibleTopology, err := cs.getAccessibleTopology(req, volumeAz)
+	if err != nil {
+		return nil, err
 	}
 
 	shareType := parameters[ShareType]
 	if len(shareType) == 0 {
 		shareType = defaultShareType
+	}
+
+	autoCreateSGRules, err := getAutoCreateSGRules(parameters)
+	if err != nil {
+		return nil, err
 	}
 
 	createShareOpts := shares.Share{
@@ -107,6 +101,9 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 		VpcID:            cs.Driver.cloud.Vpc.ID,
 		SubnetID:         cs.Driver.cloud.Vpc.SubnetID,
 		SecurityGroupID:  cs.Driver.cloud.Vpc.SecurityGroupID,
+		Metadata: shares.Metadata{
+			AutoCreateSecurityGroupRules: autoCreateSGRules,
+		},
 	}
 	log.Infof("CreateVolume creating param: %v", protosanitizer.StripSecrets(createShareOpts))
 	// Check if there are any volumes with the same name
@@ -129,6 +126,38 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}
 	log.Infof("Successfully createVolume response detail: %v", protosanitizer.StripSecrets(turboResponse))
 	return buildCreateVolumeResponse(turboResponse.ID, sizeInGiB, req, accessibleTopology), nil
+}
+
+func getAutoCreateSGRules(parameters map[string]string) (*string, error) {
+	var autoCreateSGRules *string
+	if val, ok := parameters[AutoCreateSecurityGroupRules]; ok && val != "" {
+		if val != "true" && val != "false" {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"Validation failed, autoCreateSecurityGroupRules must be \"true\" or \"false\", got: %s", val)
+		}
+		autoCreateSGRules = &val
+	}
+	return autoCreateSGRules, nil
+}
+
+func (cs *controllerServer) getAccessibleTopology(req *csi.CreateVolumeRequest, volumeAz string) ([]*csi.Topology, error) {
+	if len(volumeAz) > 0 {
+		return nil, nil
+	}
+
+	idc := cs.Driver.cloud.Global.Idc
+	if idc {
+		return nil, status.Errorf(codes.InvalidArgument, "availability cannot be empty when IDC is true")
+	}
+
+	if volumeAz = common.GetAZFromTopology(req.GetAccessibilityRequirements(), topologyKey); volumeAz == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Validation failed, volumeAz cannot be empty")
+	}
+	log.Infof("Get AZ By GetAccessibilityRequirements Availability Zone: %s", volumeAz)
+	// Topology need to be returned by response
+	return []*csi.Topology{
+		{Segments: map[string]string{topologyKey: volumeAz}},
+	}, nil
 }
 
 func buildCreateVolumeResponse(shareID string, sizeInGiB int, req *csi.CreateVolumeRequest,
@@ -166,6 +195,7 @@ func checkVolumeExists(cloud *config.CloudCredentials, share shares.Share) (
 				VpcID:            v.VpcID,
 				SubnetID:         v.SubnetID,
 				SecurityGroupID:  v.SecurityGroupID,
+				Metadata:         share.Metadata,
 			}
 			if reflect.DeepEqual(turboOpts, share) {
 				return &v, nil
@@ -411,7 +441,7 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 	}
 	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeInGiB)
 	return &csi.ControllerExpandVolumeResponse{
-		CapacityBytes:         int64(sizeInGiB),
+		CapacityBytes:         int64(sizeInGiB) * common.GbByteSize,
 		NodeExpansionRequired: false,
 	}, nil
 }
