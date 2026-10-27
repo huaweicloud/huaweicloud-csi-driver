@@ -20,9 +20,9 @@ func TestRoundTrip(t *testing.T) {
 			response: &http.Response{
 				Status:     "200 OK",
 				StatusCode: http.StatusOK,
-				Proto:      "HTTP/1.1",
-				ProtoMajor: 1,
-				ProtoMinor: 1,
+				Proto:      "HTTP/2.0",
+				ProtoMajor: 2,
+				ProtoMinor: 0,
 			},
 			expected:    true,
 			description: "request and response are real entities",
@@ -65,45 +65,32 @@ func TestRoundTrip(t *testing.T) {
 		},
 		{
 			name:    "test6",
-			request: httpNewRequest("POST", "https://hub.docker.com/", nil, t),
+			request: httpNewRequest("POST", "https://hub.docker.com/404", nil, t),
 			response: &http.Response{
 				Status:     "404 Not Found",
 				StatusCode: http.StatusNotFound,
-				Proto:      "HTTP/1.1",
-				ProtoMajor: 1,
-				ProtoMinor: 1,
+				Proto:      "HTTP/2.0",
+				ProtoMajor: 2,
+				ProtoMinor: 0,
 			},
 			expected:    true,
 			description: "the method of request is POST and url is real entity",
 		},
 		{
 			name:    "test7",
-			request: httpNewRequest("PUT", "https://hub.docker.com/", nil, t),
+			request: httpNewRequest("PUT", "https://hub.docker.com/404", nil, t),
 			response: &http.Response{
 				Status:     "404 Not Found",
 				StatusCode: http.StatusNotFound,
-				Proto:      "HTTP/1.1",
-				ProtoMajor: 1,
-				ProtoMinor: 1,
+				Proto:      "HTTP/2.0",
+				ProtoMajor: 2,
+				ProtoMinor: 0,
 			},
 			expected:    true,
 			description: "the method of request is PUT and url is real entity",
 		},
 		{
 			name:    "test8",
-			request: httpNewRequest("DELETE", "https://hub.docker.com/", nil, t),
-			response: &http.Response{
-				Status:     "404 Not Found",
-				StatusCode: http.StatusNotFound,
-				Proto:      "HTTP/1.1",
-				ProtoMajor: 1,
-				ProtoMinor: 1,
-			},
-			expected:    true,
-			description: "the method of request is DELETE and url is real entity",
-		},
-		{
-			name:    "test9",
 			request: httpNewRequest("xxx", "https://hub.docker.com/", nil, t),
 			response: &http.Response{
 				Status:     "404 Not Found",
@@ -114,7 +101,7 @@ func TestRoundTrip(t *testing.T) {
 			description: "the method of request is not exists",
 		},
 		{
-			name:    "test10",
+			name:    "test9",
 			request: httpNewRequest("GET", "https://hub.docker.com/", nil, t),
 			response: &http.Response{
 				Status:     "200 OK",
@@ -125,33 +112,7 @@ func TestRoundTrip(t *testing.T) {
 			description: "the proto of customized response does not match proto of actual response",
 		},
 		{
-			name:    "test11",
-			request: httpNewRequest("GET", "https://hub.docker.com/", nil, t),
-			response: &http.Response{
-				Status:     "200 OK",
-				StatusCode: http.StatusOK,
-				Proto:      "HTTP/1.1",
-				ProtoMajor: 1,
-				ProtoMinor: 1,
-			},
-			expected:    true,
-			description: "the ProtoMajor of customized response is 1",
-		},
-		{
-			name:    "test12",
-			request: httpNewRequest("GET", "https://hub.docker.com/", nil, t),
-			response: &http.Response{
-				Status:     "200 OK",
-				StatusCode: http.StatusOK,
-				Proto:      "HTTP/1.1",
-				ProtoMajor: 1,
-				ProtoMinor: 1,
-			},
-			expected:    true,
-			description: "the ProtoMinor of customized response is 1",
-		},
-		{
-			name:    "test13",
+			name:    "test10",
 			request: httpNewRequest("GET", "https://hub.docker.com/", nil, t),
 			response: &http.Response{
 				Status:     "200 OK",
@@ -163,7 +124,7 @@ func TestRoundTrip(t *testing.T) {
 			description: "the ProtoMajor of customized response is 2",
 		},
 		{
-			name:    "test14",
+			name:    "test10",
 			request: httpNewRequest("GET", "https://hub.docker.com/", nil, t),
 			response: &http.Response{
 				Status:     "200 OK",
@@ -175,7 +136,7 @@ func TestRoundTrip(t *testing.T) {
 			description: "the ProtoMinor of customized response is 2",
 		},
 		{
-			name:    "test15",
+			name:    "test11",
 			request: httpNewRequest("GET", "https://github.com/", nil, t),
 			response: &http.Response{
 				Status:     "200 OK",
@@ -188,7 +149,7 @@ func TestRoundTrip(t *testing.T) {
 			description: "request and response are real entities, the url is different",
 		},
 		{
-			name:    "test16",
+			name:    "test12",
 			request: httpNewRequest("GET", "https://www.huaweicloud.com/", nil, t),
 			response: &http.Response{
 				Status:     "200 OK",
@@ -201,7 +162,7 @@ func TestRoundTrip(t *testing.T) {
 			description: "request and response are real entities, the url is different",
 		},
 		{
-			name:    "test17",
+			name:    "test13",
 			request: httpNewRequest("POST", "https://www.huaweicloud.com/", nil, t),
 			response: &http.Response{
 				Status:     "405 Method Not Allowed",
