@@ -48,6 +48,7 @@ type SfsTurboDriver struct { //nolint: revive
 	endpoint   string
 	shareProto string
 	cloud      *config.CloudCredentials
+	kubeClient *KubeClient
 
 	ids *identityServer
 	cs  *controllerServer
@@ -159,6 +160,12 @@ func (d *SfsTurboDriver) GetVolumeCapabilityAccessModes() []*csi.VolumeCapabilit
 func (d *SfsTurboDriver) SetupDriver(mount mounts.IMount, metadata metadatas.IMetadata) {
 	d.ns.Mount = mount
 	d.ns.Metadata = metadata
+}
+
+// SetupKubeClient sets the Kubernetes client used to read PVC annotations and
+// PV volumeAttributes for the sub-directory provisioning mode.
+func (d *SfsTurboDriver) SetupKubeClient(kc *KubeClient) {
+	d.kubeClient = kc
 }
 
 func (d *SfsTurboDriver) Run() {

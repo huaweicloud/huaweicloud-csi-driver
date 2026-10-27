@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sfsturbo-pod-subdir2
+spec:
+  containers:
+  - name: app
+    image: nginx
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: sfsturbo-pvc-subdir2

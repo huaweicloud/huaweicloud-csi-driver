@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: sfsturbo-sc
+provisioner: sfsturbo.csi.huaweicloud.com
+reclaimPolicy: Delete
+parameters:
+  # shareType is required, should be 'STANDARD' or 'PERFORMANCE', defaults to 'STANDARD'
+  # In sub-directory mode, the shareType is not used to create a new share,
+  # but is still required by the StorageClass.
+  shareType: STANDARD

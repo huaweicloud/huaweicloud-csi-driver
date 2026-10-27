@@ -75,6 +75,10 @@ func main() {
 			mount := mounts.GetMountProvider()
 			metadata := metadatas.GetMetadataProvider(metadatas.MetadataID)
 			d.SetupDriver(mount, metadata)
+
+			kubeClient := sfsturbo.EnsureKubeClient()
+			klog.Infof("EnsureKubeClient returned: %v", kubeClient != nil)
+			d.SetupKubeClient(kubeClient)
 			d.Run()
 		},
 	}
