@@ -21,6 +21,8 @@ For sidecar version compatibility, please refer compatibility matrix for each si
 
 * `availability` Optional. Availability Zone(AZ) of the share. It is located under `parameters`.
 
+* `autoCreateSecurityGroupRules` Optional. Whether to automatically create security group rules for the SFS Turbo share. Should be `true` or `false`. If not specified, the field is omitted from the API request and the SFS Turbo API defaults to `true`. It is located under `parameters`.
+
 ## Deploy
 
 ### Prerequisites

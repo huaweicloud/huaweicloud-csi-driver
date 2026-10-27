@@ -7,3 +7,6 @@ reclaimPolicy: Delete
 parameters:
   # shareType is required, should be 'STANDARD' or 'PERFORMANCE', defaults to 'STANDARD'
   shareType: STANDARD
+  # autoCreateSecurityGroupRules is optional, should be 'true' or 'false'.
+  # If not specified, the SFS Turbo API defaults to 'true'.
+  # autoCreateSecurityGroupRules: "true"
