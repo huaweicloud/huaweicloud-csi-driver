@@ -127,3 +127,35 @@ roleRef:
   kind: ClusterRole
   name: sfsturbo-csi-resizer-role
   apiGroup: rbac.authorization.k8s.io
+
+---
+
+# CSI driver RBAC for the sub-directory provisioning mode.
+# The driver itself (not the sidecars) needs to read PVC annotations and PV
+# volumeAttributes. These permissions are already granted through the
+# sfsturbo-external-provisioner-role binding above (PV/PVC get/list/watch),
+# but this dedicated role makes the driver's requirements explicit.
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sfsturbo-csi-driver-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: sfsturbo-csi-driver-binding
+subjects:
+  - kind: ServiceAccount
+    name: csi-sfsturbo-controller-sa
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: sfsturbo-csi-driver-role
+  apiGroup: rbac.authorization.k8s.io

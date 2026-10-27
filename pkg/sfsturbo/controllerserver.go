@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/fs"
 	"github.com/chnsz/golangsdk/openstack/sfs_turbo/v1/shares"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kubernetes-csi/csi-lib-utils/protosanitizer"
@@ -72,9 +73,24 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	if err := createVolumeValidation(name, capacityRange); err != nil {
 		return nil, err
 	}
-	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
 
 	parameters := req.GetParameters()
+
+	// Check if the sub-directory mode is requested via PVC annotations.
+	// The csi-provisioner with --extra-create-metadata injects the PVC name
+	// and namespace into parameters; we use them to fetch the PVC and read
+	// its annotations.
+	subDirCtx, err := cs.tryGetSubDirContext(parameters)
+	if err != nil {
+		return nil, err
+	}
+	if subDirCtx != nil {
+		return cs.createSubDirVolume(req, subDirCtx)
+	}
+
+	// --- Legacy mode: create a new SFS Turbo share ---
+	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
+
 	// Resolve the HPC parameters with loose inference: when hpcBw is set
 	// without expandType, expandType is inferred as "hpc". When neither is
 	// set, the request targets a legacy STANDARD/PERFORMANCE share.
@@ -97,7 +113,7 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	// Required, incase vol AZ is different from node AZ
 	volumeAz := parameters[Availability]
 
-	accessibleTopology, err := cs.getAccessibleTopology(req, volumeAz)
+	accessibleTopology, err = cs.getAccessibleTopology(req, volumeAz)
 	if err != nil {
 		return nil, err
 	}
@@ -153,6 +169,132 @@ func (cs *controllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}
 	log.Infof("Successfully createVolume response detail: %v", protosanitizer.StripSecrets(turboResponse))
 	return buildCreateVolumeResponse(turboResponse.ID, sizeInGiB, req, accessibleTopology), nil
+}
+
+// tryGetSubDirContext checks whether the CreateVolume request is for the
+// sub-directory mode by reading the PVC annotations. It uses the PVC name
+// and namespace injected by csi-provisioner (--extra-create-metadata) to
+// fetch the PVC object via the Kubernetes API. Returns (nil, nil) if the
+// request does not carry PVC metadata (not a sub-directory request).
+func (cs *controllerServer) tryGetSubDirContext(parameters map[string]string) (*SubDirVolumeContext, error) {
+	kubeClient := cs.Driver.kubeClient
+	if kubeClient == nil {
+		// Kubernetes client is unavailable (e.g. RBAC not configured). We
+		// cannot read PVC annotations to determine whether this is a
+		// sub-directory request. Return (nil, nil) so that the legacy
+		// create-new-share path proceeds normally. A PVC that actually
+		// targets sub-directory mode will fail later in the legacy path
+		// (typically with an AvailabilityZone validation error), which is
+		// the expected symptom of a missing kubeClient -- far better than
+		// blocking ALL CreateVolume calls including legacy ones.
+		log.Warningf("Kubernetes client is not initialized; cannot evaluate " +
+			"PVC annotations for sub-directory mode. Falling back to " +
+			"legacy create-new-share mode. Ensure the driver's RBAC/" +
+			"ServiceAccount has get/list/watch on PVCs to enable " +
+			"sub-directory mode.")
+		return nil, nil
+	}
+	pvcName := parameters[PvcNameKey]
+	pvcNamespace := parameters[PvcNamespaceKey]
+	if pvcName == "" || pvcNamespace == "" {
+		// No PVC metadata injected by csi-provisioner; not a sub-directory request.
+		return nil, nil
+	}
+	subDirCtx, err := kubeClient.GetSubDirVolumeContext(pvcName, pvcNamespace)
+	if err != nil {
+		log.Errorf("Failed to get sub-directory context from PVC %s/%s: %v. "+
+			"Refusing to fall back to create-new-share mode to avoid unintended "+
+			"volume provisioning.", pvcNamespace, pvcName, err)
+		return nil, status.Errorf(codes.Internal,
+			"Failed to read PVC %s/%s annotations for sub-directory mode: %v. "+
+				"Check the driver's RBAC/ServiceAccount permissions on PVCs.",
+			pvcNamespace, pvcName, err)
+	}
+	return subDirCtx, nil
+}
+
+// createSubDirVolume handles the sub-directory provisioning mode: it uses an
+// existing SFS Turbo instance, creates (or reuses) a sub-directory, optionally
+// sets a quota, and returns a CreateVolumeResponse with an encoded VolumeId.
+func (cs *controllerServer) createSubDirVolume(req *csi.CreateVolumeRequest, ctx *SubDirVolumeContext) (
+	*csi.CreateVolumeResponse, error) {
+	cloud := cs.Driver.cloud
+
+	if err := ValidateSubDirVolumeContext(ctx); err != nil {
+		return nil, err
+	}
+
+	log.Infof("CreateVolume sub-directory mode: shareID=%s, path=%s, reclaimPolicy=%s, quotaEnabled=%v",
+		ctx.ShareID, ctx.Path, ctx.ReclaimPolicy, ctx.QuotaEnabled)
+
+	// Verify the SFS Turbo instance exists. If not, return an error.
+	share, err := services.GetShare(cloud, ctx.ShareID)
+	if err != nil {
+		if common.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound,
+				"SFS Turbo instance %s does not exist: %v", ctx.ShareID, err)
+		}
+		return nil, status.Errorf(codes.Internal,
+			"Failed to query SFS Turbo instance %s: %v", ctx.ShareID, err)
+	}
+	log.Infof("CreateVolume sub-directory mode: found existing share %s (export: %s, size: %s)",
+		share.ID, share.ExportLocation, share.Size)
+
+	// Create the sub-directory via the REST API. If it already exists (409),
+	// the service layer treats it as success (idempotent).
+	if err := services.CreateDir(cloud, ctx.ShareID, ctx.Path); err != nil {
+		return nil, err
+	}
+	log.Infof("CreateVolume sub-directory mode: directory %s is ready on share %s", ctx.Path, ctx.ShareID)
+
+	// Optionally set the directory quota to match the PVC requested storage.
+	capacityBytes := req.GetCapacityRange().GetRequiredBytes()
+	var reportedCapacity int64
+	if ctx.QuotaEnabled {
+		capacityMB := fs.PathToCapacityMB(capacityBytes)
+		if capacityMB <= 0 {
+			return nil, status.Errorf(codes.InvalidArgument,
+				"Requested capacity must be positive when quota is enabled, got %d bytes", capacityBytes)
+		}
+		if err := services.EnsureQuota(cloud, ctx.ShareID, ctx.Path, capacityMB); err != nil {
+			return nil, err
+		}
+		log.Infof("CreateVolume sub-directory mode: quota set to %d MB for path %s on share %s",
+			capacityMB, ctx.Path, ctx.ShareID)
+		// Report the actual quota capacity (MB rounded up) so Kubernetes
+		// records a value consistent with what is enforced on the share.
+		reportedCapacity = int64(capacityMB) * 1024 * 1024
+	} else {
+		// No quota: report the underlying share's actual capacity so the PV
+		// capacity is consistent with ControllerGetVolume.
+		shareSize, err := strconv.ParseFloat(share.Size, 64)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal,
+				"Failed to convert share size %q to number: %v", share.Size, err)
+		}
+		reportedCapacity = int64(shareSize * float64(common.GbByteSize))
+	}
+
+	// Build the VolumeId as "<shareID>#<path>" and the VolumeContext to pass
+	// the reclaim policy and quota info to the node and to DeleteVolume.
+	volumeID := encodeVolumeID(ctx.ShareID, ctx.Path)
+	volumeContext := map[string]string{
+		VolumeContextShareID:       ctx.ShareID,
+		VolumeContextPath:          ctx.Path,
+		VolumeContextReclaimPolicy: ctx.ReclaimPolicy,
+		VolumeContextQuotaEnabled:  strconv.FormatBool(ctx.QuotaEnabled),
+		VolumeContextIsSubDir:      "true",
+	}
+
+	response := &csi.CreateVolumeResponse{
+		Volume: &csi.Volume{
+			VolumeId:      volumeID,
+			CapacityBytes: reportedCapacity,
+			VolumeContext: volumeContext,
+		},
+	}
+	log.Infof("CreateVolume sub-directory mode: successfully created volume %s", volumeID)
+	return response, nil
 }
 
 func getAutoCreateSGRules(parameters map[string]string) (*string, error) {
@@ -290,10 +432,76 @@ func (cs *controllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
 
+	// Check if this is a sub-directory volume (VolumeId contains "#").
+	if isSubDirVolumeID(volumeID) {
+		return cs.deleteSubDirVolume(req, volumeID)
+	}
+
 	if err := services.DeleteShareCompleted(cloud, volumeID); err != nil {
 		return nil, err
 	}
 	log.Infof("Successfully deleted volume %s", volumeID)
+	return &csi.DeleteVolumeResponse{}, nil
+}
+
+// deleteSubDirVolume handles deletion for the sub-directory mode. It reads the
+// reclaim policy from the PV's volumeAttributes (via the K8s API) and decides
+// whether to delete the sub-directory and its quota or retain them.
+func (cs *controllerServer) deleteSubDirVolume(req *csi.DeleteVolumeRequest, volumeID string) (
+	*csi.DeleteVolumeResponse, error) {
+	cloud := cs.Driver.cloud
+
+	shareID, path := decodeVolumeID(volumeID)
+	log.Infof("DeleteVolume sub-directory mode: shareID=%s, path=%s", shareID, path)
+
+	// Determine the reclaim policy. Try to read it from the PV's
+	// volumeAttributes. If we cannot determine it, default to
+	// retain-volume-only for safety.
+	reclaimPolicy := ReclaimPolicyRetainVolumeOnly
+	if cs.Driver.kubeClient != nil {
+		pvName := ""
+		if req.GetSecrets() != nil {
+			pvName = req.GetSecrets()[PvNameKey]
+		}
+		if pvName != "" {
+			rp, err := cs.Driver.kubeClient.GetReclaimPolicyFromPV(pvName)
+			if err != nil {
+				log.Warningf("Failed to get reclaim policy from PV %s: %v. Using default %s",
+					pvName, err, ReclaimPolicyRetainVolumeOnly)
+			} else {
+				reclaimPolicy = rp
+			}
+		} else {
+			rp, err := cs.Driver.kubeClient.GetReclaimPolicyByVolumeHandle(volumeID)
+			if err != nil {
+				log.Warningf("Failed to find PV by volumeHandle %s: %v. Using default %s",
+					volumeID, err, ReclaimPolicyRetainVolumeOnly)
+			} else {
+				reclaimPolicy = rp
+			}
+		}
+	} else {
+		log.Infof("Kubernetes client not available, defaulting to %s", reclaimPolicy)
+	}
+
+	log.Infof("DeleteVolume sub-directory mode: reclaimPolicy=%s", reclaimPolicy)
+
+	if reclaimPolicy == ReclaimPolicyRetainVolumeOnly {
+		log.Infof("DeleteVolume sub-directory mode: retain-volume-only, keeping directory %s on share %s",
+			path, shareID)
+		return &csi.DeleteVolumeResponse{}, nil
+	}
+
+	// reclaimPolicy == ReclaimPolicyDelete: delete the sub-directory and quota.
+	if err := services.DeleteQuota(cloud, shareID, path); err != nil {
+		return nil, err
+	}
+	log.Infof("DeleteVolume sub-directory mode: deleted quota for path %s on share %s", path, shareID)
+
+	if err := services.DeleteDir(cloud, shareID, path); err != nil {
+		return nil, err
+	}
+	log.Infof("DeleteVolume sub-directory mode: deleted directory %s on share %s", path, shareID)
 	return &csi.DeleteVolumeResponse{}, nil
 }
 
@@ -305,7 +513,11 @@ func (cs *controllerServer) ControllerGetVolume(_ context.Context, req *csi.Cont
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
 	}
-	volume, err := services.GetShare(cloud, volumeID)
+
+	// For sub-directory mode, decode the shareID from the encoded VolumeId.
+	shareID, _ := decodeVolumeID(volumeID)
+
+	volume, err := services.GetShare(cloud, shareID)
 	if err != nil {
 		if common.IsNotFound(err) {
 			return nil, status.Errorf(codes.NotFound, "Volume %s not exist: %v", volumeID, err)
@@ -420,7 +632,10 @@ func (cs *controllerServer) ValidateVolumeCapabilities(_ context.Context, req *c
 	}
 	cloud := cs.Driver.cloud
 
-	if _, err := services.GetShare(cloud, volumeID); err != nil {
+	// For sub-directory mode, decode the shareID from the encoded VolumeId.
+	shareID, _ := decodeVolumeID(volumeID)
+
+	if _, err := services.GetShare(cloud, shareID); err != nil {
 		if common.IsNotFound(err) {
 			return nil, status.Errorf(codes.NotFound,
 				"ValidateVolumeCapabiltites Volume: %s not fount, Error: %v", volumeID, err)
@@ -465,6 +680,12 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 	sizeInGiB := int(utils.RoundUpSize(capacityRange.GetRequiredBytes(), common.GbByteSize))
 
 	cloud := cs.Driver.cloud
+
+	// Check if this is a sub-directory volume (VolumeId contains "#").
+	if isSubDirVolumeID(volumeID) {
+		return cs.expandSubDirVolume(req, volumeID, capacityRange)
+	}
+
 	volume, err := services.GetShare(cloud, volumeID)
 	if err != nil {
 		return nil, err
@@ -510,6 +731,72 @@ func (cs *controllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeInGiB)
 	return &csi.ControllerExpandVolumeResponse{
 		CapacityBytes:         int64(sizeInGiB) * common.GbByteSize,
+		NodeExpansionRequired: false,
+	}, nil
+}
+
+// expandSubDirVolume handles the expand for the sub-directory mode. Since the
+// underlying SFS Turbo instance is shared, we cannot expand it for a single
+// sub-directory. Instead, if quota is enabled, we update the directory quota
+// to match the new requested capacity.
+func (cs *controllerServer) expandSubDirVolume(req *csi.ControllerExpandVolumeRequest,
+	volumeID string, capacityRange *csi.CapacityRange) (
+	*csi.ControllerExpandVolumeResponse, error) {
+	cloud := cs.Driver.cloud
+
+	shareID, path := decodeVolumeID(volumeID)
+	log.Infof("ControllerExpandVolume sub-directory mode: shareID=%s, path=%s", shareID, path)
+
+	// Verify the share still exists.
+	share, err := services.GetShare(cloud, shareID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal,
+			"Failed to query SFS Turbo instance %s: %v", shareID, err)
+	}
+
+	// Check if quota is enabled by looking at the existing quota.
+	quota, exists, err := services.ShowQuota(cloud, shareID, path)
+	if err != nil {
+		return nil, err
+	}
+
+	if !exists {
+		// No quota set. Expand is a no-op; return the share's current size.
+		log.Infof("ControllerExpandVolume sub-directory mode: no quota on path %s, expand is no-op", path)
+		shareSize, _ := strconv.ParseFloat(share.Size, 64)
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes:         int64(shareSize * float64(common.GbByteSize)),
+			NodeExpansionRequired: false,
+		}, nil
+	}
+
+	// Update the quota to match the new requested capacity.
+	capacityMB := fs.PathToCapacityMB(capacityRange.GetRequiredBytes())
+	if capacityMB <= 0 {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"Requested capacity must be positive, got %d bytes", capacityRange.GetRequiredBytes())
+	}
+
+	// Only grow the quota, never shrink it.
+	if quota.Capacity >= capacityMB {
+		log.Infof("ControllerExpandVolume sub-directory mode: existing quota %d MB >= requested %d MB, no update needed",
+			quota.Capacity, capacityMB)
+		return &csi.ControllerExpandVolumeResponse{
+			CapacityBytes:         int64(quota.Capacity) * 1024 * 1024,
+			NodeExpansionRequired: false,
+		}, nil
+	}
+
+	if err := services.UpdateQuota(cloud, shareID, path, capacityMB); err != nil {
+		return nil, err
+	}
+	log.Infof("ControllerExpandVolume sub-directory mode: updated quota from %d MB to %d MB for path %s",
+		quota.Capacity, capacityMB, path)
+
+	// Report the actual quota capacity (MB rounded up) so Kubernetes records
+	// a value consistent with what is enforced on the share.
+	return &csi.ControllerExpandVolumeResponse{
+		CapacityBytes:         int64(capacityMB) * 1024 * 1024,
 		NodeExpansionRequired: false,
 	}, nil
 }

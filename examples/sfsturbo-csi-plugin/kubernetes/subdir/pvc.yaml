@@ -1,0 +1,18 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: sfsturbo-pvc-subdir
+  annotations:
+    huaweicloud.com/volume-as: absolute-path                  # Use SFS Turbo sub-directory mode
+    huaweicloud.com/sfsturbo-share-id: <sfsturbo_id>          # ID of the existing SFS Turbo instance
+    huaweicloud.com/path: /a                                  # Sub-directory path, must be absolute
+    huaweicloud.com/reclaim-policy: retain-volume-only        # retain-volume-only: delete PVC → PV deleted, sub-dir retained
+                                                              # delete: delete PVC → PV, sub-dir, and quota all deleted
+    huaweicloud.com/csi.enable-sfsturbo-dir-quota: "true"     # Optional: enable directory quota
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: sfsturbo-sc

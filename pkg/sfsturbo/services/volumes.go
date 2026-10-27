@@ -166,6 +166,18 @@ func ExpandShareCompleted(c *config.CloudCredentials, id string, newSize int) er
 	if err != nil {
 		return err
 	}
+	// Short-circuit: if the share is already at the target size and not
+	// actively expanding, the expansion has already completed (e.g. a previous
+	// ControllerExpandVolume call succeeded but the gRPC response was lost due
+	// to the client-side timeout). Return success immediately.
+	currentSize, err := strconv.ParseFloat(share.Size, 64)
+	if err != nil {
+		return status.Errorf(codes.Internal, "Failed to convert string size to number size: %s", share.Size)
+	}
+	if int(currentSize) >= newSize && share.SubStatus != shareSubExpanding {
+		log.Infof("Share %s is already at size %s GiB (>= %d GiB) and not expanding, skipping expand", id, share.Size, newSize)
+		return nil
+	}
 	if share.SubStatus == shareSubExpanding {
 		log.Infof("Share %s is already being expanded (SubStatus=121), waiting for the in-progress expansion to complete", id)
 	} else {
@@ -173,7 +185,7 @@ func ExpandShareCompleted(c *config.CloudCredentials, id string, newSize int) er
 			return err
 		}
 	}
-	if err := WaitForShareExpanded(c, id); err != nil {
+	if err := WaitForShareExpanded(c, id, newSize); err != nil {
 		return err
 	}
 	// Verify the final size.
@@ -212,7 +224,7 @@ func ExpandShare(c *config.CloudCredentials, id string, newSize int) error {
 	return nil
 }
 
-func WaitForShareExpanded(c *config.CloudCredentials, shareID string) error {
+func WaitForShareExpanded(c *config.CloudCredentials, shareID string, newSize int) error {
 	backoff := wait.Backoff{
 		Duration: DefaultInitDelay,
 		Factor:   DefaultFactor,
@@ -225,6 +237,14 @@ func WaitForShareExpanded(c *config.CloudCredentials, shareID string) error {
 				"Failed to query share %s when wait share expand: %v", shareID, err)
 		}
 		log.V(4).Infof("[DEBUG] query share detail: %v", protosanitizer.StripSecrets(share))
+		// If the share size already reached the target, the expansion has
+		// completed (the SubStatus may have already reverted from "221" to the
+		// normal state). Return success regardless of SubStatus.
+		shareSize, parseErr := strconv.ParseFloat(share.Size, 64)
+		if parseErr == nil && int(shareSize) >= newSize {
+			log.Infof("Share %s size is %s GiB (>= %d GiB), expansion completed", shareID, share.Size, newSize)
+			return true, nil
+		}
 		if share.SubStatus == shareSubExpandSuccess {
 			return true, nil
 		}
@@ -234,7 +254,12 @@ func WaitForShareExpanded(c *config.CloudCredentials, shareID string) error {
 		if share.SubStatus == shareSubExpandError {
 			return false, status.Errorf(codes.Internal, "Failed to expand share, cause sub status error")
 		}
-		return false, status.Error(codes.Internal, "expand share sub status is not success")
+		// Unknown SubStatus (e.g. empty or the API has not yet updated the
+		// sub-status to "121" after the expand request was submitted). Continue
+		// waiting instead of failing immediately — ExponentialBackoff does not
+		// retry once the condition returns an error.
+		log.V(4).Infof("[DEBUG] Share %s has unknown SubStatus %q, continuing to wait", shareID, share.SubStatus)
+		return false, nil
 	}
 	return wait.ExponentialBackoff(backoff, condition)
 }
