@@ -88,6 +88,14 @@ func DetachVolumeCompleted(c *config.CloudCredentials, serverID, volumeID string
 	if err != nil {
 		return err
 	}
+	if _, err = GetServer(c, serverID); err != nil {
+		if common.IsNotFound(err) {
+			log.Warningf("ECS has been deleted, ECS ID: %s", serverID)
+			return nil
+		}
+		return err
+	}
+
 	opts := block_devices.DetachOpts{
 		ServerId: serverID,
 	}

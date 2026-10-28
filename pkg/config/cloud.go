@@ -47,6 +47,12 @@ type serviceCatalog struct {
 }
 
 var allServiceCatalog = map[string]serviceCatalog{
+	"bss": {
+		Name:             "bss",
+		Version:          "v2",
+		Scope:            "global",
+		WithOutProjectID: true,
+	},
 	"ecs": {
 		Name:    "ecs",
 		Version: "v1",
@@ -187,4 +193,8 @@ func (c *CloudCredentials) EvsV21Client() (*golangsdk.ServiceClient, error) {
 
 func (c *CloudCredentials) EvsV1Client() (*golangsdk.ServiceClient, error) {
 	return newServiceClient(c, "evsV1", c.Global.Region)
+}
+
+func (c *CloudCredentials) BssClient() (*golangsdk.ServiceClient, error) {
+	return newServiceClient(c, "bss", c.Global.Region)
 }

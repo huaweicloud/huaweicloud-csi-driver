@@ -11,6 +11,7 @@ github.com/chnsz/golangsdk/auth
 github.com/chnsz/golangsdk/auth/core/signer
 github.com/chnsz/golangsdk/openstack
 github.com/chnsz/golangsdk/openstack/blockstorage/v2/volumes
+github.com/chnsz/golangsdk/openstack/bss/v2/orders
 github.com/chnsz/golangsdk/openstack/compute/v2/flavors
 github.com/chnsz/golangsdk/openstack/compute/v2/images
 github.com/chnsz/golangsdk/openstack/compute/v2/servers

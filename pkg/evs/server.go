@@ -43,7 +43,9 @@ func (s *nonBlockingGRPCServer) Wait() {
 }
 
 func (s *nonBlockingGRPCServer) Stop() {
-	s.server.GracefulStop()
+	if s.server != nil {
+		s.server.GracefulStop()
+	}
 }
 
 func (s *nonBlockingGRPCServer) ForceStop() {

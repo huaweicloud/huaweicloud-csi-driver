@@ -69,7 +69,7 @@ func waitForCinderFinished(c *config.CloudCredentials, cinderID string) error {
 				fmt.Sprintf("Error querying cinder detail %s : %s", cinderID, err))
 		}
 
-		if vol.Status == "available" || vol.Status == "in-use" {
+		if vol.Status == EvsAvailableStatus || vol.Status == EvsInUseStatus {
 			return true, nil
 		}
 
@@ -180,7 +180,7 @@ func waitForJobFinished(c *config.CloudCredentials, title, jobID string) (string
 		job, err := jobs.GetJobDetails(client, jobID).ExtractJob()
 		if err != nil {
 			return false, status.Error(codes.Internal,
-				fmt.Sprintf("Error waiting for the %s volume job to be complete, jobID: %s", title, jobID))
+				fmt.Sprintf("Error waiting for the %s volume job to be complete, jobID: %s, error: %s", title, jobID, err))
 		}
 
 		if job.Status == "SUCCESS" {
