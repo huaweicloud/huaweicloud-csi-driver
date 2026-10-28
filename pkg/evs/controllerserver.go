@@ -202,16 +202,45 @@ func (cs *ControllerServer) DeleteVolume(_ context.Context, req *csi.DeleteVolum
 	}
 
 	credentials := cs.Driver.cloudCredentials
-	if err := services.DeleteVolume(credentials, volumeID); err != nil {
+
+	vol, err := services.GetVolume(credentials, volumeID)
+	if err != nil {
 		if common.IsNotFound(err) {
 			log.Infof("Volume %s does not exist, skip deleting", volumeID)
 			return &csi.DeleteVolumeResponse{}, nil
 		}
+		return nil, status.Errorf(codes.Internal, "Failed to query volume: %s", err)
+	}
+
+	err = deleteVolume(credentials, vol)
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Error deleting volume: %s", err)
 	}
+
 	log.Infof("Successfully deleted volume %s", volumeID)
 
 	return &csi.DeleteVolumeResponse{}, nil
+}
+
+func deleteVolume(cc *config.CloudCredentials, volume *cloudvolumes.Volume) error {
+	if volume.Metadata.OrderID != "" {
+		err := common.Unsubscribe(cc, []string{volume.ID})
+		if err != nil {
+			return status.Errorf(codes.Internal, "Error deleting volume: %s", err)
+		}
+		return nil
+	}
+
+	err := services.DeleteVolume(cc, volume.ID)
+	if err == nil {
+		return nil
+	}
+
+	if common.IsNotFound(err) {
+		log.Infof("Volume %s does not exist, skip deleting", volume.ID)
+		return nil
+	}
+	return status.Errorf(codes.Internal, "Error deleting volume: %s", err)
 }
 
 func (cs *ControllerServer) ControllerGetVolume(_ context.Context, req *csi.ControllerGetVolumeRequest) (
@@ -372,9 +401,19 @@ func (cs *ControllerServer) ControllerUnpublishVolume(_ context.Context, req *cs
 	credentials := cs.Driver.cloudCredentials
 	instanceID := req.GetNodeId()
 	volumeID := req.GetVolumeId()
+	if len(volumeID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
+	}
+	if len(instanceID) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "Validation failed, ECS instance ID cannot be empty")
+	}
 
-	volume, err := unpublishValidation(credentials, volumeID, instanceID)
+	volume, err := services.GetVolume(credentials, volumeID)
 	if err != nil {
+		if common.IsNotFound(err) {
+			log.Warningf("Volume has been deleted, volume ID: %s", volumeID)
+			return &csi.ControllerUnpublishVolumeResponse{}, nil
+		}
 		return nil, err
 	}
 
@@ -399,26 +438,6 @@ func (cs *ControllerServer) ControllerUnpublishVolume(_ context.Context, req *cs
 	return &csi.ControllerUnpublishVolumeResponse{}, nil
 }
 
-func unpublishValidation(cc *config.CloudCredentials, volumeID, instanceID string) (*cloudvolumes.Volume, error) {
-	if len(volumeID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Validation failed, volume ID cannot be empty")
-	}
-	if len(instanceID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Validation failed, ECS instance ID cannot be empty")
-	}
-
-	volume, err := services.GetVolume(cc, volumeID)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err = services.GetServer(cc, instanceID); err != nil {
-		return nil, err
-	}
-
-	return volume, nil
-}
-
 func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesRequest) (*csi.ListVolumesResponse,
 	error) {
 	log.Infof("ListVolumes: called with args %v", protosanitizer.StripSecrets(*req))
@@ -439,7 +458,7 @@ func (cs *ControllerServer) ListVolumes(_ context.Context, req *csi.ListVolumesR
 
 	entries := make([]*csi.ListVolumesResponse_Entry, 0, len(volumes))
 	for _, vol := range volumes {
-		publishedNodeIds := make([]string, len(vol.Attachments))
+		publishedNodeIds := make([]string, 0, len(vol.Attachments))
 		for _, attachment := range vol.Attachments {
 			publishedNodeIds = append(publishedNodeIds, attachment.ServerID)
 		}
@@ -706,7 +725,7 @@ func (cs *ControllerServer) ControllerExpandVolume(_ context.Context, req *csi.C
 	log.Infof("Successfully resized volume %v to size %v", volumeID, sizeGB)
 
 	return &csi.ControllerExpandVolumeResponse{
-		CapacityBytes:         sizeBytes,
+		CapacityBytes:         int64(sizeGB * common.GbByteSize),
 		NodeExpansionRequired: true,
 	}, nil
 }

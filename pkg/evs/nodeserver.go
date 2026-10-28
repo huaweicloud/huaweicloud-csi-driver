@@ -489,7 +489,7 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	log.Infof("nodePublishEphemeral: called with args %v", protosanitizer.StripSecrets(*req))
 
 	cc := ns.Driver.cloudCredentials
-	size := 10 // default size is 1GB
+	size := defaultSizeGB
 	var err error
 
 	volumeID := req.GetVolumeId()
@@ -528,17 +528,20 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 		},
 	})
 	if err != nil {
+		_ = services.DeleteVolume(cc, volumeID)
 		return nil, status.Errorf(codes.Internal, "Failed to create ephemeral volume %v", err)
 	}
 
 	// attach volume
 	instanceID, err := ns.Metadata.GetInstanceID()
 	if err != nil {
+		_ = services.DeleteVolume(cc, volumeID)
 		return nil, status.Errorf(codes.Internal, "Failed to get instance ID with error %s", err)
 	}
 
 	err = services.AttachVolumeCompleted(cc, instanceID, volumeID)
 	if err != nil {
+		_ = services.DeleteVolume(cc, volumeID)
 		return nil, status.Errorf(codes.Internal, "Failed to attach volume %s to ECS %s with error : %v",
 			volumeID, instanceID, err)
 	}
@@ -546,6 +549,7 @@ func nodePublishEphemeral(req *csi.NodePublishVolumeRequest, ns *nodeServer) (*c
 	m := ns.Mount
 	devicePath, err := getDevicePath(ns.Driver.cloudCredentials, volumeID, m)
 	if err != nil {
+		_ = services.DeleteVolume(cc, volumeID)
 		return nil, status.Error(codes.Internal, fmt.Sprintf("Unable to find devicePath for volume: %v", err))
 	}
 
@@ -611,7 +615,7 @@ func nodePublishVolumeForBlock(req *csi.NodePublishVolumeRequest, ns *nodeServer
 
 	if err := m.Mounter().Mount(source, targetPath, "", mountOptions); err != nil {
 		if removeErr := os.Remove(targetPath); removeErr != nil {
-			return nil, status.Errorf(codes.Internal, "Could not remove mount target %q: %v", targetPath, err)
+			return nil, status.Errorf(codes.Internal, "Could not remove mount target %q: %v", targetPath, removeErr)
 		}
 		return nil, status.Errorf(codes.Internal, "Could not mount %q at %q: %v", source, targetPath, err)
 	}
