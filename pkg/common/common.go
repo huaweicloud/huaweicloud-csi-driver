@@ -4,13 +4,12 @@ import (
 	"errors"
 	"time"
 
+	"github.com/chnsz/golangsdk"
+	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	"github.com/chnsz/golangsdk"
-	"github.com/chnsz/golangsdk/openstack/bss/v2/orders"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
@@ -66,7 +65,7 @@ func Unsubscribe(cc *config.CloudCredentials, resourceIds []string) error {
 		UnsubscribeType: UnsubscribeResourcesAndPeriods,
 	})
 	if rst.Err != nil {
-		return status.Errorf(codes.Internal, "Failed to unsubscribe resources: %#v, error: %s", resourceIds, err)
+		return status.Errorf(codes.Internal, "Failed to unsubscribe resources: %#v, error: %s", resourceIds, rst.Err)
 	}
 
 	return nil
