@@ -22,22 +22,19 @@ jobs:
           REGISTRY_USERNAME: ${{secrets.SWR_REGISTRY_REGISTRY_USERNAME}}
           REGISTRY_PASSWORD: ${{secrets.SWR_REGISTRY_PASSWORD}}
         run: |
-          module=""
+          version=$(echo "${{ github.ref_name }}" | sed 's/evs-/v/'| sed 's/sfs-/v/'| sed 's/sfsturbo-/v/'| sed 's/obs-/v/')
+          export VERSION=${version}
           if echo "${{ github.ref_name }}" | grep -q "evs-"; then
-            module="evs-csi-plugin"
+            make release-evs
           elif echo "${{ github.ref_name }}" | grep -q "sfs-"; then
-            module="sfs-csi-plugin"
+            echo "SFS CSI has deprecated, please use SFS Turbo CSI"
           elif echo "${{ github.ref_name }}" | grep -q "sfsturbo-"; then
             module="sfsturbo-csi-plugin"
+            make release-sfsturbo
           elif echo "${{ github.ref_name }}" | grep -q "obs-"; then
             module="obs-csi-plugin"
+            make release-obs
           else
             echo "not any tags matched" 
             exit 1
           fi
-          version=$(echo "${{ github.ref_name }}" | sed 's/evs-/v/'| sed 's/sfs-/v/'| sed 's/sfsturbo-/v/'| sed 's/obs-/v/')
-          echo ${module} - ${version}
-          
-          export VERSION=${version}
-          make "image-${module}"
-          make "push-image-${module}"
