@@ -15,31 +15,25 @@
 GOOS   ?=$(shell go env GOOS)
 GOARCH ?=$(shell go env GOARCH)
 
-# Keep an existing GOPATH, make a private one if it is undefined
-export GOPATH  ?=$(shell pwd)/../.go
-export GOBIN   ?=$(GOPATH)/bin
-
 # Images management
 REGISTRY_SERVER   ?=swr.cn-north-4.myhuaweicloud.com
 REGISTRY          ?=$(REGISTRY_SERVER)/k8s-csi
 REGISTRY_USERNAME ?=
 REGISTRY_PASSWORD ?=
 
-SOURCES := $(shell find . -name '*.go' 2>/dev/null)
 VERSION ?= $(shell git describe --dirty --tags --match='v*')
 SECRET := $(shell cat </dev/urandom | head -n 1 | md5sum | head -c 32)
 LDFLAGS	:= "-w -s -X 'github.com/huaweicloud/huaweicloud-csi-driver/pkg/version.Version=$(VERSION)' \
  -X 'github.com/huaweicloud/huaweicloud-csi-driver/pkg/obs.Secret=$(SECRET)'"
-TEMP_DIR:=$(shell mktemp -d)
-
-ALL ?= evs-csi-plugin \
-		sfs-csi-plugin
-#		sfsturbo-csi-plugin
 
 # CTI targets
 $(GOBIN):
 	echo ":: Create GOBIN"
 	mkdir -p $(GOBIN)
+
+ALL ?= evs-csi-plugin \
+	obs-csi-plugin \
+	sfsturbo-csi-plugin
 
 work: $(GOBIN)
 
@@ -55,24 +49,87 @@ build-cmd-%: work $(SOURCES)
                                         	-o cluster/images/obs-csi-plugin/csi-connector-server \
                                         	cluster/images/obs-csi-plugin/csi-connector-server.go);fi
 
-images: $(addprefix image-,$(ALL))
+.PHONY: image-evs
+image-evs:
+	docker buildx build \
+		--provenance=false \
+		--platform $(GOOS)/$(GOARCH) \
+		--build-arg VERSION="$(VERSION)-$(GOARCH)" \
+		--output type=image,oci-mediatypes=false,push=true \
+		-f cluster/images/evs-csi-plugin/Dockerfile \
+		-t $(REGISTRY)/evs-csi-plugin:$(VERSION)-amd64 \
+		.
 
-image-%: work
-	$(MAKE) $(addprefix build-cmd-,$*)
-	cp -r cluster/images/$* $(TEMP_DIR)
-	cp $* $(TEMP_DIR)/$*
-	@echo ":: Build image $(REGISTRY)/$* ::"
-	docker build --pull $(TEMP_DIR)/$* -t $(REGISTRY)/$*:$(VERSION)
-	rm -rf $(TEMP_DIR)/$*
+.PHONY: image-sfsturbo
+image-sfsturbo:
+	docker buildx build \
+		--provenance=false \
+		--platform $(GOOS)/$(GOARCH) \
+		--build-arg VERSION="$(VERSION)-$(GOARCH)" \
+		--output type=image,oci-mediatypes=false,push=true \
+		-f cluster/images/sfsturbo-csi-plugin/Dockerfile \
+		-t $(REGISTRY)/sfsturbo-csi-plugin:$(VERSION)-amd64 \
+		.
 
-push-images: $(addprefix push-image-,$(ALL))
+.PHONY: image-obs
+image-obs:
+	@printf '%s' "$(SECRET)" > ./.svs_secret.tmp
+	docker buildx build \
+		--provenance=false \
+		--platform $(GOOS)/$(GOARCH) \
+		--build-arg VERSION="$(VERSION)-$(GOARCH)" \
+		--secret id=svs_secret,src=./.svs_secret.tmp \
+		--output type=image,oci-mediatypes=false,push=true \
+		-f cluster/images/obs-csi-plugin/Dockerfile \
+		-t $(REGISTRY)/obs-csi-plugin:$(VERSION)-amd64 \
+		.
+	@rm -rf ./.svs_secret.tmp
 
-push-image-%:
-	@echo ":: Push image $* to $(REGISTRY) ::"
-ifneq ($(and $(REGISTRY_USERNAME),$(REGISTRY_PASSWORD)),)
-	docker login -u ${REGISTRY_USERNAME} -p ${REGISTRY_PASSWORD} ${REGISTRY_SERVER}
-endif
-	docker push $(REGISTRY)/$*:$(VERSION)
+
+.PHONY: release-evs
+release-evs: docker-login
+	docker buildx build \
+		--platform $(GOOS)/amd64,$(GOOS)/arm64 \
+		--provenance=false \
+		--build-arg VERSION="$(VERSION)" \
+		--output type=image,oci-mediatypes=false,push=true \
+		-t $(REGISTRY)/evs-csi-plugin:$(VERSION) \
+		-f cluster/images/evs-csi-plugin/Dockerfile \
+		.
+
+.PHONY: release-sfsturbo
+release-sfsturbo: docker-login
+	docker buildx build \
+		--platform $(GOOS)/amd64,$(GOOS)/arm64 \
+		--provenance=false \
+		--build-arg VERSION="$(VERSION)" \
+		--output type=image,oci-mediatypes=false,push=true \
+		-t $(REGISTRY)/sfsturbo-csi-plugin:$(VERSION) \
+		-f cluster/images/sfsturbo-csi-plugin/Dockerfile \
+		.
+
+.PHONY: release-obs
+release-obs: docker-login
+	@printf '%s' "$(SECRET)" > ./.svs_secret.tmp
+	docker buildx build \
+		--platform $(GOOS)/amd64,$(GOOS)/arm64 \
+		--provenance=false \
+		--build-arg VERSION="$(VERSION)" \
+		--secret id=svs_secret,src=./.svs_secret.tmp \
+		--output type=image,oci-mediatypes=false,push=true \
+		-t $(REGISTRY)/obs-csi-plugin:$(VERSION) \
+		-f cluster/images/obs-csi-plugin/Dockerfile \
+		.
+	@rm -rf ./.svs_secret.tmp
+
+.PHONY: docker-login
+docker-login:
+	@echo ":: Login to $(REGISTRY_SERVER) ::"
+	@if [ -n "$(REGISTRY_USERNAME)" ] && [ -n "$(REGISTRY_PASSWORD)" ]; then \
+		docker login -u "$(REGISTRY_USERNAME)" -p "$(REGISTRY_PASSWORD)" "$(REGISTRY_SERVER)"; \
+	else \
+		echo "Skipping login: username or password missing"; \
+	fi
 
 clean:
 	@echo ":: Clean builds binary ::"
