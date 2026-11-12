@@ -2,11 +2,14 @@ package config
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack"
+	"k8s.io/klog/v2"
 
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/utils"
 )
@@ -30,6 +33,8 @@ type CloudCredentials struct {
 		Hcs bool `gcfg:"hcs"`
 		// SkipCatalog skips GET /v3/auth/catalog at startup, needs project-id
 		SkipCatalog bool `gcfg:"skip-catalog"`
+		// CAFile is a PEM bundle trusted in addition to the system CAs
+		CAFile string `gcfg:"ca-file"`
 	}
 
 	Vpc struct {
@@ -151,12 +156,13 @@ func (c *CloudCredentials) newCloudClient() error {
 		return err
 	}
 
+	tlsConfig, err := c.tlsConfig()
+	if err != nil {
+		return err
+	}
 	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: c.Global.Insecure,
-		},
+		Proxy:           http.ProxyFromEnvironment,
+		TLSClientConfig: tlsConfig,
 	}
 
 	client.HTTPClient = http.Client{
@@ -173,6 +179,34 @@ func (c *CloudCredentials) newCloudClient() error {
 	c.CloudClient = client
 	c.CloudClient.UserAgent.Prepend(UserAgent)
 	return nil
+}
+
+func (c *CloudCredentials) tlsConfig() (*tls.Config, error) {
+	cfg := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: c.Global.Insecure,
+	}
+	if c.Global.CAFile == "" {
+		return cfg, nil
+	}
+	if c.Global.Insecure {
+		klog.Warningf("ca-file %s is ignored because insecure is true", c.Global.CAFile)
+		return cfg, nil
+	}
+
+	pem, err := os.ReadFile(c.Global.CAFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading ca-file: %v", err)
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(pem) {
+		return nil, fmt.Errorf("ca-file %s holds no PEM certificates", c.Global.CAFile)
+	}
+	cfg.RootCAs = pool
+	return cfg, nil
 }
 
 func (c *CloudCredentials) SFSTurboV1Client() (*golangsdk.ServiceClient, error) {

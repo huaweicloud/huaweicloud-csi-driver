@@ -12,6 +12,8 @@ auth-url=
 idc=
 hcs=
 skip-catalog=
+insecure=
+ca-file=
 
 [Vpc]
 id=
@@ -65,6 +67,7 @@ cloud=cloud.example.com
 auth-url=https://iam-apigateway-proxy.cloud.example.com/v3
 hcs=true
 skip-catalog=true
+ca-file=/etc/evs/ca.crt
 ```
 
 If the `evs` and `ecs` endpoints (`https://evs.{region}.{cloud}`, `https://ecs.{region}.{cloud}`) do not resolve
@@ -97,6 +100,11 @@ on the controller and node pods.
 
 * `skip-catalog` Optional. Skips the IAM service-catalog call made at startup, which HCS does not publish.
   Requires `project-id`. Defaults to `false`.
+
+* `insecure` Optional. Skips TLS certificate verification for API calls. Defaults to `false`.
+
+* `ca-file` Optional. Path to a PEM file with CA certificates to trust in addition to the system CAs, for
+  clouds whose API endpoints use a private CA, such as most HCS installations. Ignored when `insecure` is `true`.
 
 ### Vpc
 
