@@ -22,6 +22,9 @@ RUN apk add --no-cache \
     xfsprogs-extra \
     e2fsprogs \
     e2fsprogs-extra \
+    util-linux \
+    blkid \
+    findmnt \
     netcat-openbsd \
     net-tools \
     pciutils
