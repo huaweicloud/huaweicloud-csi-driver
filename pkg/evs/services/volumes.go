@@ -114,6 +114,22 @@ func CheckVolumeExists(credentials *config.CloudCredentials, name string, sizeGB
 			return nil, status.Error(codes.AlreadyExists,
 				"A volume already exists with the same name but a different capacity")
 		}
+		switch vol.Status {
+		case "error":
+			// left over from a failed attempt, delete it and let the provisioner retry
+			log.Warningf("Volume %s named %s is in error state, deleting it before retrying the creation", vol.ID, name)
+			if err := DeleteVolume(credentials, vol.ID); err != nil && !common.IsNotFound(err) {
+				return nil, status.Errorf(codes.Internal, "Failed to delete volume %s left in error state: %s", vol.ID, err)
+			}
+			return nil, status.Errorf(codes.Unavailable,
+				"Volume %s from an earlier attempt was in error state and has been deleted, retrying", vol.ID)
+		case "creating", "downloading":
+			log.Infof("Volume %s named %s is %s, waiting for it", vol.ID, name, vol.Status)
+			if err := waitForCinderFinished(credentials, vol.ID); err != nil {
+				return nil, err
+			}
+			return GetVolume(credentials, vol.ID)
+		}
 		log.Infof("Volume %s already exists in AZ %s of size %d GiB", vol.ID, vol.AvailabilityZone, vol.Size)
 		return &vol, nil
 	} else if len(volumes) > 1 {
