@@ -10,6 +10,8 @@ project-id=
 cloud=
 auth-url=
 idc=
+hcs=
+skip-catalog=
 
 [Vpc]
 id=
@@ -51,6 +53,24 @@ subnet-id=db0cfe86******07c67a3cbe7b
 security-group-id=26a62fd******0b876fcb
 ```
 
+### Examples for Huawei Cloud Stack
+
+```
+[Global]
+access-key=******
+secret-key=******
+project-id=******
+region=xx-xxxx-1
+cloud=cloud.example.com
+auth-url=https://iam-apigateway-proxy.cloud.example.com/v3
+hcs=true
+skip-catalog=true
+```
+
+If the `evs` and `ecs` endpoints (`https://evs.{region}.{cloud}`, `https://ecs.{region}.{cloud}`) do not resolve
+from the nodes, point them at the HCS API gateway (for example `xx.xx.xx.xx`) with DNS records or `hostAliases`
+on the controller and node pods.
+
 ## Introduction
 
 * Fields listed in the file are used to construct API request parameters, and complete identity authentication
@@ -70,6 +90,13 @@ security-group-id=26a62fd******0b876fcb
 * `auth-url` Optional. The Identity authentication URL. Defaults to 'https://iam.{cloud}:443/v3/'.
 
 * `idc` Optional. This supports creating SFS Turbo to IDC server room if the field is `true`. Defaults to `false`.
+
+* `hcs` Optional. Set to `true` on Huawei Cloud Stack. The EVS plugin then uses the API calls HCS publishes:
+  OpenStack-native volume create and expand, OpenStack-native snapshots, and an explicit device name when
+  attaching a disk. Defaults to `false`.
+
+* `skip-catalog` Optional. Skips the IAM service-catalog call made at startup, which HCS does not publish.
+  Requires `project-id`. Defaults to `false`.
 
 ### Vpc
 
