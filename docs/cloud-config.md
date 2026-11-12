@@ -14,6 +14,9 @@ hcs=
 skip-catalog=
 insecure=
 ca-file=
+api-rate-limit=
+api-burst=
+api-retries=
 
 [Vpc]
 id=
@@ -68,6 +71,8 @@ auth-url=https://iam-apigateway-proxy.cloud.example.com/v3
 hcs=true
 skip-catalog=true
 ca-file=/etc/evs/ca.crt
+api-rate-limit=0.5
+api-burst=50
 ```
 
 If the `evs` and `ecs` endpoints (`https://evs.{region}.{cloud}`, `https://ecs.{region}.{cloud}`) do not resolve
@@ -105,6 +110,18 @@ on the controller and node pods.
 
 * `ca-file` Optional. Path to a PEM file with CA certificates to trust in addition to the system CAs, for
   clouds whose API endpoints use a private CA, such as most HCS installations. Ignored when `insecure` is `true`.
+
+* `api-rate-limit` Optional. The most API calls per second each plugin process sends. `0` means no limit.
+  Defaults to `0`. API gateways that limit calls per user (HCS answers `429` with `APIGW.0308`) need it set
+  below that limit together with `api-burst`.
+
+* `api-burst` Optional. How many calls may go out at once under `api-rate-limit`. Defaults to `1`. In any
+  window of W seconds a process sends at most `api-burst + api-rate-limit * W` calls: keep that at or under the
+  gateway limit. For HCS (200 calls per 5 minutes) `api-rate-limit=0.5` and `api-burst=50` give exactly 200, and
+  a burst of 20 volumes goes out without waiting.
+
+* `api-retries` Optional. How often a call rejected with `429 Too Many Requests` is retried, waiting from 2 to
+  60 seconds between tries (or as long as `Retry-After` says). Defaults to `8`; `-1` turns retries off.
 
 ### Vpc
 

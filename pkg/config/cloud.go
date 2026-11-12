@@ -16,6 +16,9 @@ import (
 
 const (
 	UserAgent = "huaweicloud-kubernetes-csi"
+
+	// retries after a 429; with backoff from 2s to 60s they span about 5 minutes
+	defaultAPIRetries = 8
 )
 
 // CloudCredentials define
@@ -35,6 +38,12 @@ type CloudCredentials struct {
 		SkipCatalog bool `gcfg:"skip-catalog"`
 		// CAFile is a PEM bundle trusted in addition to the system CAs
 		CAFile string `gcfg:"ca-file"`
+		// APIRateLimit caps API calls per second from this process, 0: no limit
+		APIRateLimit float64 `gcfg:"api-rate-limit"`
+		// APIBurst is how many calls may go out at once under api-rate-limit
+		APIBurst int `gcfg:"api-burst"`
+		// APIRetries is how often a call rejected with 429 is retried, 0: default, -1: never
+		APIRetries int `gcfg:"api-retries"`
 	}
 
 	Vpc struct {
@@ -165,10 +174,16 @@ func (c *CloudCredentials) newCloudClient() error {
 		TLSClientConfig: tlsConfig,
 	}
 
+	retries := c.Global.APIRetries
+	if retries == 0 {
+		retries = defaultAPIRetries
+	} else if retries < 0 {
+		retries = 0
+	}
 	client.HTTPClient = http.Client{
-		Transport: &utils.LogRoundTripper{
-			Rt: transport,
-		},
+		Transport: utils.NewThrottleRoundTripper(
+			&utils.LogRoundTripper{Rt: transport},
+			c.Global.APIRateLimit, c.Global.APIBurst, retries),
 	}
 
 	err = openstack.Authenticate(client, ao)
