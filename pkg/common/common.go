@@ -14,10 +14,12 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
+// 2s, 3s, 4.5s ... capped at 20s, about 5 minutes in total
 const (
 	DefaultInitDelay = 2 * time.Second
-	DefaultFactor    = 1.02
-	DefaultSteps     = 30
+	DefaultFactor    = 1.5
+	DefaultMaxDelay  = 20 * time.Second
+	DefaultSteps     = 20
 
 	GbByteSize = 1024 * 1024 * 1024
 
@@ -33,6 +35,7 @@ func WaitForCompleted(condition wait.ConditionFunc) error {
 		Duration: DefaultInitDelay,
 		Factor:   DefaultFactor,
 		Steps:    DefaultSteps,
+		Cap:      DefaultMaxDelay,
 	}
 	return wait.ExponentialBackoff(backoff, condition)
 }
