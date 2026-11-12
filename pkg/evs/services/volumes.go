@@ -124,6 +124,10 @@ func CheckVolumeExists(credentials *config.CloudCredentials, name string, sizeGB
 }
 
 func ExpandVolume(c *config.CloudCredentials, id string, newSize int) error {
+	if c.Global.Hcs {
+		return expandCinderVolume(c, id, newSize)
+	}
+
 	client, err := getEvsV21Client(c)
 	if err != nil {
 		return err
@@ -147,12 +151,43 @@ func ExpandVolume(c *config.CloudCredentials, id string, newSize int) error {
 	return err
 }
 
+// expandCinderVolume uses os-extend, the v2.1 extend action is not published on HCS
+func expandCinderVolume(c *config.CloudCredentials, id string, newSize int) error {
+	client, err := getEvsV2Client(c)
+	if err != nil {
+		return err
+	}
+
+	body := map[string]interface{}{"os-extend": map[string]int{"new_size": newSize}}
+	log.V(4).Infof("[DEBUG] Expand volume %s, and the request body is %#v", id, body)
+
+	_, err = client.Post(client.ServiceURL("volumes", id, "action"), body, nil,
+		&golangsdk.RequestOpts{OkCodes: []int{200, 202}})
+	if err != nil {
+		return status.Error(codes.Internal,
+			fmt.Sprintf("Error expanding, volume: %s, newSize: %v, error: %s", id, newSize, err))
+	}
+
+	return common.WaitForCompleted(func() (bool, error) {
+		vol, err := GetVolume(c, id)
+		if err != nil {
+			return false, err
+		}
+		if vol.Status == "error_extending" {
+			return false, status.Errorf(codes.Internal, "Error expanding volume %s, status: error_extending", id)
+		}
+		return vol.Size >= newSize && (vol.Status == EvsAvailableStatus || vol.Status == EvsInUseStatus), nil
+	})
+}
+
 func DeleteVolume(c *config.CloudCredentials, id string) error {
 	client, err := getEvsV2Client(c)
 	if err != nil {
 		return err
 	}
-	return cloudvolumes.Delete(client, id, nil).Err
+	// HCS returns 202
+	_, err = client.Delete(client.ServiceURL("cloudvolumes", id), &golangsdk.RequestOpts{OkCodes: []int{200, 202, 204}})
+	return err
 }
 
 func ListVolumes(c *config.CloudCredentials, opts cloudvolumes.ListOpts) ([]cloudvolumes.Volume, error) {

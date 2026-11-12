@@ -98,7 +98,8 @@ func (cs *ControllerServer) CreateVolume(_ context.Context, req *csi.CreateVolum
 	}
 
 	volumeID := ""
-	if sizeGB < 10 {
+	// v2.1 cloudvolumes create fails on HCS with EVS.1021
+	if sizeGB < 10 || credentials.Global.Hcs {
 		volumeID, err = services.CreateCinderCompleted(credentials, createOpts)
 	} else {
 		volumeID, err = services.CreateVolumeCompleted(credentials, createOpts)
