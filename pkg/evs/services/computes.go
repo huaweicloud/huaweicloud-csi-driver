@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/chnsz/golangsdk"
 	serversv2 "github.com/chnsz/golangsdk/openstack/compute/v2/servers"
@@ -32,7 +33,21 @@ func GetServer(c *config.CloudCredentials, serverID string) (*serversv2.Server, 
 	return cs, nil
 }
 
+// attachLocks makes attaches to the same server run one at a time, otherwise two of them can pick the same device
+var attachLocks sync.Map // server ID -> *sync.Mutex
+
+func lockServer(serverID string) func() {
+	m, _ := attachLocks.LoadOrStore(serverID, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
 func AttachVolumeCompleted(c *config.CloudCredentials, serverID, volumeID string) error {
+	if c.Global.Hcs {
+		defer lockServer(serverID)()
+	}
+
 	client, err := getEcsV1Client(c)
 	if err != nil {
 		return err
@@ -41,6 +56,20 @@ func AttachVolumeCompleted(c *config.CloudCredentials, serverID, volumeID string
 	opts := block_devices.AttachOpts{
 		ServerId: serverID,
 		VolumeId: volumeID,
+	}
+	if c.Global.Hcs {
+		// HCS requires a device name (Ecs.0005)
+		attachments, err := block_devices.List(client, serverID)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to list volume attachments of ECS %s: %s", serverID, err)
+		}
+		used := make([]string, 0, len(attachments))
+		for _, a := range attachments {
+			used = append(used, a.Device)
+		}
+		if opts.Device, err = nextFreeDevice(used); err != nil {
+			return status.Errorf(codes.Internal, "ECS %s: %s", serverID, err)
+		}
 	}
 	log.V(4).Infof("[DEBUG] The option of attaching volume is %#v", opts)
 

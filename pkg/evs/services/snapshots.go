@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/chnsz/golangsdk"
 	"github.com/chnsz/golangsdk/openstack/evs/v2/snapshots"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -10,13 +11,21 @@ import (
 	"github.com/huaweicloud/huaweicloud-csi-driver/pkg/config"
 )
 
+// HCS does not publish /v2/{project_id}/cloudsnapshots, so with hcs set we call /v2/{project_id}/snapshots
+
 func GetSnapshot(c *config.CloudCredentials, id string) (*snapshots.Snapshot, error) {
 	client, err := getEvsV2Client(c)
 	if err != nil {
 		return nil, err
 	}
 
-	return snapshots.Get(client, id).Extract()
+	if !c.Global.Hcs {
+		return snapshots.Get(client, id).Extract()
+	}
+
+	var r snapshots.GetResult
+	_, r.Err = client.Get(client.ServiceURL("snapshots", id), &r.Body, nil)
+	return r.Extract()
 }
 
 func ListSnapshots(c *config.CloudCredentials, opts snapshots.ListOpts) (*snapshots.PagedList, error) {
@@ -25,12 +34,44 @@ func ListSnapshots(c *config.CloudCredentials, opts snapshots.ListOpts) (*snapsh
 		return nil, err
 	}
 
-	page, err := snapshots.ListPage(client, opts)
+	var page *snapshots.PagedList
+	if c.Global.Hcs {
+		page, err = listNativeSnapshots(c, client, opts)
+	} else {
+		page, err = snapshots.ListPage(client, opts)
+	}
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to query snapshot list page: %v", err)
 	}
 	log.V(4).Infof("[DEBUG] query snapshot list page detail: %v", page)
 	return page, nil
+}
+
+func listNativeSnapshots(c *config.CloudCredentials, client *golangsdk.ServiceClient, opts snapshots.ListOpts) (
+	*snapshots.PagedList, error) {
+	// no id filter on this list
+	if opts.ID != "" {
+		snap, err := GetSnapshot(c, opts.ID)
+		if err != nil {
+			if common.IsNotFound(err) {
+				return &snapshots.PagedList{}, nil
+			}
+			return nil, err
+		}
+		return &snapshots.PagedList{Count: 1, Snapshots: []snapshots.Snapshot{*snap}}, nil
+	}
+
+	query, err := opts.ToSnapshotListQuery()
+	if err != nil {
+		return nil, err
+	}
+	var r golangsdk.Result
+	_, r.Err = client.Get(client.ServiceURL("snapshots", "detail")+query, &r.Body, nil)
+	var page snapshots.PagedList
+	if err := r.ExtractInto(&page); err != nil {
+		return nil, err
+	}
+	return &page, nil
 }
 
 func CreateSnapshotCompleted(credentials *config.CloudCredentials, name string, volumeID string) (
@@ -58,7 +99,17 @@ func CreateSnapshot(c *config.CloudCredentials, opts *snapshots.CreateOpts) (*sn
 	if err != nil {
 		return nil, err
 	}
-	return snapshots.Create(client, opts).Extract()
+	if !c.Global.Hcs {
+		return snapshots.Create(client, opts).Extract()
+	}
+
+	b, err := opts.ToSnapshotCreateMap()
+	if err != nil {
+		return nil, err
+	}
+	var r snapshots.CreateResult
+	_, r.Err = client.Post(client.ServiceURL("snapshots"), b, &r.Body, &golangsdk.RequestOpts{OkCodes: []int{200, 202}})
+	return r.Extract()
 }
 
 func WaitSnapshotReady(c *config.CloudCredentials, snapshotID string) error {
@@ -87,5 +138,10 @@ func DeleteSnapshot(c *config.CloudCredentials, snapshotID string) error {
 	if err != nil {
 		return err
 	}
-	return snapshots.Delete(client, snapshotID).ExtractErr()
+	if !c.Global.Hcs {
+		return snapshots.Delete(client, snapshotID).ExtractErr()
+	}
+
+	_, err = client.Delete(client.ServiceURL("snapshots", snapshotID), &golangsdk.RequestOpts{OkCodes: []int{200, 202, 204}})
+	return err
 }
