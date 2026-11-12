@@ -26,6 +26,10 @@ type CloudCredentials struct {
 		SecretKey string `gcfg:"secret-key"`
 		ProjectID string `gcfg:"project-id"`
 		Idc       bool   `gcfg:"idc"`
+		// Hcs switches EVS to the APIs available on Huawei Cloud Stack
+		Hcs bool `gcfg:"hcs"`
+		// SkipCatalog skips GET /v3/auth/catalog at startup, needs project-id
+		SkipCatalog bool `gcfg:"skip-catalog"`
 	}
 
 	Vpc struct {
@@ -136,6 +140,10 @@ func (c *CloudCredentials) newCloudClient() error {
 		SecretKey:        c.Global.SecretKey,
 		ProjectId:        c.Global.ProjectID,
 		ProjectName:      c.Global.Region,
+		WithUserCatalog:  c.Global.SkipCatalog,
+	}
+	if c.Global.SkipCatalog && c.Global.ProjectID == "" {
+		return fmt.Errorf("skip-catalog requires project-id")
 	}
 
 	client, err := openstack.NewClient(ao.IdentityEndpoint)
